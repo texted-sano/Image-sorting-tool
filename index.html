@@ -138,7 +138,7 @@
         .mode-spread .thumb-item:hover { border-color: var(--primary-color); z-index: 2; }
         .mode-spread .thumb-item img { background: transparent; }
         
-        /* 左開き (洋書・横書き) 1, [2,3], [4,5] */
+        /* 左開き (洋書・横書き) 1,[2,3], [4,5] */
         .mode-spread-ltr { direction: ltr; }
         .mode-spread-ltr .thumb-item:nth-child(odd) { margin-right: 5px; } /* ペア間の隙間を詰める */
         /* 1ページ目をペアと同じ幅にするため、左側にサムネイル1つ分の余白を空ける */
@@ -626,11 +626,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 選択されたディレクトリに直接ファイルを保存する
         async saveRenamedFiles(targetDirHandle, fileItems, onProgress) {
+            // ★修正点：ファイルの総数から必要な桁数を計算 (最低3桁とする)
+            const padLength = Math.max(3, String(fileItems.length).length);
+
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const file = await item.handle.getFile();
                 const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                const newName = String(i + 1).padStart(3, '0') + '.' + ext;
+                
+                // 動的に桁数をパディングする (例: 1000枚ある場合は 0001.jpg になる)
+                const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
                 
                 // ターゲットディレクトリ内にファイルを保存
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
@@ -659,6 +664,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // 履歴管理用スタック
             this.historyUndo =[];
             this.historyRedo =[];
+
+            // ★追加点：ブラウザがFile System Access APIに対応しているかチェック
+            if (!('showDirectoryPicker' in window)) {
+                alert('⚠️ お使いのブラウザはローカルフォルダの読み書き(File System Access API)に対応していません。\nGoogle Chrome または Microsoft Edge をご利用ください。');
+                this.ui.btnSelect.disabled = true;
+            }
 
             this.bindEvents();
         }
@@ -794,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.sortManager.init();
                 
                 // 読み込み成功時に履歴をリセット
-                this.historyUndo = [];
+                this.historyUndo =[];
                 this.historyRedo =[];
                 this.updateHistoryButtons();
                 
@@ -863,16 +874,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         reset() {
             if (this.isProcessing) return;
+            
+            // 生成したオブジェクトURLを解放してメモリリークを防ぐ
             this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
             this.fileItems = [];
             this.historyUndo =[];
-            this.historyRedo =
+            this.historyRedo =[];
             
-                                this.fileItems = [];
-        this.ui.clear();
-        this.ui.addLog(USER_SETTINGS.msgReady, USER_SETTINGS.logProcessing);
-        this.sortManager.destroy();
-    }
+            this.ui.clear();
+            this.updateHistoryButtons(); // 履歴ボタンをリセット(非活性化)
+            this.sortManager.destroy();
+        }
 }
 
 // アプリケーションの初期化
