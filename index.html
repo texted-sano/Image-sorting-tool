@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像リネーム＆並び替えツール</title>
+    
+    <style>
+        /* --- 共通カラー＆テーマ設定 --- */
+        :root {
+            --bg-color: #1a1a1a;
+            --container-bg: #242424;
+            --text-main: #e0e0e0;
+            --text-sub: #a0a0a0;
+            --border-color: #3a3a3a;
+            --input-bg: #2a2a2a;
+            --primary-color: #4a90e2;
+            --danger-color: #cf6679;
+            --btn-text: #ffffff;
+            --scroll-track: #1e1e1e;
+            --scroll-thumb: #555;
+            --drop-overlay-bg: rgba(74, 144, 226, 0.15);
+            /* サムネイルの基準サイズ */
+            --thumb-size: 150px; 
+        }
+        body.light-mode {
+            --bg-color: #fdfdfd;
+            --container-bg: #ffffff;
+            --text-main: #333333;
+            --text-sub: #666666;
+            --border-color: #e0e0e0;
+            --input-bg: #ffffff;
+            --primary-color: #007bff;
+            --danger-color: #dc3545;
+            --scroll-track: #f1f1f1;
+            --scroll-thumb: #888;
+            --drop-overlay-bg: rgba(0, 123, 255, 0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0; padding: 0;
+            overflow: hidden; /* 画面スクロールを禁止し内部でスクロールさせる */
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* 画面領域を限界まで使用 */
+        .container {
+            width: 100vw; height: 100vh;
+            background: var(--container-bg); padding: 5px; /* 余白を極力なくす */
+            box-sizing: border-box; display: flex; flex-direction: column;
+            position: relative;
+        }
+
+        /* フォルダドロップ用オーバーレイ */
+        #drop-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--drop-overlay-bg); border: 4px dashed var(--primary-color);
+            z-index: 9999; display: none; justify-content: center; align-items: center;
+            font-size: 28px; font-weight: bold; color: var(--primary-color);
+            box-sizing: border-box; pointer-events: none;
+        }
+        
+        #theme-toggle {
+            position: absolute; top: 15px; right: 20px;
+            background: transparent; border: 1px solid var(--border-color);
+            color: var(--text-main); padding: 5px 10px; cursor: pointer;
+            border-radius: 4px; font-size: 14px; z-index: 10;
+        }
+        #theme-toggle:hover { background: var(--input-bg); }
+        h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
+        
+        /* --- ボタン群 --- */
+        .section { margin-bottom: 5px; } /* 余白を極力なくす */
+        label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-sub); }
+        .btn-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        button {
+            padding: 10px; border: none; border-radius: 4px; font-weight: bold;
+            font-size: 14px; cursor: pointer; color: var(--btn-text); transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: var(--border-color) !important; cursor: not-allowed; opacity: 0.5; }
+        
+        select {
+            padding: 9px; border-radius: 4px; background: var(--input-bg);
+            color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;
+        }
+        .slider-wrap {
+            display: flex; align-items: center; gap: 8px; margin-left: auto; background: var(--input-bg); 
+            padding: 5px 15px; border-radius: 4px; border: 1px solid var(--border-color);
+        }
+
+        /* --- レイアウト (左右分割) --- */
+        .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; } /* 余白を極力なくす */
+        .main-area {
+            flex: 3; background: var(--input-bg); border: 1px solid var(--border-color);
+            /* overflow-y を scroll に固定し、スクロールバー出現による幅の変動を防ぐ */
+            border-radius: 4px; padding: 5px; overflow-y: scroll; overflow-x: hidden; /* 余白を極力なくす */
+        }
+        .sidebar-area {
+            flex: 1; min-width: 125px; max-width: 175px; /* 幅を現在の半分に縮小 */
+            background: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 5px; overflow: auto; /* 余白を極力なくす */
+            display: flex; flex-direction: column;
+        }
+        .area-title {
+            font-size: 13px; font-weight: bold; color: var(--text-sub); margin-bottom: 10px;
+            position: sticky; top: 0; left: 0; /* 横スクロール時もタイトルを左端に固定 */
+            background: var(--input-bg); z-index: 10;
+            padding-bottom: 5px; border-bottom: 1px solid var(--border-color);
+        }
+        
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--scroll-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--scroll-track); }
+
+        /* --- メインエリア：通常サムネイル (グリッド) --- */
+        .thumb-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; } /* 余白を極力なくす */
+        .thumb-item {
+            box-sizing: border-box; /* ボーダーやパディングを幅(width)の中に含める */
+            width: var(--thumb-size); background: var(--bg-color); border: 2px solid transparent; border-radius: 6px;
+            padding: 8px; cursor: grab; display: flex; flex-direction: column; align-items: center;
+            transition: transform 0.1s, box-shadow 0.1s; user-select: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative; /* 追加: 疑似要素の基準位置 */
+        }
+        .thumb-item:hover { transform: translateY(-2px); border-color: var(--border-color); }
+        .thumb-item img { width: 100%; height: var(--thumb-size); object-fit: contain; pointer-events: none; margin-bottom: 5px; border-radius: 4px; background: rgba(0,0,0,0.05); }
+        .thumb-item .name { font-size: 12px; color: var(--text-main); text-align: center; word-break: break-all; pointer-events: none; }
+        
+        /* --- 見開き表示モード --- */
+        .mode-spread { justify-content: flex-start; gap: 5px 0; } /* 余白を極力なくす */
+        /* 左右のpaddingを0にして画像を密着させる */
+        .mode-spread .thumb-item { width: var(--thumb-size); padding: 8px 0; border-radius: 0; box-shadow: none; border: 1px solid var(--border-color); }
+        /* ファイル名が端にくっつかないようにテキストのみpaddingを追加 */
+        .mode-spread .thumb-item .name { padding: 0 4px; }
+        .mode-spread .thumb-item:hover { border-color: var(--primary-color); z-index: 2; }
+        .mode-spread .thumb-item img { background: transparent; }
+        
+        /* 左開き (洋書・横書き) 1, [2,3], [4,5] */
+        .mode-spread-ltr { direction: ltr; }
+        .mode-spread-ltr .thumb-item:nth-child(odd) { margin-right: 5px; } /* ペア間の隙間を詰める */
+        /* 1ページ目をペアと同じ幅にするため、左側にサムネイル1つ分の余白を空ける */
+        .mode-spread-ltr .thumb-item:nth-child(1) { margin-left: var(--thumb-size); border-radius: 6px; }
+        .mode-spread-ltr .thumb-item:nth-child(even) { border-radius: 6px 0 0 6px; border-right: none; }
+        .mode-spread-ltr .thumb-item:nth-child(odd):not(:first-child) { border-radius: 0 6px 6px 0; border-left: none; }
+        /* 画像を中央で密着させる (左ページは右寄せ、右ページは左寄せ) */
+        .mode-spread-ltr .thumb-item:nth-child(even) img { object-position: right; border-radius: 4px 0 0 4px; }
+        .mode-spread-ltr .thumb-item:nth-child(odd):not(:first-child) img { object-position: left; border-radius: 0 4px 4px 0; }
+        
+        /* 右開き (マンガ・縦書き) 1,[3,2],[5,4] */
+        .mode-spread-rtl { direction: rtl; }
+        .mode-spread-rtl .thumb-item { direction: ltr; }
+        .mode-spread-rtl .thumb-item:nth-child(odd) { margin-left: 5px; } /* ペア間の隙間を詰める */
+        /* 1ページ目をペアと同じ幅にするため、右側にサムネイル1つ分の余白を空ける */
+        .mode-spread-rtl .thumb-item:nth-child(1) { margin-right: var(--thumb-size); border-radius: 6px; }
+        .mode-spread-rtl .thumb-item:nth-child(even) { border-radius: 0 6px 6px 0; border-left: none; }
+        .mode-spread-rtl .thumb-item:nth-child(odd):not(:first-child) { border-radius: 6px 0 0 6px; border-right: none; }
+        /* 画像を中央で密着させる (右ページは左寄せ、左ページは右寄せ) */
+        .mode-spread-rtl .thumb-item:nth-child(even) img { object-position: left; border-radius: 0 4px 4px 0; }
+        .mode-spread-rtl .thumb-item:nth-child(odd):not(:first-child) img { object-position: right; border-radius: 4px 0 0 4px; }
+
+        /* --- ネイティブD&D用 赤い挿入ライン (疑似要素で表現) --- */
+        .thumb-item.drop-left::before {
+            content: ''; position: absolute; top: 0; left: -4px; width: 4px; height: 100%;
+            background-color: #ff3b30; border-radius: 2px; pointer-events: none; z-index: 10;
+        }
+        .thumb-item.drop-right::after {
+            content: ''; position: absolute; top: 0; right: -4px; width: 4px; height: 100%;
+            background-color: #ff3b30; border-radius: 2px; pointer-events: none; z-index: 10;
+        }
+        .list-item.drop-top::before {
+            content: ''; position: absolute; top: -2px; left: 0; width: 100%; height: 4px;
+            background-color: #ff3b30; border-radius: 2px; pointer-events: none; z-index: 10;
+        }
+        .list-item.drop-bottom::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 4px;
+            background-color: #ff3b30; border-radius: 2px; pointer-events: none; z-index: 10;
+        }
+
+        /* --- サイドバー：リスト --- */
+        .list-item {
+            padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 13px;
+            color: var(--text-main); cursor: grab; user-select: none; transition: background 0.1s;
+            white-space: nowrap; /* テキストを折り返さず1行で表示させる */
+            position: relative; /* 追加: 疑似要素の基準位置 */
+        }
+        .list-item:last-child { border-bottom: none; }
+        .list-item:hover { background: rgba(128, 128, 128, 0.1); }
+        
+        /* 選択時スタイル */
+        .selected { border-color: var(--primary-color) !important; background-color: rgba(74, 144, 226, 0.2) !important; }
+        .dragging { opacity: 0.5; }
+
+        /* --- プログレス --- */
+        #progress-area { margin-bottom: 10px; display: none; flex-shrink: 0; }
+        #progress-text { font-size: 12px; margin-bottom: 5px; text-align: left; }
+        .progress-track { background: var(--border-color); height: 4px; border-radius: 2px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.2s; }
+    </style>
+</head>
+<body>
+
+<div id="drop-overlay">📁 フォルダをここにドロップして読み込む</div>
+
+<div class="container" id="app-container">
+    <button id="theme-toggle">☀ Light Mode</button>
+    <h1>画像リネーム＆並び替えツール</h1>
+
+    <div class="section">
+        <label>1. 操作パネル</label>
+        <div class="btn-group">
+            <button id="btn-select" style="background: var(--primary-color); flex: 1;">📂 フォルダを選択</button>
+            <button id="btn-execute" style="background: var(--danger-color); flex: 1;" disabled>🚀 実行 (連番リネーム保存)</button>
+            <button id="btn-undo" style="background: #6c757d;" disabled>↩ 戻る</button>
+            <button id="btn-redo" style="background: #6c757d;" disabled>↪ 進む</button>
+            <button id="btn-reset" style="background: #6c757d; max-width: 100px;">リセット</button>
+            
+            <select id="view-mode" title="表示モード切替">
+                <option value="grid">表示: 単ページ (グリッド)</option>
+                <option value="spread-rtl">表示: 見開き (マンガ・右開き)</option>
+                <option value="spread-ltr">表示: 見開き (洋書・左開き)</option>
+            </select>
+
+            <div class="slider-wrap">
+                <span style="font-size: 12px;">サイズ</span>
+                <input type="range" id="size-slider" min="80" max="300" value="150" style="width: 100px; cursor: pointer;">
+            </div>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="app-layout">
+        <div class="main-area">
+            <div class="area-title">🖼 サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
+            <div id="main-grid" class="thumb-grid"></div>
+        </div>
+        <div class="sidebar-area">
+            <div class="area-title">📄 ファイル名一覧 (連動)</div>
+            <div id="sidebar-list" style="flex: 1;"></div>
+        </div>
+    </div>
+
+    <!-- プログレス -->
+    <div id="progress-area">
+        <div id="progress-text">待機中</div>
+        <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // ==========================================
+    // 1. 設定定数
+    // ==========================================
+    const USER_SETTINGS = {
+        msgSaving: '💾 保存中... {current} / {total}',
+        validExts:['jpg', 'jpeg', 'png', 'gif', 'webp']
+    };
+
+    // ==========================================
+    // 2. DOM操作・UI管理クラス
+    // ==========================================
+    class UIManager {
+        constructor() {
+            this.btnSelect = document.getElementById('btn-select');
+            this.btnExecute = document.getElementById('btn-execute');
+            this.btnUndo = document.getElementById('btn-undo');
+            this.btnRedo = document.getElementById('btn-redo');
+            this.btnReset = document.getElementById('btn-reset');
+            this.viewModeSelect = document.getElementById('view-mode');
+            this.sizeSlider = document.getElementById('size-slider');
+            this.mainArea = document.querySelector('.main-area');
+            this.mainGrid = document.getElementById('main-grid');
+            this.sidebarList = document.getElementById('sidebar-list');
+            this.progressArea = document.getElementById('progress-area');
+            this.progressBar = document.getElementById('progress-bar');
+            this.progressText = document.getElementById('progress-text');
+            this.themeToggle = document.getElementById('theme-toggle');
+
+            this.themeToggle.addEventListener('click', () => this.toggleTheme());
+            this.viewModeSelect.addEventListener('change', (e) => this.changeViewMode(e.target.value));
+            
+            // サイズスライダーと泣き別れ防止
+            this.sizeSlider.addEventListener('input', (e) => {
+                document.documentElement.style.setProperty('--thumb-size', `${e.target.value}px`);
+                this.adjustGridWidth();
+            });
+            this.resizeObserver = new ResizeObserver(() => this.adjustGridWidth());
+            this.resizeObserver.observe(this.mainArea);
+        }
+
+        adjustGridWidth() {
+            const mode = this.viewModeSelect.value;
+            if (mode === 'grid') {
+                this.mainGrid.style.width = 'auto'; // grid時は自動幅
+                this.mainGrid.style.maxWidth = 'none';
+                return;
+            }
+            
+            const containerWidth = this.mainArea.clientWidth - 10; // padding 5px * 2
+            const thumbSize = parseInt(this.sizeSlider.value, 10);
+            const gap = 5; // CSSのmargin(5px)と合わせる
+            
+            // 1ページ目もマージンによってペアと同じ幅(thumbSize * 2)を占有するようになったため、
+            // すべてのブロックが pairWidth 単位となる
+            const pairWidth = (thumbSize * 2) + gap;
+
+            let pairsCount = Math.floor(containerWidth / pairWidth);
+            if (pairsCount < 1) pairsCount = 1; // 最低1ペアは表示する
+
+            // widthを完全に固定し、+1pxの余裕を持たせることで泣き別れを完全に防ぐ
+            const optimalWidth = (pairsCount * pairWidth) + 1;
+            this.mainGrid.style.width = `${optimalWidth}px`;
+            this.mainGrid.style.maxWidth = 'none';
+        }
+
+        toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            this.themeToggle.textContent = document.body.classList.contains('light-mode') ? '🌙 Dark Mode' : '☀ Light Mode';
+        }
+
+        changeViewMode(mode) {
+            this.mainGrid.className = 'thumb-grid'; 
+            if (mode === 'spread-rtl') {
+                this.mainGrid.classList.add('mode-spread', 'mode-spread-rtl');
+            } else if (mode === 'spread-ltr') {
+                this.mainGrid.classList.add('mode-spread', 'mode-spread-ltr');
+            }
+            this.adjustGridWidth();
+        }
+
+        updateProgress(percent, text) {
+            if (percent === 0 && text === '') {
+                this.progressArea.style.display = 'none';
+            } else {
+                this.progressArea.style.display = 'block';
+                this.progressBar.style.width = Math.floor(percent) + '%';
+                this.progressText.textContent = text;
+            }
+        }
+
+        renderItems(fileItems) {
+            this.mainGrid.innerHTML = '';
+            this.sidebarList.innerHTML = '';
+            
+            fileItems.forEach(item => {
+                const thumbDiv = document.createElement('div');
+                thumbDiv.className = 'thumb-item';
+                thumbDiv.dataset.id = item.id;
+                thumbDiv.draggable = true;
+                
+                const img = document.createElement('img');
+                img.src = item.objectUrl;
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'name';
+                nameDiv.textContent = item.name;
+                
+                thumbDiv.appendChild(img);
+                thumbDiv.appendChild(nameDiv);
+                this.mainGrid.appendChild(thumbDiv);
+                
+                const listDiv = document.createElement('div');
+                listDiv.className = 'list-item';
+                listDiv.dataset.id = item.id;
+                listDiv.textContent = item.name;
+                listDiv.draggable = true;
+                this.sidebarList.appendChild(listDiv);
+            });
+            this.adjustGridWidth();
+        }
+
+        setButtonsState(isProcessing, hasFiles) {
+            this.btnSelect.disabled = isProcessing;
+            this.btnExecute.disabled = isProcessing || !hasFiles;
+            this.btnReset.disabled = isProcessing;
+            this.viewModeSelect.disabled = isProcessing;
+            // Undo/RedoボタンはAppクラス側で履歴の有無に応じて制御するため、ここでは処理中のみ無効化する
+            if (isProcessing) {
+                this.btnUndo.disabled = true;
+                this.btnRedo.disabled = true;
+            }
+        }
+
+        clear() {
+            this.mainGrid.innerHTML = '';
+            this.sidebarList.innerHTML = '';
+            this.updateProgress(0, '');
+            this.setButtonsState(false, false);
+        }
+    }
+
+    // ==========================================
+    // 3. ドラッグ＆ドロップ管理クラス (Native実装)
+    // ==========================================
+    class SortManager {
+        constructor(uiManager, onOrderChanged) {
+            this.ui = uiManager;
+            this.onOrderChanged = onOrderChanged;
+            this.lastSelectedId = null;
+            this.markerTarget = null; // 変更: DOM要素ではなく対象要素と位置を保持
+            this.boundEvents =[];
+        }
+
+        init() {
+            this.destroy();
+            this.bindEvents(this.ui.mainGrid, true);
+            this.bindEvents(this.ui.sidebarList, false);
+        }
+
+        bindEvents(container, isMain) {
+            const markerClass = isMain ? 'drop-marker-v' : 'drop-marker-h';
+
+            const onClick = (e) => {
+                const item = e.target.closest('.thumb-item, .list-item');
+                if (!item) return;
+                const id = item.dataset.id;
+                const isSelected = item.classList.contains('selected');
+                const allItems = Array.from(container.children).filter(el => el.dataset.id);
+
+                if (e.shiftKey && this.lastSelectedId) {
+                    const ids = allItems.map(i => i.dataset.id);
+                    const start = ids.indexOf(this.lastSelectedId);
+                    const end = ids.indexOf(id);
+                    const[min, max] =[Math.min(start, end), Math.max(start, end)];
+                    this.clearSelection();
+                    for (let i = min; i <= max; i++) this.selectById(ids[i], true);
+                } else if (e.ctrlKey || e.metaKey) {
+                    this.selectById(id, !isSelected);
+                    this.lastSelectedId = id;
+                } else {
+                    this.clearSelection();
+                    this.selectById(id, true);
+                    this.lastSelectedId = id;
+                }
+            };
+
+            const onDragStart = (e) => {
+                const item = e.target.closest('.thumb-item, .list-item');
+                if (!item) return;
+                
+                if (!item.classList.contains('selected')) {
+                    this.clearSelection();
+                    this.selectById(item.dataset.id, true);
+                }
+                const selectedEls = Array.from(document.querySelectorAll('.selected'));
+                selectedEls.forEach(el => el.classList.add('dragging'));
+                
+                const selectedIds =[...new Set(selectedEls.map(el => el.dataset.id))];
+                e.dataTransfer.setData('text/plain', JSON.stringify(selectedIds));
+                e.dataTransfer.effectAllowed = 'move';
+            };
+
+            const onDragEnd = (e) => {
+                document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+                this.removeMarker();
+            };
+
+            const onDragOver = (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const target = e.target.closest('.thumb-item, .list-item');
+                
+                // ドラッグ対象自身には落とせない
+                if (!target || target.classList.contains('selected')) {
+                    this.removeMarker();
+                    return;
+                }
+
+                this.removeMarker(); // 既存のマーカークラスをクリア
+
+                const rect = target.getBoundingClientRect();
+                
+                if (isMain) {
+                    // メイングリッド（横方向の判定）
+                    const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
+                    if (isLeftHalf) {
+                        target.classList.add('drop-left');
+                        this.markerTarget = { el: target, visualPos: 'left' };
+                    } else {
+                        target.classList.add('drop-right');
+                        this.markerTarget = { el: target, visualPos: 'right' };
+                    }
+                } else {
+                    // サイドバーリスト（縦方向の判定）
+                    const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+                    if (isTopHalf) {
+                        target.classList.add('drop-top');
+                        this.markerTarget = { el: target, visualPos: 'top' };
+                    } else {
+                        target.classList.add('drop-bottom');
+                        this.markerTarget = { el: target, visualPos: 'bottom' };
+                    }
+                }
+            };
+
+            const onDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!this.markerTarget) return;
+
+                try {
+                    const idsJSON = e.dataTransfer.getData('text/plain');
+                    if (!idsJSON) return;
+                    const ids = JSON.parse(idsJSON);
+                    
+                    const targetEl = this.markerTarget.el;
+                    const visualPos = this.markerTarget.visualPos;
+                    const refId = targetEl.dataset.id;
+
+                    const refMain = this.ui.mainGrid.querySelector(`[data-id="${refId}"]`);
+                    const refList = this.ui.sidebarList.querySelector(`[data-id="${refId}"]`);
+
+                    // 論理的な挿入位置（対象要素の「前」に挿入するかどうか）を決定
+                    let isLogicalBefore = false;
+                    if (isMain) {
+                        const isRTL = container.classList.contains('mode-spread-rtl');
+                        // RTL(右開き)の場合は右側が「前」、LTR(左開き/通常)の場合は左側が「前」
+                        isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
+                    } else {
+                        // リストの場合は上側が「前」
+                        isLogicalBefore = (visualPos === 'top');
+                    }
+
+                    // 挿入基準ノードを固定（複数選択時の順序逆転を防ぐため）
+                    const insertRefMain = isLogicalBefore ? refMain : (refMain ? refMain.nextSibling : null);
+                    const insertRefList = isLogicalBefore ? refList : (refList ? refList.nextSibling : null);
+
+                    // メイン側・リスト側 両方のDOMを基準要素の前に挿入して同期移動
+                    ids.forEach(id => {
+                        const mNode = this.ui.mainGrid.querySelector(`[data-id="${id}"]`);
+                        const lNode = this.ui.sidebarList.querySelector(`[data-id="${id}"]`);
+                        if (mNode) this.ui.mainGrid.insertBefore(mNode, insertRefMain);
+                        if (lNode) this.ui.sidebarList.insertBefore(lNode, insertRefList);
+                    });
+
+                    // 内部順序の更新
+                    const newOrder = Array.from(this.ui.mainGrid.querySelectorAll('.thumb-item')).map(el => el.dataset.id);
+                    this.onOrderChanged(newOrder);
+
+                } catch (err) { console.error(err); }
+                this.removeMarker();
+            };
+
+            const onDragLeave = (e) => {
+                if (!container.contains(e.relatedTarget)) this.removeMarker();
+            };
+
+            // イベント委譲でコンテナに一括登録
+            container.addEventListener('click', onClick);
+            container.addEventListener('dragstart', onDragStart);
+            container.addEventListener('dragend', onDragEnd);
+            container.addEventListener('dragover', onDragOver);
+            container.addEventListener('drop', onDrop);
+            container.addEventListener('dragleave', onDragLeave);
+
+            this.boundEvents.push(
+                { el: container, type: 'click', fn: onClick },
+                { el: container, type: 'dragstart', fn: onDragStart },
+                { el: container, type: 'dragend', fn: onDragEnd },
+                { el: container, type: 'dragover', fn: onDragOver },
+                { el: container, type: 'drop', fn: onDrop },
+                { el: container, type: 'dragleave', fn: onDragLeave }
+            );
+        }
+
+        removeMarker() {
+            document.querySelectorAll('.drop-left, .drop-right, .drop-top, .drop-bottom').forEach(el => {
+                el.classList.remove('drop-left', 'drop-right', 'drop-top', 'drop-bottom');
+            });
+            this.markerTarget = null;
+        }
+
+        selectById(id, isSelect) {
+            const m = this.ui.mainGrid.querySelector(`[data-id="${id}"]`);
+            const l = this.ui.sidebarList.querySelector(`[data-id="${id}"]`);
+            if (isSelect) {
+                if (m) m.classList.add('selected');
+                if (l) l.classList.add('selected');
+            } else {
+                if (m) m.classList.remove('selected');
+                if (l) l.classList.remove('selected');
+            }
+        }
+
+        clearSelection() {
+            document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        }
+
+        destroy() {
+            this.removeMarker();
+            this.boundEvents.forEach(({ el, type, fn }) => el.removeEventListener(type, fn));
+            this.boundEvents =[];
+        }
+    }
+
+    // ==========================================
+    // 4. ローカルファイル操作クラス (File System API)
+    // ==========================================
+    class FileSystemManager {
+        async selectDirectory() {
+            return await window.showDirectoryPicker({ mode: 'readwrite' });
+        }
+
+        async loadImages(dirHandle) {
+            const items =[];
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file') {
+                    const ext = entry.name.split('.').pop().toLowerCase();
+                    if (USER_SETTINGS.validExts.includes(ext)) {
+                        const file = await entry.getFile();
+                        items.push({
+                            id: entry.name,
+                            name: entry.name,
+                            handle: entry,
+                            objectUrl: URL.createObjectURL(file)
+                        });
+                    }
+                }
+            }
+            items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+            return items;
+        }
+
+        // 選択されたディレクトリに直接ファイルを保存する
+        async saveRenamedFiles(targetDirHandle, fileItems, onProgress) {
+            for (let i = 0; i < fileItems.length; i++) {
+                const item = fileItems[i];
+                const file = await item.handle.getFile();
+                const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+                const newName = String(i + 1).padStart(3, '0') + '.' + ext;
+                
+                // ターゲットディレクトリ内にファイルを保存
+                const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
+                const writable = await newFileHandle.createWritable();
+                await writable.write(file);
+                await writable.close();
+                
+                onProgress(i + 1, fileItems.length, newName);
+            }
+        }
+    }
+
+    // ==========================================
+    // 5. アプリケーションのメインコントローラー
+    // ==========================================
+    class App {
+        constructor() {
+            this.ui = new UIManager();
+            this.fs = new FileSystemManager();
+            this.sortManager = new SortManager(this.ui, (order) => this.reorderFiles(order));
+            
+            this.dirHandle = null;
+            this.fileItems =[];
+            this.isProcessing = false;
+            
+            // 履歴管理用スタック
+            this.historyUndo =[];
+            this.historyRedo =[];
+
+            this.bindEvents();
+        }
+
+        bindEvents() {
+            this.ui.btnSelect.addEventListener('click', () => this.handleSelectFolder());
+            this.ui.btnExecute.addEventListener('click', () => this.handleExecute());
+            this.ui.btnUndo.addEventListener('click', () => this.undo());
+            this.ui.btnRedo.addEventListener('click', () => this.redo());
+            this.ui.btnReset.addEventListener('click', () => this.reset());
+
+            // キーボードショートカット (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
+            document.addEventListener('keydown', (e) => {
+                if (this.isProcessing) return;
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+                
+                if (cmdOrCtrl && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) this.redo();
+                    else this.undo();
+                } else if (cmdOrCtrl && e.key.toLowerCase() === 'y') {
+                    e.preventDefault();
+                    this.redo();
+                }
+            });
+
+            // ドラッグ＆ドロップによるフォルダ読み込み
+            const overlay = document.getElementById('drop-overlay');
+            let dragCounter = 0;
+
+            document.body.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                // 外部からのファイルドロップ時のみオーバーレイを表示する
+                if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+                    dragCounter++;
+                    overlay.style.display = 'flex';
+                }
+            });
+            document.body.addEventListener('dragover', (e) => e.preventDefault());
+            document.body.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                // 外部からのファイルドロップ時のみカウントを減らす
+                if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+                    dragCounter--;
+                    if (dragCounter === 0) overlay.style.display = 'none';
+                }
+            });
+            document.body.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                dragCounter = 0;
+                overlay.style.display = 'none';
+                
+                // 追加: 外部からのファイルドロップでない場合（内部の並び替えなど）は無視する
+                if (!e.dataTransfer.types || !e.dataTransfer.types.includes('Files')) {
+                    return;
+                }
+
+                if (this.isProcessing) return;
+
+                const items = e.dataTransfer.items;
+                let droppedDirHandle = null;
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function') {
+                        const handle = await item.getAsFileSystemHandle();
+                        if (handle && handle.kind === 'directory') {
+                            droppedDirHandle = handle;
+                            break;
+                        }
+                    }
+                }
+
+                if (droppedDirHandle) this.handleLoadDirectory(droppedDirHandle);
+                else alert('❌ フォルダをドロップしてください。(ブラウザが対応していない可能性もあります)');
+            });
+        }
+
+        // --- 履歴管理ロジック ---
+        saveHistory() {
+            // 現在の配列のシャローコピーを保存
+            this.historyUndo.push([...this.fileItems]);
+            this.historyRedo =[]; // 新しい操作をしたらRedo履歴はクリア
+            this.updateHistoryButtons();
+        }
+
+        undo() {
+            if (this.historyUndo.length === 0 || this.isProcessing) return;
+            this.historyRedo.push([...this.fileItems]);
+            this.fileItems = this.historyUndo.pop();
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init(); // DOM再生成に伴いイベント再バインド
+            this.updateHistoryButtons();
+        }
+
+        redo() {
+            if (this.historyRedo.length === 0 || this.isProcessing) return;
+            this.historyUndo.push([...this.fileItems]);
+            this.fileItems = this.historyRedo.pop();
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
+            this.updateHistoryButtons();
+        }
+
+        updateHistoryButtons() {
+            this.ui.btnUndo.disabled = this.historyUndo.length === 0 || this.isProcessing;
+            this.ui.btnRedo.disabled = this.historyRedo.length === 0 || this.isProcessing;
+        }
+        // ------------------------
+
+        async handleSelectFolder() {
+            try {
+                const handle = await this.fs.selectDirectory();
+                await this.handleLoadDirectory(handle);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async handleLoadDirectory(dirHandle) {
+            this.dirHandle = dirHandle;
+            
+            try {
+                this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+                this.fileItems = await this.fs.loadImages(this.dirHandle);
+                
+                if (this.fileItems.length === 0) {
+                    alert('❌ フォルダ内に画像が見つかりませんでした。');
+                    return;
+                }
+
+                this.ui.renderItems(this.fileItems);
+                this.sortManager.init();
+                
+                // 読み込み成功時に履歴をリセット
+                this.historyUndo = [];
+                this.historyRedo =[];
+                this.updateHistoryButtons();
+                
+                this.ui.setButtonsState(false, true);
+            } catch (e) {
+                console.error(e);
+                alert('❌ エラーが発生しました: ' + e.message);
+            }
+        }
+
+        reorderFiles(orderIds) {
+            this.saveHistory(); // 並び替え実行前に履歴を保存
+            
+            const newItems =[];
+            orderIds.forEach(id => {
+                const item = this.fileItems.find(f => f.id === id);
+                if (item) newItems.push(item);
+            });
+            this.fileItems = newItems;
+        }
+
+        async handleExecute() {
+            if (this.fileItems.length === 0) return;
+
+            // 保存先のフォルダを直接選択させる
+            let targetDirHandle;
+            try {
+                targetDirHandle = await window.showDirectoryPicker({
+                    mode: 'readwrite',
+                    id: 'save-folder' // ブラウザが前回の保存先を記憶しやすくなる
+                });
+            } catch (e) {
+                // ユーザーがキャンセルボタンを押した場合はそのまま終了
+                if (e.name === 'AbortError') return; 
+                
+                // セキュリティ制限などで弾かれた場合のエラーハンドリング
+                console.error(e);
+                alert('❌ フォルダの選択がブラウザのセキュリティによってブロックされました。\n\n【原因】\nデスクトップ直下やダウンロードフォルダ直下など、システムが保護している場所を選択した可能性があります。\n\n【対策】\n新しく作成した「空のフォルダ」や、ドキュメント内のフォルダを選択してください。');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.ui.setButtonsState(true, true);
+            this.updateHistoryButtons(); // 処理中はUndo/Redoも無効化
+
+            try {
+                // 選択したフォルダに直接保存処理を実行
+                await this.fs.saveRenamedFiles(targetDirHandle, this.fileItems, (current, total, newName) => {
+                    const percent = (current / total) * 100;
+                    const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
+                    this.ui.updateProgress(percent, text);
+                });
+                
+                // 完了メッセージを表示
+                alert(`🎉 完了しました！\n選択したフォルダ内に画像を保存しました。`);
+            } catch (e) {
+                console.error(e);
+                alert('保存中にエラーが発生しました。\nブラウザのアクセス権限がないか、対応していません。');
+            } finally {
+                this.isProcessing = false;
+                this.ui.setButtonsState(false, true);
+                this.updateHistoryButtons(); // 処理完了後にUndo/Redoの状態を復元
+                setTimeout(() => this.ui.updateProgress(0, ''), 3000);
+            }
+        }
+
+        reset() {
+            if (this.isProcessing) return;
+            this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+            this.fileItems = [];
+            this.historyUndo =[];
+            this.historyRedo =
+            
+                                this.fileItems = [];
+        this.ui.clear();
+        this.ui.addLog(USER_SETTINGS.msgReady, USER_SETTINGS.logProcessing);
+        this.sortManager.destroy();
+    }
+}
+
+// アプリケーションの初期化
+new App();
+
+}); // DOMContentLoaded の閉じカッコ
+</script>
