@@ -42,13 +42,14 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0; padding: 0;
-            overflow: hidden;
+            overflow: hidden; /* 画面スクロールを禁止し内部でスクロールさせる */
             transition: background-color 0.3s, color 0.3s;
         }
 
+        /* 画面領域を限界まで使用 */
         .container {
             width: 100vw; height: 100vh;
-            background: var(--container-bg); padding: 5px;
+            background: var(--container-bg); padding: 5px; /* 余白を極力なくす */
             box-sizing: border-box; display: flex; flex-direction: column;
             position: relative;
         }
@@ -72,7 +73,7 @@
         h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
         
         /* --- ボタン群 --- */
-        .section { margin-bottom: 5px; }
+        .section { margin-bottom: 5px; } /* 余白を極力なくす */
         label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-sub); }
         .btn-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         button {
@@ -92,16 +93,16 @@
         }
 
         /* --- レイアウト (左右分割) --- */
-        .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; } 
+        .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; } /* 余白を極力なくす */
         .main-area {
             flex: 3; background: var(--input-bg); border: 1px solid var(--border-color);
             /* overflow-y を scroll に固定し、スクロールバー出現による幅の変動を防ぐ */
-            border-radius: 4px; padding: 5px; overflow-y: scroll; overflow-x: hidden;
+            border-radius: 4px; padding: 5px; overflow-y: scroll; overflow-x: hidden; /* 余白を極力なくす */
         }
         .sidebar-area {
-            flex: 1; min-width: 125px; max-width: 175px;
+            flex: 1; min-width: 125px; max-width: 175px; /* 幅を現在の半分に縮小 */
             background: var(--input-bg); border: 1px solid var(--border-color);
-            border-radius: 4px; padding: 5px; overflow: auto;
+            border-radius: 4px; padding: 5px; overflow: auto; /* 余白を極力なくす */
             display: flex; flex-direction: column;
         }
         .area-title {
@@ -116,19 +117,20 @@
         ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--scroll-track); }
 
         /* --- メインエリア：通常サムネイル (グリッド) --- */
-        .thumb-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; }
+        .thumb-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; } /* 余白を極力なくす */
+        .thumb-item {
             box-sizing: border-box; /* ボーダーやパディングを幅(width)の中に含める */
             width: var(--thumb-size); background: var(--bg-color); border: 2px solid transparent; border-radius: 6px;
             padding: 8px; cursor: grab; display: flex; flex-direction: column; align-items: center;
             transition: transform 0.1s, box-shadow 0.1s; user-select: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: relative; /* 疑似要素の基準位置 */
+            position: relative; /* 追加: 疑似要素の基準位置 */
         }
         .thumb-item:hover { transform: translateY(-2px); border-color: var(--border-color); }
         .thumb-item img { width: 100%; height: var(--thumb-size); object-fit: contain; pointer-events: none; margin-bottom: 5px; border-radius: 4px; background: rgba(0,0,0,0.05); }
         .thumb-item .name { font-size: 12px; color: var(--text-main); text-align: center; word-break: break-all; pointer-events: none; }
         
         /* --- 見開き表示モード --- */
-        .mode-spread { justify-content: flex-start; gap: 5px 0; }
+        .mode-spread { justify-content: flex-start; gap: 5px 0; } /* 余白を極力なくす */
         /* 左右のpaddingを0にして画像を密着させる */
         .mode-spread .thumb-item { width: var(--thumb-size); padding: 8px 0; border-radius: 0; box-shadow: none; border: 1px solid var(--border-color); }
         /* ファイル名が端にくっつかないようにテキストのみpaddingを追加 */
@@ -138,7 +140,7 @@
         
         /* 左開き (洋書・横書き) 1,[2,3], [4,5] */
         .mode-spread-ltr { direction: ltr; }
-        .mode-spread-ltr .thumb-item:nth-child(odd) { margin-right: 5px; } /* ペア間の隙間 */
+        .mode-spread-ltr .thumb-item:nth-child(odd) { margin-right: 5px; } /* ペア間の隙間を詰める */
         /* 1ページ目をペアと同じ幅にするため、左側にサムネイル1つ分の余白を空ける */
         .mode-spread-ltr .thumb-item:nth-child(1) { margin-left: var(--thumb-size); border-radius: 6px; }
         .mode-spread-ltr .thumb-item:nth-child(even) { border-radius: 6px 0 0 6px; border-right: none; }
@@ -150,7 +152,7 @@
         /* 右開き (マンガ・縦書き) 1,[3,2],[5,4] */
         .mode-spread-rtl { direction: rtl; }
         .mode-spread-rtl .thumb-item { direction: ltr; }
-        .mode-spread-rtl .thumb-item:nth-child(odd) { margin-left: 5px; } /* ペア間の隙間 */
+        .mode-spread-rtl .thumb-item:nth-child(odd) { margin-left: 5px; } /* ペア間の隙間を詰める */
         /* 1ページ目をペアと同じ幅にするため、右側にサムネイル1つ分の余白を空ける */
         .mode-spread-rtl .thumb-item:nth-child(1) { margin-right: var(--thumb-size); border-radius: 6px; }
         .mode-spread-rtl .thumb-item:nth-child(even) { border-radius: 0 6px 6px 0; border-left: none; }
@@ -182,7 +184,7 @@
             padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 13px;
             color: var(--text-main); cursor: grab; user-select: none; transition: background 0.1s;
             white-space: nowrap; /* テキストを折り返さず1行で表示させる */
-            position: relative; /* 疑似要素の基準位置 */
+            position: relative; /* 追加: 疑似要素の基準位置 */
         }
         .list-item:last-child { border-bottom: none; }
         .list-item:hover { background: rgba(128, 128, 128, 0.1); }
@@ -209,16 +211,16 @@
     <div class="section">
         <label>1. 操作パネル</label>
         <div class="btn-group">
-            <button id="btn-select" style="background: var(--primary-color); flex: 1;">フォルダを選択</button>
-            <button id="btn-execute" style="background: var(--danger-color); flex: 1;" disabled>連番リネーム・フォルダを指定して保存</button>
+            <button id="btn-select" style="background: var(--primary-color); flex: 1;">📂 フォルダを選択</button>
+            <button id="btn-execute" style="background: var(--danger-color); flex: 1;" disabled>🚀 実行 (連番リネーム保存)</button>
             <button id="btn-undo" style="background: #6c757d;" disabled>↩ 戻る</button>
             <button id="btn-redo" style="background: #6c757d;" disabled>↪ 進む</button>
             <button id="btn-reset" style="background: #6c757d; max-width: 100px;">リセット</button>
             
             <select id="view-mode" title="表示モード切替">
-                <option value="grid">表示: 単ページ</option>
-                <option value="spread-rtl">表示: 見開き (右開き)</option>
-                <option value="spread-ltr">表示: 見開き (左開き)</option>
+                <option value="grid">表示: 単ページ (グリッド)</option>
+                <option value="spread-rtl">表示: 見開き (マンガ・右開き)</option>
+                <option value="spread-ltr">表示: 見開き (洋書・左開き)</option>
             </select>
 
             <div class="slider-wrap">
@@ -231,11 +233,11 @@
     <!-- メインコンテンツ -->
     <div class="app-layout">
         <div class="main-area">
-            <div class="area-title">サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
+            <div class="area-title">🖼 サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
             <div id="main-grid" class="thumb-grid"></div>
         </div>
         <div class="sidebar-area">
-            <div class="area-title">📄 ファイル名一覧</div>
+            <div class="area-title">📄 ファイル名一覧 (連動)</div>
             <div id="sidebar-list" style="flex: 1;"></div>
         </div>
     </div>
@@ -309,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let pairsCount = Math.floor(containerWidth / pairWidth);
             if (pairsCount < 1) pairsCount = 1; // 最低1ペアは表示する
 
-            // widthを完全に固定し、+1pxの余裕を持たせることで泣き別れを防ぐ
+            // widthを完全に固定し、+1pxの余裕を持たせることで泣き別れを完全に防ぐ
             const optimalWidth = (pairsCount * pairWidth) + 1;
             this.mainGrid.style.width = `${optimalWidth}px`;
             this.mainGrid.style.maxWidth = 'none';
@@ -398,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.ui = uiManager;
             this.onOrderChanged = onOrderChanged;
             this.lastSelectedId = null;
-            this.markerTarget = null; // DOM要素ではなく対象要素と位置を保持
+            this.markerTarget = null; // 変更: DOM要素ではなく対象要素と位置を保持
             this.boundEvents =[];
         }
 
@@ -663,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.historyUndo =[];
             this.historyRedo =[];
 
-            // ブラウザがFile System Access APIに対応しているかチェック
+            // ★追加点：ブラウザがFile System Access APIに対応しているかチェック
             if (!('showDirectoryPicker' in window)) {
                 alert('⚠️ お使いのブラウザはローカルフォルダの読み書き(File System Access API)に対応していません。\nGoogle Chrome または Microsoft Edge をご利用ください。');
                 this.ui.btnSelect.disabled = true;
