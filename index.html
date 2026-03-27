@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>画像リネーム＆並び替えツール</title>
+    <title>Image-sorting</title>
     
     <style>
         /* --- 共通カラー＆テーマ設定 --- */
@@ -202,36 +202,36 @@
 </head>
 <body>
 
-<div id="drop-overlay">📁 フォルダをここにドロップして読み込む</div>
+<div id="drop-overlay">フォルダをここにドロップして読み込む</div>
 
 <div class="container" id="app-container">
     <button id="theme-toggle">☀ Light Mode</button>
-    <h1>画像リネーム＆並び替えツール</h1>
+    <h1>Image-sorting</h1>
 
     <div class="section">
         <label>1. 操作パネル</label>
         <div class="btn-group">
-            <button id="btn-select" style="background: var(--primary-color); flex: 1;">📂 フォルダを選択</button>
+            <button id="btn-select" style="background: var(--primary-color); flex: 1;">フォルダを選択</button>
             
             <!-- 保存形式とPDF圧縮率 -->
             <select id="save-format" title="保存形式" style="margin-left: 5px;">
-                <option value="rename">連番リネーム保存</option>
-                <option value="pdf">PDFで保存</option>
+                <option value="rename">連番リネームでコピーを保存</option>
+                <option value="pdf">連結してPDFで保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
                 <label style="margin:0;">圧縮率(%)</label>
                 <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 50px; padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
             </div>
 
-            <button id="btn-execute" style="background: var(--danger-color); flex: 1;" disabled>🚀 実行 (連番リネーム保存)</button>
+            <button id="btn-execute" style="background: var(--danger-color); flex: 1;" disabled>実行 (連番リネーム保存)</button>
             <button id="btn-undo" style="background: #6c757d;" disabled>↩ 戻る</button>
             <button id="btn-redo" style="background: #6c757d;" disabled>↪ 進む</button>
             <button id="btn-reset" style="background: #6c757d; max-width: 100px;">リセット</button>
             
             <select id="view-mode" title="表示モード切替">
-                <option value="grid">表示: 単ページ (グリッド)</option>
-                <option value="spread-rtl">表示: 見開き (マンガ・右開き)</option>
-                <option value="spread-ltr">表示: 見開き (洋書・左開き)</option>
+                <option value="grid">表示: 単ページ</option>
+                <option value="spread-rtl" selected>表示: 見開き (右開き)</option>
+                <option value="spread-ltr">表示: 見開き (左開き)</option>
             </select>
 
             <div class="slider-wrap">
@@ -244,11 +244,11 @@
     <!-- メインコンテンツ -->
     <div class="app-layout">
         <div class="main-area">
-            <div class="area-title">🖼 サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
+            <div class="area-title">サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
             <div id="main-grid" class="thumb-grid"></div>
         </div>
         <div class="sidebar-area">
-            <div class="area-title">📄 ファイル名一覧 (連動)</div>
+            <div class="area-title">ファイル名一覧</div>
             <div id="sidebar-list" style="flex: 1;"></div>
         </div>
     </div>
@@ -267,8 +267,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. 設定定数
     // ==========================================
     const USER_SETTINGS = {
-        msgSaving: '💾 保存中... {current} / {total}',
-        msgSavingPDF: '📄 PDF生成中... {current} / {total}',
+        msgSaving: '保存中... {current} / {total}',
+        msgSavingPDF: 'PDF生成中... {current} / {total}',
         validExts:['jpg', 'jpeg', 'png', 'gif', 'webp']
     };
 
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.saveFormatSelect.addEventListener('change', (e) => {
                 const isPdf = e.target.value === 'pdf';
                 this.pdfOptions.style.display = isPdf ? 'flex' : 'none';
-                this.btnExecute.textContent = isPdf ? '🚀 実行 (PDFで保存)' : '🚀 実行 (連番リネーム保存)';
+                this.btnExecute.textContent = isPdf ? '実行 (PDFで保存)' : '実行 (連番リネーム保存)';
             });
 
             this.viewModeSelect = document.getElementById('view-mode');
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.ui = uiManager;
             this.onOrderChanged = onOrderChanged;
             this.lastSelectedId = null;
-            this.markerTarget = null; // 変更: DOM要素ではなく対象要素と位置を保持
+            this.markerTarget = null;
             this.boundEvents =[];
         }
 
@@ -808,7 +808,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const scale = quality / 100;
                     
                     // 元の画像サイズから指定された%分だけ解像度を縮小する
-                    // （※小さくなりすぎないよう、最低1ピクセルは確保する）
                     const width = Math.max(1, Math.floor(img.width * scale));
                     const height = Math.max(1, Math.floor(img.height * scale));
 
@@ -828,8 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 縮小したサイズでキャンバスに描画
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // JPEGとしてデータ化。
-                    // 解像度を落としている分、JPEG自体の保存画質は標準的な 0.8 (80%) で固定
+                    // JPEGとしてデータ化
                     canvas.toBlob(blob => {
                         URL.revokeObjectURL(url);
                         resolve({ blob, width, height });
@@ -862,7 +860,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('⚠️ お使いのブラウザはローカルフォルダの読み書き(File System Access API)に対応していません。\nGoogle Chrome または Microsoft Edge をご利用ください。');
                 this.ui.btnSelect.disabled = true;
             }
-
+            this.ui.changeViewMode('spread-rtl');
+            
             this.bindEvents();
         }
 
@@ -1039,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                         this.ui.updateProgress(percent, text);
                     });
-                    alert(`🎉 完了しました！\n選択したフォルダ内に画像を保存しました。`);
+                    alert(`選択したフォルダ内に画像を保存しました。`);
                 } catch (e) {
                     console.error(e);
                     alert('保存中にエラーが発生しました。\nブラウザのアクセス権限がないか、対応していません。');
@@ -1065,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // キャンセルされずに成功した時だけ完了メッセージを出す
                     if (success) {
-                        alert(`🎉 完了しました！\nPDFを保存しました。`);
+                        alert(`PDFを保存しました。`);
                     }
                 } catch (e) {
                     console.error(e);
