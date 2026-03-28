@@ -20,7 +20,6 @@
             --scroll-track: #1e1e1e;
             --scroll-thumb: #555;
             --drop-overlay-bg: rgba(74, 144, 226, 0.15);
-            /* サムネイルの基準サイズ */
             --thumb-size: 150px; 
         }
         body.light-mode {
@@ -42,19 +41,17 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0; padding: 0;
-            overflow: hidden; /* 画面スクロールを禁止し内部でスクロールさせる */
+            overflow: hidden;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* 画面領域を限界まで使用 */
         .container {
             width: 100vw; height: 100vh;
-            background: var(--container-bg); padding: 5px; /* 余白を極力なくす */
+            background: var(--container-bg); padding: 5px;
             box-sizing: border-box; display: flex; flex-direction: column;
             position: relative;
         }
 
-        /* フォルダドロップ用オーバーレイ */
         #drop-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--drop-overlay-bg); border: 4px dashed var(--primary-color);
@@ -72,8 +69,7 @@
         #theme-toggle:hover { background: var(--input-bg); }
         h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
         
-        /* --- ボタン群 --- */
-        .section { margin-bottom: 5px; } /* 余白を極力なくす */
+        .section { margin-bottom: 5px; }
         label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-sub); }
         .btn-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         button {
@@ -92,22 +88,22 @@
             padding: 5px 15px; border-radius: 4px; border: 1px solid var(--border-color);
         }
 
-        /* --- レイアウト (左右分割) --- */
-        .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; } /* 余白を極力なくす */
+        .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; }
         .main-area {
             flex: 3; background: var(--input-bg); border: 1px solid var(--border-color);
-            /* overflow-y を scroll に固定し、スクロールバー出現による幅の変動を防ぐ */
-            border-radius: 4px; padding: 5px; overflow-y: scroll; overflow-x: hidden; /* 余白を極力なくす */
+            border-radius: 4px; padding: 5px; overflow-y: scroll; overflow-x: hidden;
         }
         .sidebar-area {
-            flex: 1; min-width: 125px; max-width: 175px; /* 幅を現在の半分に縮小 */
+            flex: 1; min-width: 125px; max-width: 175px;
             background: var(--input-bg); border: 1px solid var(--border-color);
-            border-radius: 4px; padding: 5px; overflow: auto; /* 余白を極力なくす */
+            border-radius: 4px; padding: 5px; overflow: auto;
             display: flex; flex-direction: column;
         }
         .area-title {
             font-size: 13px; font-weight: bold; color: var(--text-sub); margin-bottom: 10px;
-            position: sticky; top: 0; left: 0; /* 横スクロール時もタイトルを左端に固定 */
+            position: sticky; top: -5px; left: 0; /* 変更: 親要素のpadding分(5px)上に吸着位置をずらす */
+            margin-top: -5px; /* 追加: 親要素のpadding-topを相殺して上端に密着させる */
+            padding-top: 5px; /* 追加: 上に広げた分の隙間を背景色で塗りつぶす */
             background: var(--input-bg); z-index: 10;
             padding-bottom: 5px; border-bottom: 1px solid var(--border-color);
         }
@@ -116,52 +112,41 @@
         ::-webkit-scrollbar-track { background: var(--scroll-track); }
         ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--scroll-track); }
 
-        /* --- メインエリア：通常サムネイル (グリッド) --- */
-        .thumb-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; } /* 余白を極力なくす */
+        .thumb-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; }
         .thumb-item {
-            box-sizing: border-box; /* ボーダーやパディングを幅(width)の中に含める */
+            box-sizing: border-box;
             width: var(--thumb-size); background: var(--bg-color); border: 2px solid transparent; border-radius: 6px;
             padding: 8px; cursor: grab; display: flex; flex-direction: column; align-items: center;
             transition: transform 0.1s, box-shadow 0.1s; user-select: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: relative; /* 追加: 疑似要素の基準位置 */
+            position: relative;
         }
         .thumb-item:hover { transform: translateY(-2px); border-color: var(--border-color); }
         .thumb-item img { width: 100%; height: var(--thumb-size); object-fit: contain; pointer-events: none; margin-bottom: 5px; border-radius: 4px; background: rgba(0,0,0,0.05); }
         .thumb-item .name { font-size: 12px; color: var(--text-main); text-align: center; word-break: break-all; pointer-events: none; }
         
-        /* --- 見開き表示モード --- */
-        .mode-spread { justify-content: flex-start; gap: 5px 0; } /* 余白を極力なくす */
-        /* 左右のpaddingを0にして画像を密着させる */
+        .mode-spread { justify-content: flex-start; gap: 5px 0; }
         .mode-spread .thumb-item { width: var(--thumb-size); padding: 8px 0; border-radius: 0; box-shadow: none; border: 1px solid var(--border-color); }
-        /* ファイル名が端にくっつかないようにテキストのみpaddingを追加 */
         .mode-spread .thumb-item .name { padding: 0 4px; }
         .mode-spread .thumb-item:hover { border-color: var(--primary-color); z-index: 2; }
         .mode-spread .thumb-item img { background: transparent; }
         
-        /* 左開き (洋書・横書き) 1,[2,3], [4,5] */
         .mode-spread-ltr { direction: ltr; }
-        .mode-spread-ltr .thumb-item:nth-child(odd) { margin-right: 5px; } /* ペア間の隙間を詰める */
-        /* 1ページ目をペアと同じ幅にするため、左側にサムネイル1つ分の余白を空ける */
+        .mode-spread-ltr .thumb-item:nth-child(odd) { margin-right: 5px; }
         .mode-spread-ltr .thumb-item:nth-child(1) { margin-left: var(--thumb-size); border-radius: 6px; }
         .mode-spread-ltr .thumb-item:nth-child(even) { border-radius: 6px 0 0 6px; border-right: none; }
         .mode-spread-ltr .thumb-item:nth-child(odd):not(:first-child) { border-radius: 0 6px 6px 0; border-left: none; }
-        /* 画像を中央で密着させる (左ページは右寄せ、右ページは左寄せ) */
         .mode-spread-ltr .thumb-item:nth-child(even) img { object-position: right; border-radius: 4px 0 0 4px; }
         .mode-spread-ltr .thumb-item:nth-child(odd):not(:first-child) img { object-position: left; border-radius: 0 4px 4px 0; }
         
-        /* 右開き (マンガ・縦書き) 1,[3,2],[5,4] */
         .mode-spread-rtl { direction: rtl; }
         .mode-spread-rtl .thumb-item { direction: ltr; }
-        .mode-spread-rtl .thumb-item:nth-child(odd) { margin-left: 5px; } /* ペア間の隙間を詰める */
-        /* 1ページ目をペアと同じ幅にするため、右側にサムネイル1つ分の余白を空ける */
+        .mode-spread-rtl .thumb-item:nth-child(odd) { margin-left: 5px; }
         .mode-spread-rtl .thumb-item:nth-child(1) { margin-right: var(--thumb-size); border-radius: 6px; }
         .mode-spread-rtl .thumb-item:nth-child(even) { border-radius: 0 6px 6px 0; border-left: none; }
         .mode-spread-rtl .thumb-item:nth-child(odd):not(:first-child) { border-radius: 6px 0 0 6px; border-right: none; }
-        /* 画像を中央で密着させる (右ページは左寄せ、左ページは右寄せ) */
         .mode-spread-rtl .thumb-item:nth-child(even) img { object-position: left; border-radius: 0 4px 4px 0; }
         .mode-spread-rtl .thumb-item:nth-child(odd):not(:first-child) img { object-position: right; border-radius: 4px 0 0 4px; }
 
-        /* --- ネイティブD&D用 赤い挿入ライン (疑似要素で表現) --- */
         .thumb-item.drop-left::before {
             content: ''; position: absolute; top: 0; left: -4px; width: 4px; height: 100%;
             background-color: #ff3b30; border-radius: 2px; pointer-events: none; z-index: 10;
@@ -179,21 +164,17 @@
             background-color: #ff3b30; border-radius: 2px; pointer-events: none; z-index: 10;
         }
 
-        /* --- サイドバー：リスト --- */
         .list-item {
             padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 13px;
             color: var(--text-main); cursor: grab; user-select: none; transition: background 0.1s;
-            white-space: nowrap; /* テキストを折り返さず1行で表示させる */
-            position: relative; /* 追加: 疑似要素の基準位置 */
+            white-space: nowrap; position: relative;
         }
         .list-item:last-child { border-bottom: none; }
         .list-item:hover { background: rgba(128, 128, 128, 0.1); }
         
-        /* 選択時スタイル */
         .selected { border-color: var(--primary-color) !important; background-color: rgba(74, 144, 226, 0.2) !important; }
         .dragging { opacity: 0.5; }
 
-        /* --- プログレス --- */
         #progress-area { margin-bottom: 10px; display: none; flex-shrink: 0; }
         #progress-text { font-size: 12px; margin-bottom: 5px; text-align: left; }
         .progress-track { background: var(--border-color); height: 4px; border-radius: 2px; overflow: hidden; }
@@ -213,13 +194,13 @@
         <div class="btn-group">
             <button id="btn-select" style="background: var(--primary-color); flex: 1;">フォルダを選択</button>
             
-            <!-- 保存形式とPDF圧縮率 -->
             <select id="save-format" title="保存形式" style="margin-left: 5px;">
                 <option value="rename">連番リネームでコピーを保存</option>
                 <option value="pdf">連結してPDFで保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
-                <label style="margin:0;">圧縮率(%)</label>
+                <!-- 修正: 誤解を招く「圧縮率」から「画像縮小率」へ変更 -->
+                <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
                 <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 50px; padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
             </div>
 
@@ -241,7 +222,6 @@
         </div>
     </div>
 
-    <!-- メインコンテンツ -->
     <div class="app-layout">
         <div class="main-area">
             <div class="area-title">サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
@@ -253,7 +233,6 @@
         </div>
     </div>
 
-    <!-- プログレス -->
     <div id="progress-area">
         <div id="progress-text">待機中</div>
         <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
@@ -269,7 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const USER_SETTINGS = {
         msgSaving: '保存中... {current} / {total}',
         msgSavingPDF: 'PDF生成中... {current} / {total}',
-        validExts:['jpg', 'jpeg', 'png', 'gif', 'webp']
+        validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        // 追加: フォールバック用のメッセージ
+        msgFallbackLoad: 'File System API非対応ブラウザのため、標準のファイル選択を使用します。',
+        msgFallbackSave: 'File System API非対応ブラウザのため、連続ダウンロードで保存します。ブラウザの複数ファイルダウンロード許可が必要です。'
     };
 
     // ==========================================
@@ -431,8 +413,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         bindEvents(container, isMain) {
-            const markerClass = isMain ? 'drop-marker-v' : 'drop-marker-h';
-
             const onClick = (e) => {
                 const item = e.target.closest('.thumb-item, .list-item');
                 if (!item) return;
@@ -444,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const ids = allItems.map(i => i.dataset.id);
                     const start = ids.indexOf(this.lastSelectedId);
                     const end = ids.indexOf(id);
-                    const[min, max] =[Math.min(start, end), Math.max(start, end)];
+                    const [min, max] = [Math.min(start, end), Math.max(start, end)];
                     this.clearSelection();
                     for (let i = min; i <= max; i++) this.selectById(ids[i], true);
                 } else if (e.ctrlKey || e.metaKey) {
@@ -478,23 +458,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.removeMarker();
             };
 
+            // 追加: エッジスクロール処理
+            const handleAutoScroll = (e) => {
+                const rect = container.getBoundingClientRect();
+                const threshold = 50; // 端から50pxでスクロール開始
+                const speed = 15;
+                if (e.clientY < rect.top + threshold) container.scrollTop -= speed;
+                else if (e.clientY > rect.bottom - threshold) container.scrollTop += speed;
+                if (e.clientX < rect.left + threshold) container.scrollLeft -= speed;
+                else if (e.clientX > rect.right - threshold) container.scrollLeft += speed;
+            };
+
             const onDragOver = (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
+                handleAutoScroll(e); // ドラッグ中の自動スクロールを実行
+
                 const target = e.target.closest('.thumb-item, .list-item');
                 
-                // ドラッグ対象自身には落とせない
                 if (!target || target.classList.contains('selected')) {
                     this.removeMarker();
                     return;
                 }
 
-                this.removeMarker(); // 既存のマーカークラスをクリア
+                this.removeMarker();
 
                 const rect = target.getBoundingClientRect();
                 
                 if (isMain) {
-                    // メイングリッド（横方向の判定）
                     const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
                     if (isLeftHalf) {
                         target.classList.add('drop-left');
@@ -504,7 +495,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         this.markerTarget = { el: target, visualPos: 'right' };
                     }
                 } else {
-                    // サイドバーリスト（縦方向の判定）
                     const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
                     if (isTopHalf) {
                         target.classList.add('drop-top');
@@ -530,35 +520,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const visualPos = this.markerTarget.visualPos;
                     const refId = targetEl.dataset.id;
 
-                    const refMain = this.ui.mainGrid.querySelector(`[data-id="${refId}"]`);
-                    const refList = this.ui.sidebarList.querySelector(`[data-id="${refId}"]`);
-
-                    // 論理的な挿入位置（対象要素の「前」に挿入するかどうか）を決定
                     let isLogicalBefore = false;
                     if (isMain) {
                         const isRTL = container.classList.contains('mode-spread-rtl');
-                        // RTL(右開き)の場合は右側が「前」、LTR(左開き/通常)の場合は左側が「前」
                         isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
                     } else {
-                        // リストの場合は上側が「前」
                         isLogicalBefore = (visualPos === 'top');
                     }
 
-                    // 挿入基準ノードを固定（複数選択時の順序逆転を防ぐため）
-                    const insertRefMain = isLogicalBefore ? refMain : (refMain ? refMain.nextSibling : null);
-                    const insertRefList = isLogicalBefore ? refList : (refList ? refList.nextSibling : null);
-
-                    // メイン側・リスト側 両方のDOMを基準要素の前に挿入して同期移動
-                    ids.forEach(id => {
-                        const mNode = this.ui.mainGrid.querySelector(`[data-id="${id}"]`);
-                        const lNode = this.ui.sidebarList.querySelector(`[data-id="${id}"]`);
-                        if (mNode) this.ui.mainGrid.insertBefore(mNode, insertRefMain);
-                        if (lNode) this.ui.sidebarList.insertBefore(lNode, insertRefList);
-                    });
-
-                    // 内部順序の更新
-                    const newOrder = Array.from(this.ui.mainGrid.querySelectorAll('.thumb-item')).map(el => el.dataset.id);
-                    this.onOrderChanged(newOrder);
+                    // 変更: DOMを直接操作せず、Appクラスにデータ更新を委譲する
+                    this.onOrderChanged(ids, refId, isLogicalBefore);
 
                 } catch (err) { console.error(err); }
                 this.removeMarker();
@@ -568,7 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!container.contains(e.relatedTarget)) this.removeMarker();
             };
 
-            // イベント委譲でコンテナに一括登録
             container.addEventListener('click', onClick);
             container.addEventListener('dragstart', onDragStart);
             container.addEventListener('dragend', onDragEnd);
@@ -622,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
     class PDFDocument {
         constructor() {
             this.parts = [];
-            this.objects =[];
+            this.objects = [];
             this.offsets =[];
             this.offset = 0;
             
@@ -665,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.pageIds.push(pageId);
             
             this.startObj(pageId);
-            this.addPart(`<< /Type /Page /Parent ${this.pagesId} 0 R /MediaBox [0 0 ${width} ${height}] /Contents ${contentId} 0 R /Resources << /XObject << /I${imageId} ${imageId} 0 R >> >> >>`);
+            this.addPart(`<< /Type /Page /Parent ${this.pagesId} 0 R /MediaBox[0 0 ${width} ${height}] /Contents ${contentId} 0 R /Resources << /XObject << /I${imageId} ${imageId} 0 R >> >> >>`);
             this.endObj();
             
             const contentStr = `q ${width} 0 0 ${height} 0 0 cm /I${imageId} Do Q`;
@@ -764,20 +734,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async saveAsPDF(fileItems, quality, onProgress) {
-        
             let handle;
             try {
                 handle = await window.showSaveFilePicker({
                     suggestedName: 'output.pdf',
-                    types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }],
+                    types: [{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }],
                 });
             } catch (e) {
-                // ユーザーが「キャンセル」を押した場合は処理を中断
                 if (e.name === 'AbortError') return false; 
-                throw e; // その他のエラー
+                throw e;
             }
 
-            // PDFの生成処理（時間がかかる処理）
             const pdf = new PDFDocument();
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
@@ -787,56 +754,114 @@ document.addEventListener('DOMContentLoaded', () => {
                 await pdf.addImagePage(blob, width, height);
                 
                 onProgress(i + 1, fileItems.length, `ページ ${i + 1}`);
+                // 追加: 1ページ処理するごとにメインスレッドを解放し、UIフリーズを防ぐ
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
             const pdfBlob = pdf.finish();
             
-            // 取得済みのファイルハンドルに書き込む
             const writable = await handle.createWritable();
             await writable.write(pdfBlob);
             await writable.close();
 
-            return true; // 保存成功
+            return true;
         }
 
-        convertToJpeg(file, quality) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                const url = URL.createObjectURL(file);
-                
-                img.onload = () => {
-                    // 入力されたパーセンテージ(%)を「解像度の縮小率」として計算
-                    const scale = quality / 100;
-                    
-                    // 元の画像サイズから指定された%分だけ解像度を縮小する
-                    const width = Math.max(1, Math.floor(img.width * scale));
-                    const height = Math.max(1, Math.floor(img.height * scale));
+        // 変更: createImageBitmap と OffscreenCanvas でメモリ効率と速度を向上
+        async convertToJpeg(file, quality) {
+            const bitmap = await createImageBitmap(file);
+            const scale = quality / 100;
+            const width = Math.max(1, Math.floor(bitmap.width * scale));
+            const height = Math.max(1, Math.floor(bitmap.height * scale));
 
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    
-                    // 背景を白で塗りつぶす（透過PNGが黒くなるのを防ぐため）
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    // 縮小処理をなめらか（綺麗）にする設定
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-                    
-                    // 縮小したサイズでキャンバスに描画
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // JPEGとしてデータ化
-                    canvas.toBlob(blob => {
-                        URL.revokeObjectURL(url);
-                        resolve({ blob, width, height });
-                    }, 'image/jpeg', 0.8);
-                };
-                
-                img.onerror = reject;
-                img.src = url;
+            let canvas, ctx;
+            if (typeof OffscreenCanvas !== 'undefined') {
+                canvas = new OffscreenCanvas(width, height);
+                ctx = canvas.getContext('2d');
+            } else {
+                canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                ctx = canvas.getContext('2d');
+            }
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(bitmap, 0, 0, width, height);
+            bitmap.close(); // メモリを即座に解放
+
+            let blob;
+            if (canvas.convertToBlob) {
+                blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+            } else {
+                blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+            }
+            return { blob, width, height };
+        }
+
+        // 追加: File System API 非対応ブラウザ向けのフォールバック群
+        async selectDirectoryFallback() {
+            return new Promise((resolve) => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.webkitdirectory = true;
+                input.multiple = true;
+                input.onchange = (e) => resolve(Array.from(e.target.files));
+                input.click();
             });
+        }
+
+        async loadImagesFallback(files) {
+            const items =[];
+            for (const file of files) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (USER_SETTINGS.validExts.includes(ext)) {
+                    items.push({
+                        id: file.webkitRelativePath || file.name,
+                        name: file.name,
+                        handle: { getFile: async () => file }, // 互換性維持のためのダミーハンドル
+                        objectUrl: URL.createObjectURL(file)
+                    });
+                }
+            }
+            items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+            return items;
+        }
+
+        async saveRenamedFilesFallback(fileItems, onProgress) {
+            const padLength = Math.max(3, String(fileItems.length).length);
+            for (let i = 0; i < fileItems.length; i++) {
+                const item = fileItems[i];
+                const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+                const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
+                
+                const a = document.createElement('a');
+                a.href = item.objectUrl;
+                a.download = newName;
+                a.click();
+                
+                onProgress(i + 1, fileItems.length, newName);
+                await new Promise(resolve => setTimeout(resolve, 150)); // ブラウザのDL制限回避のため少し待機
+            }
+        }
+
+        async saveAsPDFFallback(fileItems, quality, onProgress) {
+            const pdf = new PDFDocument();
+            for (let i = 0; i < fileItems.length; i++) {
+                const item = fileItems[i];
+                const file = await item.handle.getFile();
+                const { blob, width, height } = await this.convertToJpeg(file, quality);
+                await pdf.addImagePage(blob, width, height);
+                onProgress(i + 1, fileItems.length, `ページ ${i + 1}`);
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            const pdfBlob = pdf.finish();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(pdfBlob);
+            a.download = 'output.pdf';
+            a.click();
+            return true;
         }
     }
 
@@ -847,21 +872,22 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() {
             this.ui = new UIManager();
             this.fs = new FileSystemManager();
-            this.sortManager = new SortManager(this.ui, (order) => this.reorderFiles(order));
+            // 変更: データ駆動のコールバック引数を変更
+            this.sortManager = new SortManager(this.ui, (draggedIds, targetId, isLogicalBefore) => this.reorderFiles(draggedIds, targetId, isLogicalBefore));
             
             this.dirHandle = null;
             this.fileItems =[];
             this.isProcessing = false;
-            
             this.historyUndo = [];
             this.historyRedo =[];
 
-            if (!('showDirectoryPicker' in window)) {
-                alert('⚠️ お使いのブラウザはローカルフォルダの読み書き(File System Access API)に対応していません。\nGoogle Chrome または Microsoft Edge をご利用ください。');
-                this.ui.btnSelect.disabled = true;
+            // 変更: API対応状況を判定し、非対応でもブロックしない
+            this.hasFSApi = 'showDirectoryPicker' in window;
+            if (!this.hasFSApi) {
+                console.warn(USER_SETTINGS.msgFallbackLoad);
             }
-            this.ui.changeViewMode('spread-rtl');
             
+            this.ui.changeViewMode('spread-rtl');
             this.bindEvents();
         }
 
@@ -916,21 +942,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (this.isProcessing) return;
 
-                const items = e.dataTransfer.items;
-                let droppedDirHandle = null;
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i];
-                    if (item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function') {
-                        const handle = await item.getAsFileSystemHandle();
-                        if (handle && handle.kind === 'directory') {
-                            droppedDirHandle = handle;
-                            break;
+                if (this.hasFSApi) {
+                    const items = e.dataTransfer.items;
+                    let droppedDirHandle = null;
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function') {
+                            const handle = await item.getAsFileSystemHandle();
+                            if (handle && handle.kind === 'directory') {
+                                droppedDirHandle = handle;
+                                break;
+                            }
                         }
                     }
-                }
 
-                if (droppedDirHandle) this.handleLoadDirectory(droppedDirHandle);
-                else alert('❌ フォルダをドロップしてください。(ブラウザが対応していない可能性もあります)');
+                    if (droppedDirHandle) this.handleLoadDirectory(droppedDirHandle);
+                    else alert('❌ フォルダをドロップしてください。');
+                } else {
+                    // フォールバック: ドロップされたファイルを直接読み込む
+                    const files = Array.from(e.dataTransfer.files);
+                    this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+                    this.fileItems = await this.fs.loadImagesFallback(files);
+                    this.finalizeLoad();
+                }
             });
         }
 
@@ -965,48 +999,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async handleSelectFolder() {
             try {
-                const handle = await this.fs.selectDirectory();
-                await this.handleLoadDirectory(handle);
+                if (this.hasFSApi) {
+                    const handle = await this.fs.selectDirectory();
+                    await this.handleLoadDirectory(handle);
+                } else {
+                    // 追加: フォールバック読み込み
+                    const files = await this.fs.selectDirectoryFallback();
+                    this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+                    this.fileItems = await this.fs.loadImagesFallback(files);
+                    this.finalizeLoad();
+                }
             } catch (e) {
-                console.error(e);
+                if (e.name !== 'AbortError') console.error(e);
             }
         }
 
         async handleLoadDirectory(dirHandle) {
             this.dirHandle = dirHandle;
-            
             try {
                 this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
                 this.fileItems = await this.fs.loadImages(this.dirHandle);
-                
-                if (this.fileItems.length === 0) {
-                    alert('❌ フォルダ内に画像が見つかりませんでした。');
-                    return;
-                }
-
-                this.ui.renderItems(this.fileItems);
-                this.sortManager.init();
-                
-                this.historyUndo = [];
-                this.historyRedo =[];
-                this.updateHistoryButtons();
-                
-                this.ui.setButtonsState(false, true);
+                this.finalizeLoad();
             } catch (e) {
                 console.error(e);
                 alert('❌ エラーが発生しました: ' + e.message);
             }
         }
 
-        reorderFiles(orderIds) {
+        // 追加: 読み込み完了後の共通処理
+        finalizeLoad() {
+            if (this.fileItems.length === 0) {
+                alert('❌ 画像が見つかりませんでした。');
+                return;
+            }
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
+            this.historyUndo = [];
+            this.historyRedo =[];
+            this.updateHistoryButtons();
+            this.ui.setButtonsState(false, true);
+        }
+
+        // 変更: データ駆動による並び替え処理
+        reorderFiles(draggedIds, targetId, isLogicalBefore) {
             this.saveHistory();
             
-            const newItems =[];
-            orderIds.forEach(id => {
-                const item = this.fileItems.find(f => f.id === id);
-                if (item) newItems.push(item);
-            });
+            const draggedItems = this.fileItems.filter(item => draggedIds.includes(item.id));
+            let newItems = this.fileItems.filter(item => !draggedIds.includes(item.id));
+            
+            let targetIndex = newItems.findIndex(item => item.id === targetId);
+            if (targetIndex === -1) targetIndex = newItems.length;
+            
+            const insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1;
+            newItems.splice(insertIndex, 0, ...draggedItems);
+            
             this.fileItems = newItems;
+            
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
+            
+            // 選択状態の復元
+            draggedIds.forEach(id => this.sortManager.selectById(id, true));
+            this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
         }
 
         async handleExecute() {
@@ -1015,60 +1069,74 @@ document.addEventListener('DOMContentLoaded', () => {
             const saveFormat = this.ui.saveFormatSelect.value;
 
             if (saveFormat === 'rename') {
-                let targetDirHandle;
-                try {
-                    targetDirHandle = await window.showDirectoryPicker({
-                        mode: 'readwrite',
-                        id: 'save-folder'
-                    });
-                } catch (e) {
-                    if (e.name === 'AbortError') return; 
-                    console.error(e);
-                    alert('❌ フォルダの選択がブラウザのセキュリティによってブロックされました。\n\n【原因】\nデスクトップ直下やダウンロードフォルダ直下など、システムが保護している場所を選択した可能性があります。\n\n【対策】\n新しく作成した「空のフォルダ」や、ドキュメント内のフォルダを選択してください。');
-                    return;
-                }
-
                 this.isProcessing = true;
                 this.ui.setButtonsState(true, true);
                 this.updateHistoryButtons();
 
                 try {
-                    await this.fs.saveRenamedFiles(targetDirHandle, this.fileItems, (current, total, newName) => {
-                        const percent = (current / total) * 100;
-                        const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
-                        this.ui.updateProgress(percent, text);
-                    });
-                    alert(`選択したフォルダ内に画像を保存しました。`);
+                    if (this.hasFSApi) {
+                        let targetDirHandle;
+                        try {
+                            targetDirHandle = await window.showDirectoryPicker({
+                                mode: 'readwrite',
+                                id: 'save-folder'
+                            });
+                        } catch (e) {
+                            if (e.name === 'AbortError') return; 
+                            throw new Error('フォルダ選択がキャンセルされたか、ブロックされました。');
+                        }
+                        await this.fs.saveRenamedFiles(targetDirHandle, this.fileItems, (current, total, newName) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                        alert(`選択したフォルダ内に画像を保存しました。`);
+                    } else {
+                        alert(USER_SETTINGS.msgFallbackSave);
+                        await this.fs.saveRenamedFilesFallback(this.fileItems, (current, total, newName) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                        alert(`連続ダウンロードによる保存が完了しました。`);
+                    }
                 } catch (e) {
                     console.error(e);
-                    alert('保存中にエラーが発生しました。\nブラウザのアクセス権限がないか、対応していません。');
+                    if (e.name !== 'AbortError') alert('保存中にエラーが発生しました: ' + e.message);
                 } finally {
                     this.isProcessing = false;
                     this.ui.setButtonsState(false, true);
                     this.updateHistoryButtons();
                     setTimeout(() => this.ui.updateProgress(0, ''), 3000);
                 }
-                        } else if (saveFormat === 'pdf') {
+            } else if (saveFormat === 'pdf') {
                 const quality = parseInt(this.ui.pdfQuality.value, 10) || 30;
                 this.isProcessing = true;
                 this.ui.setButtonsState(true, true);
                 this.updateHistoryButtons();
 
                 try {
-                    // 戻り値(success)を受け取るように変更
-                    const success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
-                        const percent = (current / total) * 100;
-                        const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
-                        this.ui.updateProgress(percent, text);
-                    });
+                    let success = false;
+                    if (this.hasFSApi) {
+                        success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                    } else {
+                        success = await this.fs.saveAsPDFFallback(this.fileItems, quality, (current, total, info) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                    }
                     
-                    // キャンセルされずに成功した時だけ完了メッセージを出す
                     if (success) {
                         alert(`PDFを保存しました。`);
                     }
                 } catch (e) {
                     console.error(e);
-                    alert('保存中にエラーが発生しました。\nブラウザが対応していないか、アクセス権限がありません。');
+                    alert('保存中にエラーが発生しました: ' + e.message);
                 } finally {
                     this.isProcessing = false;
                     this.ui.setButtonsState(false, true);
