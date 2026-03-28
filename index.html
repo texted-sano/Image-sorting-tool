@@ -91,28 +91,31 @@
         .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; }
         .main-area {
             flex: 3; background: var(--input-bg); border: 1px solid var(--border-color);
-            border-radius: 4px; padding: 5px; overflow-y: scroll; overflow-x: hidden;
+            border-radius: 4px; padding: 0;
+            overflow-y: scroll; overflow-x: hidden;
         }
         .sidebar-area {
             flex: 1; min-width: 125px; max-width: 175px;
             background: var(--input-bg); border: 1px solid var(--border-color);
-            border-radius: 4px; padding: 5px; overflow: auto;
-            display: flex; flex-direction: column;
+            border-radius: 4px; padding: 0;
+            overflow: auto; display: flex; flex-direction: column;
         }
         .area-title {
-            font-size: 13px; font-weight: bold; color: var(--text-sub); margin-bottom: 10px;
-            position: sticky; top: -5px; left: 0; /* 変更: 親要素のpadding分(5px)上に吸着位置をずらす */
-            margin-top: -5px; /* 追加: 親要素のpadding-topを相殺して上端に密着させる */
-            padding-top: 5px; /* 追加: 上に広げた分の隙間を背景色で塗りつぶす */
+            font-size: 13px; font-weight: bold; color: var(--text-sub);
+            position: sticky; top: 0; left: 0;
+            margin: 0; padding: 5px;
             background: var(--input-bg); z-index: 10;
-            padding-bottom: 5px; border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
         }
         
         ::-webkit-scrollbar { width: 10px; height: 10px; }
         ::-webkit-scrollbar-track { background: var(--scroll-track); }
         ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--scroll-track); }
 
-        .thumb-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; }
+        .thumb-grid { 
+            display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; margin: 0 auto; 
+            padding: 5px;
+        }
         .thumb-item {
             box-sizing: border-box;
             width: var(--thumb-size); background: var(--bg-color); border: 2px solid transparent; border-radius: 6px;
@@ -199,7 +202,6 @@
                 <option value="pdf">連結してPDFで保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
-                <!-- 修正: 誤解を招く「圧縮率」から「画像縮小率」へ変更 -->
                 <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
                 <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 50px; padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
             </div>
@@ -249,16 +251,17 @@ document.addEventListener('DOMContentLoaded', () => {
         msgSaving: '保存中... {current} / {total}',
         msgSavingPDF: 'PDF生成中... {current} / {total}',
         validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        // 追加: フォールバック用のメッセージ
         msgFallbackLoad: 'File System API非対応ブラウザのため、標準のファイル選択を使用します。',
-        msgFallbackSave: 'File System API非対応ブラウザのため、連続ダウンロードで保存します。ブラウザの複数ファイルダウンロード許可が必要です。'
+        msgFallbackSave: 'File System API非対応ブラウザのため、ZIPファイルにまとめて保存します。'
     };
 
     // ==========================================
     // 2. DOM操作・UI管理クラス
     // ==========================================
     class UIManager {
-        constructor() {
+        constructor(onRequestImage) {
+            this.onRequestImage = onRequestImage;
+
             this.btnSelect = document.getElementById('btn-select');
             this.btnExecute = document.getElementById('btn-execute');
             this.btnUndo = document.getElementById('btn-undo');
@@ -294,6 +297,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             this.resizeObserver = new ResizeObserver(() => this.adjustGridWidth());
             this.resizeObserver.observe(this.mainArea);
+
+            this.imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        if (!img.src) {
+                            this.onRequestImage(img.dataset.id).then(url => {
+                                if (url) img.src = url;
+                            });
+                            observer.unobserve(img); 
+                        }
+                    }
+                });
+            }, { root: this.mainArea, rootMargin: '200px' });
         }
 
         adjustGridWidth() {
@@ -303,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.mainGrid.style.maxWidth = 'none';
                 return;
             }
-            
             const containerWidth = this.mainArea.clientWidth - 10;
             const thumbSize = parseInt(this.sizeSlider.value, 10);
             const gap = 5;
@@ -345,6 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
         renderItems(fileItems) {
             this.mainGrid.innerHTML = '';
             this.sidebarList.innerHTML = '';
+            this.imageObserver.disconnect();
+            
+            const fragmentMain = document.createDocumentFragment();
+            const fragmentSidebar = document.createDocumentFragment();
             
             fileItems.forEach(item => {
                 const thumbDiv = document.createElement('div');
@@ -353,23 +373,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 thumbDiv.draggable = true;
                 
                 const img = document.createElement('img');
-                img.src = item.objectUrl;
+                img.dataset.id = item.id;
+                if (item.objectUrl) img.src = item.objectUrl;
+                
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'name';
                 nameDiv.textContent = item.name;
                 
                 thumbDiv.appendChild(img);
                 thumbDiv.appendChild(nameDiv);
-                this.mainGrid.appendChild(thumbDiv);
+                fragmentMain.appendChild(thumbDiv);
+                
+                if (!item.objectUrl) this.imageObserver.observe(img); 
                 
                 const listDiv = document.createElement('div');
                 listDiv.className = 'list-item';
                 listDiv.dataset.id = item.id;
                 listDiv.textContent = item.name;
                 listDiv.draggable = true;
-                this.sidebarList.appendChild(listDiv);
+                fragmentSidebar.appendChild(listDiv);
             });
+            this.mainGrid.appendChild(fragmentMain);
+            this.sidebarList.appendChild(fragmentSidebar);
             this.adjustGridWidth();
+        }
+
+        moveItems(draggedIds, targetId, isLogicalBefore) {
+            const targetThumb = targetId ? this.mainGrid.querySelector(`[data-id="${targetId}"]`) : null;
+            const targetList = targetId ? this.sidebarList.querySelector(`[data-id="${targetId}"]`) : null;
+
+            draggedIds.forEach(id => {
+                const thumb = this.mainGrid.querySelector(`[data-id="${id}"]`);
+                const listItem = this.sidebarList.querySelector(`[data-id="${id}"]`);
+                if (!thumb || !listItem) return;
+
+                if (targetThumb && targetList) {
+                    const insertNodeT = isLogicalBefore ? targetThumb : targetThumb.nextSibling;
+                    const insertNodeL = isLogicalBefore ? targetList : targetList.nextSibling;
+                    this.mainGrid.insertBefore(thumb, insertNodeT);
+                    this.sidebarList.insertBefore(listItem, insertNodeL);
+                } else {
+                    this.mainGrid.appendChild(thumb);
+                    this.sidebarList.appendChild(listItem);
+                }
+            });
         }
 
         setButtonsState(isProcessing, hasFiles) {
@@ -389,13 +436,14 @@ document.addEventListener('DOMContentLoaded', () => {
         clear() {
             this.mainGrid.innerHTML = '';
             this.sidebarList.innerHTML = '';
+            this.imageObserver.disconnect();
             this.updateProgress(0, '');
             this.setButtonsState(false, false);
         }
     }
 
     // ==========================================
-    // 3. ドラッグ＆ドロップ管理クラス (Native実装)
+    // 3. ドラッグ＆ドロップ管理クラス
     // ==========================================
     class SortManager {
         constructor(uiManager, onOrderChanged) {
@@ -404,6 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.lastSelectedId = null;
             this.markerTarget = null;
             this.boundEvents =[];
+            this.dragOverTicking = false;
         }
 
         init() {
@@ -424,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const ids = allItems.map(i => i.dataset.id);
                     const start = ids.indexOf(this.lastSelectedId);
                     const end = ids.indexOf(id);
-                    const [min, max] = [Math.min(start, end), Math.max(start, end)];
+                    const [min, max] =[Math.min(start, end), Math.max(start, end)];
                     this.clearSelection();
                     for (let i = min; i <= max; i++) this.selectById(ids[i], true);
                 } else if (e.ctrlKey || e.metaKey) {
@@ -458,10 +507,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.removeMarker();
             };
 
-            // 追加: エッジスクロール処理
             const handleAutoScroll = (e) => {
                 const rect = container.getBoundingClientRect();
-                const threshold = 50; // 端から50pxでスクロール開始
+                const threshold = 50;
                 const speed = 15;
                 if (e.clientY < rect.top + threshold) container.scrollTop -= speed;
                 else if (e.clientY > rect.bottom - threshold) container.scrollTop += speed;
@@ -472,37 +520,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const onDragOver = (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-                handleAutoScroll(e); // ドラッグ中の自動スクロールを実行
-
-                const target = e.target.closest('.thumb-item, .list-item');
                 
-                if (!target || target.classList.contains('selected')) {
-                    this.removeMarker();
-                    return;
-                }
+                if (!this.dragOverTicking) {
+                    requestAnimationFrame(() => {
+                        handleAutoScroll(e);
 
-                this.removeMarker();
+                        const target = e.target.closest('.thumb-item, .list-item');
+                        if (!target || target.classList.contains('selected')) {
+                            this.removeMarker();
+                            this.dragOverTicking = false;
+                            return;
+                        }
 
-                const rect = target.getBoundingClientRect();
-                
-                if (isMain) {
-                    const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
-                    if (isLeftHalf) {
-                        target.classList.add('drop-left');
-                        this.markerTarget = { el: target, visualPos: 'left' };
-                    } else {
-                        target.classList.add('drop-right');
-                        this.markerTarget = { el: target, visualPos: 'right' };
-                    }
-                } else {
-                    const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
-                    if (isTopHalf) {
-                        target.classList.add('drop-top');
-                        this.markerTarget = { el: target, visualPos: 'top' };
-                    } else {
-                        target.classList.add('drop-bottom');
-                        this.markerTarget = { el: target, visualPos: 'bottom' };
-                    }
+                        this.removeMarker();
+                        const rect = target.getBoundingClientRect();
+                        
+                        if (isMain) {
+                            const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
+                            if (isLeftHalf) {
+                                target.classList.add('drop-left');
+                                this.markerTarget = { el: target, visualPos: 'left' };
+                            } else {
+                                target.classList.add('drop-right');
+                                this.markerTarget = { el: target, visualPos: 'right' };
+                            }
+                        } else {
+                            const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+                            if (isTopHalf) {
+                                target.classList.add('drop-top');
+                                this.markerTarget = { el: target, visualPos: 'top' };
+                            } else {
+                                target.classList.add('drop-bottom');
+                                this.markerTarget = { el: target, visualPos: 'bottom' };
+                            }
+                        }
+                        this.dragOverTicking = false;
+                    });
+                    this.dragOverTicking = true;
                 }
             };
 
@@ -528,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         isLogicalBefore = (visualPos === 'top');
                     }
 
-                    // 変更: DOMを直接操作せず、Appクラスにデータ更新を委譲する
                     this.onOrderChanged(ids, refId, isLogicalBefore);
 
                 } catch (err) { console.error(err); }
@@ -587,11 +640,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 4. 軽量PDF生成クラス (外部ライブラリ不要)
+    // 4. 軽量PDF生成クラス
     // ==========================================
     class PDFDocument {
         constructor() {
-            this.parts = [];
+            this.parts =[];
             this.objects = [];
             this.offsets =[];
             this.offset = 0;
@@ -687,120 +740,95 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 5. ローカルファイル操作クラス (File System API)
+    // 5. 軽量ZIP生成クラス
+    // ==========================================
+    class ZipDocument {
+        constructor() {
+            this.parts =[];
+            this.centralDirs =[];
+            this.offset = 0;
+            this.encoder = new TextEncoder();
+        }
+        
+        addFile(name, dataUint8) {
+            const nameBytes = this.encoder.encode(name);
+            const crc = this.crc32(dataUint8);
+            const size = dataUint8.length;
+            
+            // Local File Header
+            const lfh = new Uint8Array(30 + nameBytes.length);
+            const view = new DataView(lfh.buffer);
+            view.setUint32(0, 0x04034b50, true);
+            view.setUint16(4, 10, true);
+            view.setUint16(6, 0, true);
+            view.setUint16(8, 0, true); // Store
+            view.setUint16(10, 0, true);
+            view.setUint16(12, 0, true);
+            view.setUint32(14, crc, true);
+            view.setUint32(18, size, true);
+            view.setUint32(22, size, true);
+            view.setUint16(26, nameBytes.length, true);
+            view.setUint16(28, 0, true);
+            lfh.set(nameBytes, 30);
+            
+            this.parts.push(lfh);
+            this.parts.push(dataUint8);
+            
+            // Central Directory
+            const cd = new Uint8Array(46 + nameBytes.length);
+            const cdView = new DataView(cd.buffer);
+            cdView.setUint32(0, 0x02014b50, true);
+            cdView.setUint16(4, 10, true);
+            cdView.setUint16(6, 10, true);
+            cdView.setUint16(8, 0, true);
+            cdView.setUint16(10, 0, true);
+            cdView.setUint16(12, 0, true);
+            cdView.setUint16(14, 0, true);
+            cdView.setUint32(16, crc, true);
+            cdView.setUint32(20, size, true);
+            cdView.setUint32(24, size, true);
+            cdView.setUint16(28, nameBytes.length, true);
+            cdView.setUint32(42, this.offset, true);
+            cd.set(nameBytes, 46);
+            
+            this.centralDirs.push(cd);
+            this.offset += lfh.length + dataUint8.length;
+        }
+        
+        finish() {
+            let cdSize = 0;
+            this.centralDirs.forEach(cd => cdSize += cd.length);
+            const eocd = new Uint8Array(22);
+            const view = new DataView(eocd.buffer);
+            view.setUint32(0, 0x06054b50, true);
+            view.setUint16(8, this.centralDirs.length, true);
+            view.setUint16(10, this.centralDirs.length, true);
+            view.setUint32(12, cdSize, true);
+            view.setUint32(16, this.offset, true);
+            
+            return new Blob([...this.parts, ...this.centralDirs, eocd], { type: 'application/zip' });
+        }
+        
+        crc32(data) {
+            let crc = 0 ^ (-1);
+            for (let i = 0; i < data.length; i++) {
+                crc ^= data[i];
+                for (let j = 0; j < 8; j++) {
+                    crc = (crc & 1) ? (crc >>> 1) ^ 0xEDB88320 : (crc >>> 1);
+                }
+            }
+            return (crc ^ (-1)) >>> 0;
+        }
+    }
+
+    // ==========================================
+    // 6. ローカルファイル操作クラス
     // ==========================================
     class FileSystemManager {
         async selectDirectory() {
             return await window.showDirectoryPicker({ mode: 'readwrite' });
         }
 
-        async loadImages(dirHandle) {
-            const items =[];
-            for await (const entry of dirHandle.values()) {
-                if (entry.kind === 'file') {
-                    const ext = entry.name.split('.').pop().toLowerCase();
-                    if (USER_SETTINGS.validExts.includes(ext)) {
-                        const file = await entry.getFile();
-                        items.push({
-                            id: entry.name,
-                            name: entry.name,
-                            handle: entry,
-                            objectUrl: URL.createObjectURL(file)
-                        });
-                    }
-                }
-            }
-            items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-            return items;
-        }
-
-        async saveRenamedFiles(targetDirHandle, fileItems, onProgress) {
-            const padLength = Math.max(3, String(fileItems.length).length);
-
-            for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i];
-                const file = await item.handle.getFile();
-                const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                
-                const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
-                
-                const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
-                const writable = await newFileHandle.createWritable();
-                await writable.write(file);
-                await writable.close();
-                
-                onProgress(i + 1, fileItems.length, newName);
-            }
-        }
-
-        async saveAsPDF(fileItems, quality, onProgress) {
-            let handle;
-            try {
-                handle = await window.showSaveFilePicker({
-                    suggestedName: 'output.pdf',
-                    types: [{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }],
-                });
-            } catch (e) {
-                if (e.name === 'AbortError') return false; 
-                throw e;
-            }
-
-            const pdf = new PDFDocument();
-            for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i];
-                const file = await item.handle.getFile();
-                
-                const { blob, width, height } = await this.convertToJpeg(file, quality);
-                await pdf.addImagePage(blob, width, height);
-                
-                onProgress(i + 1, fileItems.length, `ページ ${i + 1}`);
-                // 追加: 1ページ処理するごとにメインスレッドを解放し、UIフリーズを防ぐ
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
-            const pdfBlob = pdf.finish();
-            
-            const writable = await handle.createWritable();
-            await writable.write(pdfBlob);
-            await writable.close();
-
-            return true;
-        }
-
-        // 変更: createImageBitmap と OffscreenCanvas でメモリ効率と速度を向上
-        async convertToJpeg(file, quality) {
-            const bitmap = await createImageBitmap(file);
-            const scale = quality / 100;
-            const width = Math.max(1, Math.floor(bitmap.width * scale));
-            const height = Math.max(1, Math.floor(bitmap.height * scale));
-
-            let canvas, ctx;
-            if (typeof OffscreenCanvas !== 'undefined') {
-                canvas = new OffscreenCanvas(width, height);
-                ctx = canvas.getContext('2d');
-            } else {
-                canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                ctx = canvas.getContext('2d');
-            }
-            
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(bitmap, 0, 0, width, height);
-            bitmap.close(); // メモリを即座に解放
-
-            let blob;
-            if (canvas.convertToBlob) {
-                blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
-            } else {
-                blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-            }
-            return { blob, width, height };
-        }
-
-        // 追加: File System API 非対応ブラウザ向けのフォールバック群
         async selectDirectoryFallback() {
             return new Promise((resolve) => {
                 const input = document.createElement('input');
@@ -812,67 +840,185 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        async loadImagesFallback(files) {
+        async loadImages(dirHandle) {
             const items =[];
-            for (const file of files) {
-                const ext = file.name.split('.').pop().toLowerCase();
-                if (USER_SETTINGS.validExts.includes(ext)) {
-                    items.push({
-                        id: file.webkitRelativePath || file.name,
-                        name: file.name,
-                        handle: { getFile: async () => file }, // 互換性維持のためのダミーハンドル
-                        objectUrl: URL.createObjectURL(file)
-                    });
+            let count = 0;
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file') {
+                    const ext = entry.name.split('.').pop().toLowerCase();
+                    if (USER_SETTINGS.validExts.includes(ext)) {
+                        items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null });
+                    }
+                }
+                // メインスレッドのブロック(フリーズ)を防ぐためのチャンク処理
+                if (++count % 100 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
+            // 巨大配列のソート前にもスレッドを解放
+            await new Promise(resolve => setTimeout(resolve, 0));
             items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
             return items;
         }
 
+        async loadImagesFallback(files) {
+            const items =[];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (USER_SETTINGS.validExts.includes(ext)) {
+                    items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null });
+                }
+                // メインスレッドのブロック(フリーズ)を防ぐためのチャンク処理
+                if (i % 100 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            // 巨大配列のソート前にもスレッドを解放
+            await new Promise(resolve => setTimeout(resolve, 0));
+            items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+            return items;
+        }
+
+        async saveRenamedFiles(targetDirHandle, fileItems, onProgress) {
+            const padLength = Math.max(3, String(fileItems.length).length);
+            for (let i = 0; i < fileItems.length; i++) {
+                const item = fileItems[i];
+                const file = await item.handle.getFile();
+                const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+                const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
+                
+                const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
+                const writable = await newFileHandle.createWritable();
+                await writable.write(file);
+                await writable.close();
+                
+                onProgress(i + 1, fileItems.length, newName);
+            }
+        }
+
         async saveRenamedFilesFallback(fileItems, onProgress) {
+            const zip = new ZipDocument();
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
                 const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
                 
-                const a = document.createElement('a');
-                a.href = item.objectUrl;
-                a.download = newName;
-                a.click();
+                const file = await item.handle.getFile();
+                const buffer = new Uint8Array(await file.arrayBuffer());
+                zip.addFile(newName, buffer);
                 
                 onProgress(i + 1, fileItems.length, newName);
-                await new Promise(resolve => setTimeout(resolve, 150)); // ブラウザのDL制限回避のため少し待機
+                await new Promise(resolve => setTimeout(resolve, 0)); 
             }
+            const blob = zip.finish();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'renamed_images.zip';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveAsPDFFallback(fileItems, quality, onProgress) {
-            const pdf = new PDFDocument();
-            for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i];
-                const file = await item.handle.getFile();
-                const { blob, width, height } = await this.convertToJpeg(file, quality);
-                await pdf.addImagePage(blob, width, height);
-                onProgress(i + 1, fileItems.length, `ページ ${i + 1}`);
-                await new Promise(resolve => setTimeout(resolve, 0));
+        async saveAsPDF(fileItems, quality, onProgress) {
+            let handle = null;
+            if ('showSaveFilePicker' in window) {
+                try {
+                    handle = await window.showSaveFilePicker({
+                        suggestedName: 'output.pdf',
+                        types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }]
+                    });
+                } catch (e) {
+                    if (e.name === 'AbortError') return false; 
+                    throw e;
+                }
             }
-            const pdfBlob = pdf.finish();
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(pdfBlob);
-            a.download = 'output.pdf';
-            a.click();
+
+            const blob = await this._runPdfWorker(fileItems, quality, onProgress);
+
+            if (handle) {
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'output.pdf';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
             return true;
+        }
+
+        async _runPdfWorker(fileItems, quality, onProgress) {
+            return new Promise(async (resolve, reject) => {
+                const filesData =[];
+                for (let i = 0; i < fileItems.length; i++) {
+                    filesData.push({ file: await fileItems[i].handle.getFile() });
+                }
+
+                const workerCode = `
+                    ${PDFDocument.toString()}
+                    self.onmessage = async function(e) {
+                        const { files, quality } = e.data;
+                        try {
+                            const pdf = new PDFDocument();
+                            for (let i = 0; i < files.length; i++) {
+                                const bitmap = await createImageBitmap(files[i].file);
+                                const scale = quality / 100;
+                                const width = Math.max(1, Math.floor(bitmap.width * scale));
+                                const height = Math.max(1, Math.floor(bitmap.height * scale));
+
+                                const canvas = new OffscreenCanvas(width, height);
+                                const ctx = canvas.getContext('2d');
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillRect(0, 0, width, height);
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = 'high';
+                                ctx.drawImage(bitmap, 0, 0, width, height);
+                                bitmap.close();
+
+                                const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+                                await pdf.addImagePage(blob, width, height);
+                                
+                                self.postMessage({ type: 'progress', current: i + 1, total: files.length, info: 'ページ ' + (i + 1) });
+                            }
+                            self.postMessage({ type: 'done', blob: pdf.finish() });
+                        } catch(err) {
+                            self.postMessage({ type: 'error', error: err.message });
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'text/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                const worker = new Worker(workerUrl);
+
+                worker.onmessage = (e) => {
+                    const msg = e.data;
+                    if (msg.type === 'progress') {
+                        onProgress(msg.current, msg.total, msg.info);
+                    } else if (msg.type === 'done') {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        resolve(msg.blob);
+                    } else if (msg.type === 'error') {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        reject(new Error(msg.error));
+                    }
+                };
+                worker.postMessage({ files: filesData, quality });
+            });
         }
     }
 
     // ==========================================
-    // 6. アプリケーションのメインコントローラー
+    // 7. アプリケーションのメインコントローラー
     // ==========================================
     class App {
         constructor() {
-            this.ui = new UIManager();
+            this.ui = new UIManager((id) => this.getImageUrl(id));
             this.fs = new FileSystemManager();
-            // 変更: データ駆動のコールバック引数を変更
             this.sortManager = new SortManager(this.ui, (draggedIds, targetId, isLogicalBefore) => this.reorderFiles(draggedIds, targetId, isLogicalBefore));
             
             this.dirHandle = null;
@@ -881,7 +1027,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.historyUndo = [];
             this.historyRedo =[];
 
-            // 変更: API対応状況を判定し、非対応でもブロックしない
             this.hasFSApi = 'showDirectoryPicker' in window;
             if (!this.hasFSApi) {
                 console.warn(USER_SETTINGS.msgFallbackLoad);
@@ -889,6 +1034,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
             this.ui.changeViewMode('spread-rtl');
             this.bindEvents();
+        }
+
+        async getImageUrl(id) {
+            const item = this.fileItems.find(i => i.id === id);
+            if (!item) return null;
+            if (item.objectUrl) return item.objectUrl; 
+            
+            const file = await item.handle.getFile();
+            item.objectUrl = URL.createObjectURL(file);
+            return item.objectUrl;
         }
 
         bindEvents() {
@@ -936,10 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dragCounter = 0;
                 overlay.style.display = 'none';
                 
-                if (!e.dataTransfer.types || !e.dataTransfer.types.includes('Files')) {
-                    return;
-                }
-
+                if (!e.dataTransfer.types || !e.dataTransfer.types.includes('Files')) return;
                 if (this.isProcessing) return;
 
                 if (this.hasFSApi) {
@@ -959,9 +1111,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (droppedDirHandle) this.handleLoadDirectory(droppedDirHandle);
                     else alert('❌ フォルダをドロップしてください。');
                 } else {
-                    // フォールバック: ドロップされたファイルを直接読み込む
                     const files = Array.from(e.dataTransfer.files);
-                    this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+                    this.resetMemory();
                     this.fileItems = await this.fs.loadImagesFallback(files);
                     this.finalizeLoad();
                 }
@@ -1003,9 +1154,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const handle = await this.fs.selectDirectory();
                     await this.handleLoadDirectory(handle);
                 } else {
-                    // 追加: フォールバック読み込み
                     const files = await this.fs.selectDirectoryFallback();
-                    this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+                    this.resetMemory();
                     this.fileItems = await this.fs.loadImagesFallback(files);
                     this.finalizeLoad();
                 }
@@ -1017,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async handleLoadDirectory(dirHandle) {
             this.dirHandle = dirHandle;
             try {
-                this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
+                this.resetMemory();
                 this.fileItems = await this.fs.loadImages(this.dirHandle);
                 this.finalizeLoad();
             } catch (e) {
@@ -1026,7 +1176,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 追加: 読み込み完了後の共通処理
         finalizeLoad() {
             if (this.fileItems.length === 0) {
                 alert('❌ 画像が見つかりませんでした。');
@@ -1034,13 +1183,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
-            this.historyUndo = [];
+            this.historyUndo =[];
             this.historyRedo =[];
             this.updateHistoryButtons();
             this.ui.setButtonsState(false, true);
         }
 
-        // 変更: データ駆動による並び替え処理
         reorderFiles(draggedIds, targetId, isLogicalBefore) {
             this.saveHistory();
             
@@ -1055,10 +1203,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             this.fileItems = newItems;
             
-            this.ui.renderItems(this.fileItems);
-            this.sortManager.init();
+            this.ui.moveItems(draggedIds, targetId, isLogicalBefore);
             
-            // 選択状態の復元
             draggedIds.forEach(id => this.sortManager.selectById(id, true));
             this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
         }
@@ -1067,20 +1213,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.fileItems.length === 0) return;
 
             const saveFormat = this.ui.saveFormatSelect.value;
+            this.isProcessing = true;
+            this.ui.setButtonsState(true, true);
+            this.updateHistoryButtons();
 
-            if (saveFormat === 'rename') {
-                this.isProcessing = true;
-                this.ui.setButtonsState(true, true);
-                this.updateHistoryButtons();
-
-                try {
+            try {
+                if (saveFormat === 'rename') {
                     if (this.hasFSApi) {
                         let targetDirHandle;
                         try {
-                            targetDirHandle = await window.showDirectoryPicker({
-                                mode: 'readwrite',
-                                id: 'save-folder'
-                            });
+                            targetDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'save-folder' });
                         } catch (e) {
                             if (e.name === 'AbortError') return; 
                             throw new Error('フォルダ選択がキャンセルされたか、ブロックされました。');
@@ -1092,68 +1234,61 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         alert(`選択したフォルダ内に画像を保存しました。`);
                     } else {
-                        alert(USER_SETTINGS.msgFallbackSave);
                         await this.fs.saveRenamedFilesFallback(this.fileItems, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
                         });
-                        alert(`連続ダウンロードによる保存が完了しました。`);
+                        alert(`ZIPファイルのダウンロードが完了しました。`);
                     }
-                } catch (e) {
-                    console.error(e);
-                    if (e.name !== 'AbortError') alert('保存中にエラーが発生しました: ' + e.message);
-                } finally {
-                    this.isProcessing = false;
-                    this.ui.setButtonsState(false, true);
-                    this.updateHistoryButtons();
-                    setTimeout(() => this.ui.updateProgress(0, ''), 3000);
-                }
-            } else if (saveFormat === 'pdf') {
-                const quality = parseInt(this.ui.pdfQuality.value, 10) || 30;
-                this.isProcessing = true;
-                this.ui.setButtonsState(true, true);
-                this.updateHistoryButtons();
-
-                try {
-                    let success = false;
-                    if (this.hasFSApi) {
-                        success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
-                            const percent = (current / total) * 100;
-                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
-                            this.ui.updateProgress(percent, text);
-                        });
-                    } else {
-                        success = await this.fs.saveAsPDFFallback(this.fileItems, quality, (current, total, info) => {
-                            const percent = (current / total) * 100;
-                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
-                            this.ui.updateProgress(percent, text);
-                        });
-                    }
+                } else if (saveFormat === 'pdf') {
+                    const quality = parseInt(this.ui.pdfQuality.value, 10) || 30;
+                    const success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
+                        const percent = (current / total) * 100;
+                        const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                        this.ui.updateProgress(percent, text);
+                    });
                     
-                    if (success) {
-                        alert(`PDFを保存しました。`);
-                    }
-                } catch (e) {
-                    console.error(e);
-                    alert('保存中にエラーが発生しました: ' + e.message);
-                } finally {
-                    this.isProcessing = false;
-                    this.ui.setButtonsState(false, true);
-                    this.updateHistoryButtons();
-                    setTimeout(() => this.ui.updateProgress(0, ''), 3000);
+                    if (success) alert(`PDFを保存しました。`);
                 }
+            } catch (e) {
+                console.error(e);
+                if (e.name !== 'AbortError') alert('保存中にエラーが発生しました: ' + e.message);
+            } finally {
+                this.isProcessing = false;
+                this.ui.setButtonsState(false, true);
+                this.updateHistoryButtons();
+                setTimeout(() => this.ui.updateProgress(0, ''), 3000);
             }
+        }
+
+        // --- メモリリーク防止処理の修正 ---
+        resetMemory() {
+            // 現在の配列だけでなく、Undo/Redo履歴に含まれる全アイテムを網羅して解放する
+            const allItems = new Set([
+                ...this.fileItems,
+                ...this.historyUndo.flat(),
+                ...this.historyRedo.flat()
+            ]);
+            
+            allItems.forEach(item => {
+                if (item.objectUrl) {
+                    URL.revokeObjectURL(item.objectUrl);
+                    item.objectUrl = null;
+                }
+            });
         }
 
         reset() {
             if (this.isProcessing) return;
             
-            // 生成したオブジェクトURLを解放してメモリリークを防ぐ
+            // 履歴と現在のリスト全てのオブジェクトURLを一括解放
+            this.resetMemory();
             this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
             this.fileItems = [];
-            this.historyUndo =[];
-            this.historyRedo =[];
+            this.fileItems =[];
+            this.historyUndo = [];
+            this.historyRedo =
             
             this.ui.clear();
             this.updateHistoryButtons(); // 履歴ボタンをリセット(非活性化)
