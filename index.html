@@ -200,6 +200,9 @@
             <select id="save-format" title="保存形式" style="margin-left: 5px;">
                 <option value="rename">連番リネームでコピーを保存</option>
                 <option value="pdf">連結してPDFで保存</option>
+                <option value="pdf-sheet">サムネイル一覧を1枚のPDFで保存</option>
+                <option value="merge-rename">見開きを結合して連番保存</option>
+                <option value="merge-pdf">見開きを結合してPDFで保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
                 <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
@@ -273,9 +276,28 @@ document.addEventListener('DOMContentLoaded', () => {
             this.pdfQuality = document.getElementById('pdf-quality');
             
             this.saveFormatSelect.addEventListener('change', (e) => {
-                const isPdf = e.target.value === 'pdf';
+                const val = e.target.value;
+                const isPdf = val === 'pdf' || val === 'pdf-sheet' || val === 'merge-pdf';
                 this.pdfOptions.style.display = isPdf ? 'flex' : 'none';
-                this.btnExecute.textContent = isPdf ? '実行 (PDFで保存)' : '実行 (連番リネーム保存)';
+                
+                if (val === 'pdf-sheet') {
+                    this.pdfQuality.value = 100; // デフォルトを100%に変更
+                    this.btnExecute.textContent = '実行 (一覧PDFで保存)';
+                } else {
+                    // 他のPDFモードに戻した際、100%のままなら30%に戻す
+                    if (isPdf && this.pdfQuality.value === '100') {
+                        this.pdfQuality.value = 30;
+                    }
+                    if (val === 'pdf') {
+                        this.btnExecute.textContent = '実行 (PDFで保存)';
+                    } else if (val === 'merge-rename') {
+                        this.btnExecute.textContent = '実行 (見開き結合・連番保存)';
+                    } else if (val === 'merge-pdf') {
+                        this.btnExecute.textContent = '実行 (見開き結合・PDF保存)';
+                    } else {
+                        this.btnExecute.textContent = '実行 (連番リネーム保存)';
+                    }
+                }
             });
 
             this.viewModeSelect = document.getElementById('view-mode');
@@ -703,6 +725,49 @@ document.addEventListener('DOMContentLoaded', () => {
             this.addPart(`\nendstream`);
             this.endObj();
         }
+
+        async addThumbnailPage(processedData, totalWidth, totalHeight) {
+            const pageId = this.allocObj();
+            const contentId = this.allocObj();
+            
+            this.pageIds.push(pageId);
+            
+            const imageIds =[];
+            let xobjDict = "<< ";
+            for (let i = 0; i < processedData.length; i++) {
+                const imgId = this.allocObj();
+                imageIds.push(imgId);
+                xobjDict += `/I${imgId} ${imgId} 0 R `;
+            }
+            xobjDict += ">>";
+            
+            this.startObj(pageId);
+            this.addPart(`<< /Type /Page /Parent ${this.pagesId} 0 R /MediaBox[0 0 ${totalWidth} ${totalHeight}] /Contents ${contentId} 0 R /Resources << /XObject ${xobjDict} >> >>`);
+            this.endObj();
+            
+            // 背景を白で塗りつぶす
+            let contentStr = `q 1 1 1 rg 0 0 ${totalWidth} ${totalHeight} re f Q\n`;
+            for (let i = 0; i < processedData.length; i++) {
+                const item = processedData[i];
+                // 指定座標に画像を配置 (PDFは左下原点)
+                contentStr += `q ${item.pdfW} 0 0 ${item.pdfH} ${item.pdfX} ${item.pdfY} cm /I${imageIds[i]} Do Q\n`;
+            }
+            
+            this.startObj(contentId);
+            this.addPart(`<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream`);
+            this.endObj();
+            
+            // 各画像のバイナリデータを書き込む
+            for (let i = 0; i < processedData.length; i++) {
+                const item = processedData[i];
+                const imgBuffer = new Uint8Array(await item.blob.arrayBuffer());
+                this.startObj(imageIds[i]);
+                this.addPart(`<< /Type /XObject /Subtype /Image /Width ${item.canvasW} /Height ${item.canvasH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBuffer.length} >>\nstream\n`);
+                this.addPart(imgBuffer);
+                this.addPart(`\nendstream`);
+                this.endObj();
+            }
+        }
         
         finish() {
             this.startObj(this.catalogId);
@@ -926,7 +991,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     handle = await window.showSaveFilePicker({
                         suggestedName: 'output.pdf',
-                        types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }]
+                        types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }],
+                        startIn: 'downloads' // ← 追加
                     });
                 } catch (e) {
                     if (e.name === 'AbortError') return false; 
@@ -1010,6 +1076,350 @@ document.addEventListener('DOMContentLoaded', () => {
                 worker.postMessage({ files: filesData, quality });
             });
         }
+
+        async saveAsThumbnailPDF(layoutInfo, quality, onProgress) {
+            let handle = null;
+            if ('showSaveFilePicker' in window) {
+                try {
+                    handle = await window.showSaveFilePicker({
+                        suggestedName: 'thumbnail_sheet.pdf',
+                        types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }],
+                        startIn: 'downloads' // ← 追加
+                    });
+                } catch (e) {
+                    if (e.name === 'AbortError') return false; 
+                    throw e;
+                }
+            }
+
+            const blob = await this._runThumbnailPdfWorker(layoutInfo, quality, onProgress);
+
+            if (handle) {
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'thumbnail_sheet.pdf';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+            return true;
+        }
+
+        async _runThumbnailPdfWorker(layoutInfo, quality, onProgress) {
+            return new Promise(async (resolve, reject) => {
+                const filesData =[];
+                for (let i = 0; i < layoutInfo.items.length; i++) {
+                    const item = layoutInfo.items[i];
+                    filesData.push({
+                        file: await item.fileItem.handle.getFile(),
+                        x: item.x, y: item.y, w: item.w, h: item.h,
+                        alignX: item.alignX, index: item.index // 配置情報とインデックスを追加
+                    });
+                }
+
+                const workerCode = `
+                    ${PDFDocument.toString()}
+                    self.onmessage = async function(e) {
+                        const { filesData, totalWidth, totalHeight, quality } = e.data;
+                        try {
+                            const pdf = new PDFDocument();
+                            const processedData =[];
+                            
+                            const maxPdfSize = 14400;
+                            const scale = Math.min(1, maxPdfSize / totalWidth, maxPdfSize / totalHeight);
+                            const pdfTotalWidth = totalWidth * scale;
+                            const pdfTotalHeight = totalHeight * scale;
+
+                            for (let i = 0; i < filesData.length; i++) {
+                                const item = filesData[i];
+                                const bitmap = await createImageBitmap(item.file);
+                                
+                                const imgW = bitmap.width;
+                                const imgH = bitmap.height;
+                                const fitScale = Math.min(item.w / imgW, item.h / imgH);
+                                const drawW = imgW * fitScale;
+                                const drawH = imgH * fitScale;
+                                
+                                // alignX に基づいてペアの隙間を詰める
+                                let offsetX = (item.w - drawW) / 2;
+                                if (item.alignX === 'left') offsetX = 0;
+                                else if (item.alignX === 'right') offsetX = item.w - drawW;
+                                
+                                const offsetY = (item.h - drawH) / 2;
+                                
+                                const textHeight = 20; // 連番テキスト用の高さ
+                                const totalDrawH = drawH + textHeight;
+                                
+                                const pdfX = (item.x + offsetX) * scale;
+                                const pdfY = pdfTotalHeight - ((item.y + offsetY + totalDrawH) * scale);
+                                const pdfDrawW = drawW * scale;
+                                const pdfDrawH = totalDrawH * scale;
+
+                                const resScale = quality / 100;
+                                const canvasW = Math.max(1, Math.floor(drawW * resScale));
+                                const canvasH = Math.max(1, Math.floor(totalDrawH * resScale));
+
+                                const canvas = new OffscreenCanvas(canvasW, canvasH);
+                                const ctx = canvas.getContext('2d');
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillRect(0, 0, canvasW, canvasH);
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = 'high';
+                                
+                                // 画像の描画
+                                const imgCanvasH = Math.floor(drawH * resScale);
+                                ctx.drawImage(bitmap, 0, 0, canvasW, imgCanvasH);
+                                bitmap.close();
+
+                                // 連番の描画 (001, 002...)
+                                const seqNum = String(item.index + 1).padStart(3, '0');
+                                ctx.fillStyle = '#000000';
+                                ctx.font = \`\${Math.floor(14 * resScale)}px sans-serif\`;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'top';
+                                ctx.fillText(seqNum, canvasW / 2, imgCanvasH + (2 * resScale));
+
+                                const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+                                
+                                processedData.push({
+                                    blob: blob, pdfX: pdfX, pdfY: pdfY, pdfW: pdfDrawW, pdfH: pdfDrawH,
+                                    canvasW: canvasW, canvasH: canvasH
+                                });
+                                
+                                self.postMessage({ type: 'progress', current: i + 1, total: filesData.length, info: '画像処理 ' + (i + 1) });
+                            }
+                            
+                            await pdf.addThumbnailPage(processedData, pdfTotalWidth, pdfTotalHeight);
+                            self.postMessage({ type: 'done', blob: pdf.finish() });
+                        } catch(err) {
+                            self.postMessage({ type: 'error', error: err.message });
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'text/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                const worker = new Worker(workerUrl);
+
+                worker.onmessage = (e) => {
+                    const msg = e.data;
+                    if (msg.type === 'progress') {
+                        onProgress(msg.current, msg.total, msg.info);
+                    } else if (msg.type === 'done') {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        resolve(msg.blob);
+                    } else if (msg.type === 'error') {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        reject(new Error(msg.error));
+                    }
+                };
+                worker.postMessage({ filesData, totalWidth: layoutInfo.totalWidth, totalHeight: layoutInfo.totalHeight, quality });
+            });
+        }
+
+        async _mergeImagePair(pair) {
+            if (pair.length === 1) {
+                return await pair[0].handle.getFile();
+            }
+            const fileL = await pair[0].handle.getFile();
+            const fileR = await pair[1].handle.getFile();
+            const bmpL = await createImageBitmap(fileL);
+            const bmpR = await createImageBitmap(fileR);
+            
+            // 高さを最大値に揃えてスケーリング
+            const height = Math.max(bmpL.height, bmpR.height);
+            const scaleL = height / bmpL.height;
+            const scaleR = height / bmpR.height;
+            const widthL = Math.round(bmpL.width * scaleL);
+            const widthR = Math.round(bmpR.width * scaleR);
+            const width = widthL + widthR;
+            
+            const canvas = new OffscreenCanvas(width, height);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            ctx.drawImage(bmpL, 0, 0, widthL, height);
+            ctx.drawImage(bmpR, widthL, 0, widthR, height);
+            
+            bmpL.close();
+            bmpR.close();
+            
+            return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+        }
+
+        async saveMergedRenamedFiles(targetDirHandle, pairs, onProgress) {
+            const padLength = Math.max(3, String(pairs.length).length);
+            for (let i = 0; i < pairs.length; i++) {
+                const blob = await this._mergeImagePair(pairs[i]);
+                const newName = String(i + 1).padStart(padLength, '0') + '.jpg';
+                
+                const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
+                const writable = await newFileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                
+                onProgress(i + 1, pairs.length, newName);
+            }
+        }
+
+        async saveMergedRenamedFilesFallback(pairs, onProgress) {
+            const zip = new ZipDocument();
+            const padLength = Math.max(3, String(pairs.length).length);
+            for (let i = 0; i < pairs.length; i++) {
+                const blob = await this._mergeImagePair(pairs[i]);
+                const newName = String(i + 1).padStart(padLength, '0') + '.jpg';
+                
+                const buffer = new Uint8Array(await blob.arrayBuffer());
+                zip.addFile(newName, buffer);
+                
+                onProgress(i + 1, pairs.length, newName);
+                await new Promise(resolve => setTimeout(resolve, 0)); 
+            }
+            const zipBlob = zip.finish();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(zipBlob);
+            a.download = 'merged_images.zip';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+
+        async saveMergedAsPDF(pairs, quality, onProgress) {
+            let handle = null;
+            if ('showSaveFilePicker' in window) {
+                try {
+                    handle = await window.showSaveFilePicker({
+                        suggestedName: 'merged_output.pdf',
+                        types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }],
+                        startIn: 'downloads' // ← 追加
+                    });
+                } catch (e) {
+                    if (e.name === 'AbortError') return false; 
+                    throw e;
+                }
+            }
+
+            const blob = await this._runMergedPdfWorker(pairs, quality, onProgress);
+
+            if (handle) {
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'merged_output.pdf';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+            return true;
+        }
+
+        async _runMergedPdfWorker(pairs, quality, onProgress) {
+            return new Promise(async (resolve, reject) => {
+                const pairsData =[];
+                for (let i = 0; i < pairs.length; i++) {
+                    const pair = pairs[i];
+                    if (pair.length === 1) {
+                        pairsData.push([ { file: await pair[0].handle.getFile() } ]);
+                    } else {
+                        pairsData.push([
+                            { file: await pair[0].handle.getFile() },
+                            { file: await pair[1].handle.getFile() }
+                        ]);
+                    }
+                }
+
+                const workerCode = `
+                    ${PDFDocument.toString()}
+                    self.onmessage = async function(e) {
+                        const { pairs, quality } = e.data;
+                        try {
+                            const pdf = new PDFDocument();
+                            for (let i = 0; i < pairs.length; i++) {
+                                const pair = pairs[i];
+                                let canvas, width, height;
+                                
+                                if (pair.length === 1) {
+                                    const bitmap = await createImageBitmap(pair[0].file);
+                                    const scale = quality / 100;
+                                    width = Math.max(1, Math.floor(bitmap.width * scale));
+                                    height = Math.max(1, Math.floor(bitmap.height * scale));
+                                    canvas = new OffscreenCanvas(width, height);
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.fillRect(0, 0, width, height);
+                                    ctx.imageSmoothingEnabled = true;
+                                    ctx.imageSmoothingQuality = 'high';
+                                    ctx.drawImage(bitmap, 0, 0, width, height);
+                                    bitmap.close();
+                                } else {
+                                    const bmpL = await createImageBitmap(pair[0].file);
+                                    const bmpR = await createImageBitmap(pair[1].file);
+                                    
+                                    const origHeight = Math.max(bmpL.height, bmpR.height);
+                                    const scaleL = origHeight / bmpL.height;
+                                    const scaleR = origHeight / bmpR.height;
+                                    const origWidthL = Math.round(bmpL.width * scaleL);
+                                    const origWidthR = Math.round(bmpR.width * scaleR);
+                                    const origWidth = origWidthL + origWidthR;
+                                    
+                                    const scale = quality / 100;
+                                    width = Math.max(1, Math.floor(origWidth * scale));
+                                    height = Math.max(1, Math.floor(origHeight * scale));
+                                    
+                                    const drawWL = Math.max(1, Math.floor(origWidthL * scale));
+                                    const drawWR = width - drawWL;
+                                    
+                                    canvas = new OffscreenCanvas(width, height);
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.fillRect(0, 0, width, height);
+                                    ctx.imageSmoothingEnabled = true;
+                                    ctx.imageSmoothingQuality = 'high';
+                                    ctx.drawImage(bmpL, 0, 0, drawWL, height);
+                                    ctx.drawImage(bmpR, drawWL, 0, drawWR, height);
+                                    
+                                    bmpL.close();
+                                    bmpR.close();
+                                }
+
+                                const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+                                await pdf.addImagePage(blob, width, height);
+                                
+                                self.postMessage({ type: 'progress', current: i + 1, total: pairs.length, info: 'ページ ' + (i + 1) });
+                            }
+                            self.postMessage({ type: 'done', blob: pdf.finish() });
+                        } catch(err) {
+                            self.postMessage({ type: 'error', error: err.message });
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'text/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                const worker = new Worker(workerUrl);
+
+                worker.onmessage = (e) => {
+                    const msg = e.data;
+                    if (msg.type === 'progress') {
+                        onProgress(msg.current, msg.total, msg.info);
+                    } else if (msg.type === 'done') {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        resolve(msg.blob);
+                    } else if (msg.type === 'error') {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        reject(new Error(msg.error));
+                    }
+                };
+                worker.postMessage({ pairs: pairsData, quality });
+            });
+        }
     }
 
     // ==========================================
@@ -1024,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.dirHandle = null;
             this.fileItems =[];
             this.isProcessing = false;
-            this.historyUndo = [];
+            this.historyUndo =[];
             this.historyRedo =[];
 
             this.hasFSApi = 'showDirectoryPicker' in window;
@@ -1209,6 +1619,83 @@ document.addEventListener('DOMContentLoaded', () => {
             this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
         }
 
+        getGridLayoutData() {
+            const gridRect = this.ui.mainGrid.getBoundingClientRect();
+            const items =[];
+            const thumbEls = this.ui.mainGrid.querySelectorAll('.thumb-item');
+            const viewMode = this.ui.viewModeSelect.value;
+            
+            let maxX = 0;
+            let maxY = 0;
+
+            thumbEls.forEach((el, index) => {
+                const id = el.dataset.id;
+                const fileItem = this.fileItems.find(i => i.id === id);
+                if (!fileItem) return;
+
+                const img = el.querySelector('img');
+                if (!img) return;
+                const rect = img.getBoundingClientRect();
+                
+                const x = rect.left - gridRect.left + this.ui.mainGrid.scrollLeft;
+                const y = rect.top - gridRect.top + this.ui.mainGrid.scrollTop;
+                const w = rect.width;
+                const h = rect.height;
+
+                // 見開きペアの隙間を無くすための配置判定
+                let alignX = 'center';
+                if (viewMode === 'spread-ltr') {
+                    if (index > 0) alignX = (index % 2 === 1) ? 'right' : 'left';
+                } else if (viewMode === 'spread-rtl') {
+                    if (index > 0) alignX = (index % 2 === 1) ? 'left' : 'right';
+                }
+
+                items.push({ fileItem, x, y, w, h, alignX, index });
+
+                if (x + w > maxX) maxX = x + w;
+                if (y + h + 20 > maxY) maxY = y + h + 20; // 連番テキスト用の高さ(20px)を考慮
+            });
+
+            const padding = 20;
+            return {
+                items,
+                totalWidth: maxX + padding,
+                totalHeight: maxY + padding
+            };
+        }
+
+        getSpreadPairs() {
+            const viewMode = this.ui.viewModeSelect.value;
+            const pairs =[];
+            if (viewMode === 'grid') {
+                this.fileItems.forEach(item => pairs.push([item]));
+                return pairs;
+            }
+            
+            // 1枚目は表紙として単独
+            if (this.fileItems.length > 0) {
+                pairs.push([this.fileItems[0]]);
+            }
+            
+            for (let i = 1; i < this.fileItems.length; i += 2) {
+                const item1 = this.fileItems[i];
+                const item2 = this.fileItems[i + 1];
+                
+                if (!item2) {
+                    pairs.push([item1]);
+                } else {
+                    if (viewMode === 'spread-rtl') {
+                        // 右開き: item2(左) + item1(右)
+                        pairs.push([item2, item1]);
+                    } else {
+                        // 左開き: item1(左) + item2(右)
+                        pairs.push([item1, item2]);
+                    }
+                }
+            }
+            return pairs;
+        }
+
         async handleExecute() {
             if (this.fileItems.length === 0) return;
 
@@ -1222,7 +1709,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (this.hasFSApi) {
                         let targetDirHandle;
                         try {
-                            targetDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'save-folder' });
+                            targetDirHandle = await window.showDirectoryPicker({ 
+                                mode: 'readwrite', 
+                                id: 'save-folder',
+                                startIn: 'downloads' // ← 追加
+                            });
                         } catch (e) {
                             if (e.name === 'AbortError') return; 
                             throw new Error('フォルダ選択がキャンセルされたか、ブロックされました。');
@@ -1241,13 +1732,59 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         alert(`ZIPファイルのダウンロードが完了しました。`);
                     }
-                } else if (saveFormat === 'pdf') {
+                } else if (saveFormat === 'merge-rename') {
+                    const pairs = this.getSpreadPairs();
+                    if (this.hasFSApi) {
+                        let targetDirHandle;
+                        try {
+                            targetDirHandle = await window.showDirectoryPicker({ 
+                                mode: 'readwrite', 
+                                id: 'save-folder',
+                                startIn: 'downloads' // ← 追加
+                            });
+                        } catch (e) {
+                            if (e.name === 'AbortError') return; 
+                            throw new Error('フォルダ選択がキャンセルされたか、ブロックされました。');
+                        }
+                        await this.fs.saveMergedRenamedFiles(targetDirHandle, pairs, (current, total, newName) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                        alert(`選択したフォルダ内に結合画像を保存しました。`);
+                    } else {
+                        await this.fs.saveMergedRenamedFilesFallback(pairs, (current, total, newName) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                        alert(`ZIPファイルのダウンロードが完了しました。`);
+                    }
+                } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
                     const quality = parseInt(this.ui.pdfQuality.value, 10) || 30;
-                    const success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
-                        const percent = (current / total) * 100;
-                        const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
-                        this.ui.updateProgress(percent, text);
-                    });
+                    let success = false;
+                    
+                    if (saveFormat === 'pdf') {
+                        success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                    } else if (saveFormat === 'pdf-sheet') {
+                        const layoutData = this.getGridLayoutData();
+                        success = await this.fs.saveAsThumbnailPDF(layoutData, quality, (current, total, info) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                    } else if (saveFormat === 'merge-pdf') {
+                        const pairs = this.getSpreadPairs();
+                        success = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => {
+                            const percent = (current / total) * 100;
+                            const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                            this.ui.updateProgress(percent, text);
+                        });
+                    }
                     
                     if (success) alert(`PDFを保存しました。`);
                 }
@@ -1262,9 +1799,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // --- メモリリーク防止処理の修正 ---
         resetMemory() {
-            // 現在の配列だけでなく、Undo/Redo履歴に含まれる全アイテムを網羅して解放する
             const allItems = new Set([
                 ...this.fileItems,
                 ...this.historyUndo.flat(),
@@ -1282,11 +1817,9 @@ document.addEventListener('DOMContentLoaded', () => {
         reset() {
             if (this.isProcessing) return;
             
-            // 履歴と現在のリスト全てのオブジェクトURLを一括解放
             this.resetMemory();
             this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
             this.fileItems = [];
-            this.fileItems =[];
             this.historyUndo = [];
             this.historyRedo = [];
             
