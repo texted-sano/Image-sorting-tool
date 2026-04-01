@@ -176,17 +176,63 @@
         .list-item:hover { background: rgba(128, 128, 128, 0.1); }
         
         .selected { border-color: var(--primary-color) !important; background-color: rgba(74, 144, 226, 0.2) !important; }
-        .dragging { opacity: 0.5; }
+        
+        /* --- アクセシビリティと視認性の向上 --- */
+        button:focus-visible, select:focus-visible, input:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+        .dragging { 
+            opacity: 0.4; 
+            outline: 2px dashed var(--primary-color);
+            outline-offset: -2px;
+        }
 
         #progress-area { margin-bottom: 10px; display: none; flex-shrink: 0; }
         #progress-text { font-size: 12px; margin-bottom: 5px; text-align: left; }
         .progress-track { background: var(--border-color); height: 4px; border-radius: 2px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.2s; }
+
+        /* EPUB用モーダルスタイル */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 10000;
+            display: none; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--container-bg); padding: 20px; border-radius: 8px;
+            width: 500px; max-width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            color: var(--text-main);
+        }
+        .modal-content h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .modal-content label { margin-top: 10px; display: block; font-size: 13px; font-weight: bold; }
+        .modal-content input {
+            width: 100%; box-sizing: border-box; margin-bottom: 5px; padding: 8px;
+            background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+        /* トースト通知用スタイル */
+        #toast-container {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; display: flex; flex-direction: column; gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background: var(--primary-color); color: #ffffff; padding: 12px 24px;
+            border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 14px; font-weight: bold; opacity: 0;
+            transition: opacity 0.3s, transform 0.3s; transform: translateY(20px);
+            pointer-events: auto; cursor: pointer; text-align: center;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { background: var(--danger-color); }
     </style>
 </head>
 <body>
 
-<div id="drop-overlay">フォルダをここにドロップして読み込む</div>
+<div id="drop-overlay">画像をここにドロップ</div>
 
 <div class="container" id="app-container">
     <button id="theme-toggle">☀ Light Mode</button>
@@ -203,6 +249,7 @@
                 <option value="pdf-sheet">サムネイル一覧を1枚のPDFで保存</option>
                 <option value="merge-rename">見開きを結合して連番保存</option>
                 <option value="merge-pdf">見開きを結合してPDFで保存</option>
+                <option value="epub">EPUB形式で保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
                 <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
@@ -213,6 +260,9 @@
             <button id="btn-undo" style="background: #6c757d;" disabled>↩ 戻る</button>
             <button id="btn-redo" style="background: #6c757d;" disabled>↪ 進む</button>
             <button id="btn-reset" style="background: #6c757d; max-width: 100px;">リセット</button>
+
+            <button id="btn-add-blank" style="background: #28a745; margin-left: auto;" disabled title="選択した画像と同じサイズの白紙を直後に挿入します">＋ 白紙挿入</button>
+            <button id="btn-delete" style="background: #dc3545;" disabled title="選択した画像を削除します">－ 削除</button>
             
             <select id="view-mode" title="表示モード切替">
                 <option value="grid">表示: 単ページ</option>
@@ -229,7 +279,7 @@
 
     <div class="app-layout">
         <div class="main-area">
-            <div class="area-title">サムネイル一覧 (ドラッグ＆ドロップで並び替え / Shift・Command・Ctrlで複数選択)</div>
+            <div class="area-title">サムネイル一覧 (ドラッグ＆ドロップで並び替えや追加 / Shift・Ctrl等で複数選択 / Deleteキーで削除)</div>
             <div id="main-grid" class="thumb-grid"></div>
         </div>
         <div class="sidebar-area">
@@ -244,6 +294,48 @@
     </div>
 </div>
 
+<!-- EPUB出力用設定モーダル -->
+<div id="epub-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>EPUB 出力設定</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 15px;">
+            <div>
+                <label>作品名</label>
+                <input type="text" id="epub-title" placeholder="">
+            </div>
+            <div>
+                <label>作品名 (読み)</label>
+                <input type="text" id="epub-title-ruby" placeholder="">
+            </div>
+            <div>
+                <label>著者名</label>
+                <input type="text" id="epub-author" placeholder="">
+            </div>
+            <div>
+                <label>著者名 (読み)</label>
+                <input type="text" id="epub-author-ruby" placeholder="">
+            </div>
+            <div>
+                <label>出版社</label>
+                <input type="text" id="epub-publisher" placeholder="">
+            </div>
+            <div>
+                <label>出版社 (読み)</label>
+                <input type="text" id="epub-publisher-ruby" placeholder="">
+            </div>
+        </div>
+
+        <label>ファイルID (空欄で自動生成)</label><input type="text" id="epub-bookid" placeholder="">
+        <label>更新日 (空欄で現在日時)</label><input type="date" id="epub-modified" style="width: 100%; box-sizing: border-box; padding: 8px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+        <div class="modal-actions">
+            <button id="epub-btn-reset" style="background: var(--border-color); margin-right: auto; color: var(--text-main);">リセット</button>
+            <button id="epub-btn-cancel" style="background: #6c757d;">キャンセル</button>
+            <button id="epub-btn-start" style="background: var(--primary-color);">生成開始</button>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -253,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const USER_SETTINGS = {
         msgSaving: '保存中... {current} / {total}',
         msgSavingPDF: 'PDF生成中... {current} / {total}',
+        msgSavingEpub: 'EPUB生成中... {current} / {total}',
         validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
         msgFallbackLoad: 'File System API非対応ブラウザのため、標準のファイル選択を使用します。',
         msgFallbackSave: 'File System API非対応ブラウザのため、ZIPファイルにまとめて保存します。'
@@ -262,14 +355,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. DOM操作・UI管理クラス
     // ==========================================
     class UIManager {
-        constructor(onRequestImage) {
+        constructor(onRequestImage, onReleaseImage) {
             this.onRequestImage = onRequestImage;
+            this.onReleaseImage = onReleaseImage;
 
             this.btnSelect = document.getElementById('btn-select');
             this.btnExecute = document.getElementById('btn-execute');
             this.btnUndo = document.getElementById('btn-undo');
             this.btnRedo = document.getElementById('btn-redo');
             this.btnReset = document.getElementById('btn-reset');
+            this.btnAddBlank = document.getElementById('btn-add-blank');
+            this.btnDelete = document.getElementById('btn-delete');
             
             this.saveFormatSelect = document.getElementById('save-format');
             this.pdfOptions = document.getElementById('pdf-options');
@@ -281,10 +377,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.pdfOptions.style.display = isPdf ? 'flex' : 'none';
                 
                 if (val === 'pdf-sheet') {
-                    this.pdfQuality.value = 100; // デフォルトを100%に変更
+                    this.pdfQuality.value = 100;
                     this.btnExecute.textContent = '実行 (一覧PDFで保存)';
                 } else {
-                    // 他のPDFモードに戻した際、100%のままなら30%に戻す
                     if (isPdf && this.pdfQuality.value === '100') {
                         this.pdfQuality.value = 30;
                     }
@@ -294,6 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         this.btnExecute.textContent = '実行 (見開き結合・連番保存)';
                     } else if (val === 'merge-pdf') {
                         this.btnExecute.textContent = '実行 (見開き結合・PDF保存)';
+                    } else if (val === 'epub') {
+                        this.btnExecute.textContent = '実行 (EPUBで保存)';
                     } else {
                         this.btnExecute.textContent = '実行 (連番リネーム保存)';
                     }
@@ -320,15 +417,19 @@ document.addEventListener('DOMContentLoaded', () => {
             this.resizeObserver = new ResizeObserver(() => this.adjustGridWidth());
             this.resizeObserver.observe(this.mainArea);
 
-            this.imageObserver = new IntersectionObserver((entries, observer) => {
+            this.imageObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
+                    const img = entry.target;
                     if (entry.isIntersecting) {
-                        const img = entry.target;
                         if (!img.src) {
                             this.onRequestImage(img.dataset.id).then(url => {
                                 if (url) img.src = url;
                             });
-                            observer.unobserve(img); 
+                        }
+                    } else {
+                        if (img.src) {
+                            this.onReleaseImage(img.dataset.id);
+                            img.removeAttribute('src');
                         }
                     }
                 });
@@ -406,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 thumbDiv.appendChild(nameDiv);
                 fragmentMain.appendChild(thumbDiv);
                 
-                if (!item.objectUrl) this.imageObserver.observe(img); 
+                this.imageObserver.observe(img); 
                 
                 const listDiv = document.createElement('div');
                 listDiv.className = 'list-item';
@@ -420,27 +521,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.adjustGridWidth();
         }
 
-        moveItems(draggedIds, targetId, isLogicalBefore) {
-            const targetThumb = targetId ? this.mainGrid.querySelector(`[data-id="${targetId}"]`) : null;
-            const targetList = targetId ? this.sidebarList.querySelector(`[data-id="${targetId}"]`) : null;
-
-            draggedIds.forEach(id => {
-                const thumb = this.mainGrid.querySelector(`[data-id="${id}"]`);
-                const listItem = this.sidebarList.querySelector(`[data-id="${id}"]`);
-                if (!thumb || !listItem) return;
-
-                if (targetThumb && targetList) {
-                    const insertNodeT = isLogicalBefore ? targetThumb : targetThumb.nextSibling;
-                    const insertNodeL = isLogicalBefore ? targetList : targetList.nextSibling;
-                    this.mainGrid.insertBefore(thumb, insertNodeT);
-                    this.sidebarList.insertBefore(listItem, insertNodeL);
-                } else {
-                    this.mainGrid.appendChild(thumb);
-                    this.sidebarList.appendChild(listItem);
-                }
-            });
-        }
-
         setButtonsState(isProcessing, hasFiles) {
             this.btnSelect.disabled = isProcessing;
             this.btnExecute.disabled = isProcessing || !hasFiles;
@@ -448,6 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.viewModeSelect.disabled = isProcessing;
             this.saveFormatSelect.disabled = isProcessing;
             this.pdfQuality.disabled = isProcessing;
+            
+            this.btnAddBlank.disabled = isProcessing || !hasFiles;
+            this.btnDelete.disabled = isProcessing || !hasFiles;
             
             if (isProcessing) {
                 this.btnUndo.disabled = true;
@@ -462,15 +545,142 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateProgress(0, '');
             this.setButtonsState(false, false);
         }
+
+        showToast(message, isError = false) {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${isError ? 'error' : ''}`;
+            toast.textContent = message;
+            
+            toast.addEventListener('click', () => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            });
+
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => toast.classList.add('show'));
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 3000);
+        }
+    }
+
+    // ==========================================
+    // 2.5. EPUBメタデータ入力用モーダルクラス
+    // ==========================================
+    class EpubMetadataModal {
+        constructor() {
+            this.overlay = document.getElementById('epub-modal');
+            this.inTitle = document.getElementById('epub-title');
+            this.inTitleRuby = document.getElementById('epub-title-ruby');
+            this.inAuthor = document.getElementById('epub-author');
+            this.inAuthorRuby = document.getElementById('epub-author-ruby');
+            this.inPublisher = document.getElementById('epub-publisher');
+            this.inPublisherRuby = document.getElementById('epub-publisher-ruby');
+            this.inBookId = document.getElementById('epub-bookid');
+            this.inModified = document.getElementById('epub-modified');
+            this.btnStart = document.getElementById('epub-btn-start');
+            
+            this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '' };
+
+            const focusOrder = [
+                this.inTitle, this.inTitleRuby, this.inAuthor, this.inAuthorRuby,
+                this.inPublisher, this.inPublisherRuby, this.inBookId, this.inModified, this.btnStart
+            ];
+
+            this.overlay.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const currentIndex = focusOrder.indexOf(document.activeElement);
+                    if (currentIndex !== -1) {
+                        e.preventDefault();
+                        if (currentIndex < focusOrder.length - 1) {
+                            focusOrder[currentIndex + 1].focus();
+                        } else {
+                            this.btnStart.click();
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('epub-btn-reset').addEventListener('click', () => {
+                this.inTitle.value = ''; this.inTitleRuby.value = '';
+                this.inAuthor.value = ''; this.inAuthorRuby.value = '';
+                this.inPublisher.value = ''; this.inPublisherRuby.value = '';
+                this.inBookId.value = ''; this.inModified.value = '';
+                this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '' };
+            });
+
+            document.getElementById('epub-btn-cancel').addEventListener('click', () => {
+                this.hide();
+                if (this.rejectFunc) this.rejectFunc(new Error('cancel'));
+            });
+
+            this.btnStart.addEventListener('click', () => {
+                this.savedData = {
+                    title: this.inTitle.value.trim(),
+                    titleRuby: this.inTitleRuby.value.trim(),
+                    author: this.inAuthor.value.trim(),
+                    authorRuby: this.inAuthorRuby.value.trim(),
+                    publisher: this.inPublisher.value.trim(),
+                    publisherRuby: this.inPublisherRuby.value.trim(),
+                    bookId: this.inBookId.value.trim() || 'urn:uuid:' + this._generateUUID(),
+                    modified: this.inModified.value
+                };
+                this.hide();
+                if (this.resolveFunc) this.resolveFunc(this.savedData);
+            });
+        }
+
+        _generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        show() {
+            this.inTitle.value = this.savedData.title;
+            this.inTitleRuby.value = this.savedData.titleRuby;
+            this.inAuthor.value = this.savedData.author;
+            this.inAuthorRuby.value = this.savedData.authorRuby;
+            this.inPublisher.value = this.savedData.publisher;
+            this.inPublisherRuby.value = this.savedData.publisherRuby;
+            this.inBookId.value = this.savedData.bookId.startsWith('urn:uuid:') ? '' : this.savedData.bookId;
+            this.inModified.value = this.savedData.modified;
+            
+            this.overlay.style.display = 'flex';
+            
+            return new Promise((resolve, reject) => {
+                this.resolveFunc = resolve;
+                this.rejectFunc = reject;
+            });
+        }
+
+        hide() {
+            this.overlay.style.display = 'none';
+        }
     }
 
     // ==========================================
     // 3. ドラッグ＆ドロップ管理クラス
     // ==========================================
     class SortManager {
-        constructor(uiManager, onOrderChanged) {
+        constructor(uiManager, onOrderChanged, onExternalFilesDropped) {
             this.ui = uiManager;
             this.onOrderChanged = onOrderChanged;
+            this.onExternalFilesDropped = onExternalFilesDropped;
             this.lastSelectedId = null;
             this.markerTarget = null;
             this.boundEvents =[];
@@ -541,14 +751,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const onDragOver = (e) => {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
+                const isExternal = e.dataTransfer.types && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'));
+                e.dataTransfer.dropEffect = isExternal ? 'copy' : 'move';
                 
                 if (!this.dragOverTicking) {
                     requestAnimationFrame(() => {
                         handleAutoScroll(e);
 
                         const target = e.target.closest('.thumb-item, .list-item');
-                        if (!target || target.classList.contains('selected')) {
+                        if (!target || (!isExternal && target.classList.contains('selected'))) {
                             this.removeMarker();
                             this.dragOverTicking = false;
                             return;
@@ -587,25 +798,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
                 if (!this.markerTarget) return;
 
+                const targetEl = this.markerTarget.el;
+                const visualPos = this.markerTarget.visualPos;
+                const refId = targetEl.dataset.id;
+
+                let isLogicalBefore = false;
+                if (isMain) {
+                    const isRTL = container.classList.contains('mode-spread-rtl');
+                    isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
+                } else {
+                    isLogicalBefore = (visualPos === 'top');
+                }
+
                 try {
                     const idsJSON = e.dataTransfer.getData('text/plain');
-                    if (!idsJSON) return;
-                    const ids = JSON.parse(idsJSON);
-                    
-                    const targetEl = this.markerTarget.el;
-                    const visualPos = this.markerTarget.visualPos;
-                    const refId = targetEl.dataset.id;
-
-                    let isLogicalBefore = false;
-                    if (isMain) {
-                        const isRTL = container.classList.contains('mode-spread-rtl');
-                        isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
-                    } else {
-                        isLogicalBefore = (visualPos === 'top');
+                    if (idsJSON) {
+                        const ids = JSON.parse(idsJSON);
+                        this.onOrderChanged(ids, refId, isLogicalBefore);
+                    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        if (this.onExternalFilesDropped) {
+                            const items = e.dataTransfer.items;
+                            const files = e.dataTransfer.files;
+                            this.onExternalFilesDropped(items || files, refId, isLogicalBefore);
+                        }
                     }
-
-                    this.onOrderChanged(ids, refId, isLogicalBefore);
-
                 } catch (err) { console.error(err); }
                 this.removeMarker();
             };
@@ -745,11 +961,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.addPart(`<< /Type /Page /Parent ${this.pagesId} 0 R /MediaBox[0 0 ${totalWidth} ${totalHeight}] /Contents ${contentId} 0 R /Resources << /XObject ${xobjDict} >> >>`);
             this.endObj();
             
-            // 背景を白で塗りつぶす
             let contentStr = `q 1 1 1 rg 0 0 ${totalWidth} ${totalHeight} re f Q\n`;
             for (let i = 0; i < processedData.length; i++) {
                 const item = processedData[i];
-                // 指定座標に画像を配置 (PDFは左下原点)
                 contentStr += `q ${item.pdfW} 0 0 ${item.pdfH} ${item.pdfX} ${item.pdfY} cm /I${imageIds[i]} Do Q\n`;
             }
             
@@ -757,7 +971,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.addPart(`<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream`);
             this.endObj();
             
-            // 各画像のバイナリデータを書き込む
             for (let i = 0; i < processedData.length; i++) {
                 const item = processedData[i];
                 const imgBuffer = new Uint8Array(await item.blob.arrayBuffer());
@@ -815,20 +1028,27 @@ document.addEventListener('DOMContentLoaded', () => {
             this.encoder = new TextEncoder();
         }
         
+        getDosTime() {
+            const d = new Date();
+            const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+            const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+            return { time, date };
+        }
+        
         addFile(name, dataUint8) {
             const nameBytes = this.encoder.encode(name);
             const crc = this.crc32(dataUint8);
             const size = dataUint8.length;
+            const { time, date } = this.getDosTime();
             
-            // Local File Header
             const lfh = new Uint8Array(30 + nameBytes.length);
             const view = new DataView(lfh.buffer);
             view.setUint32(0, 0x04034b50, true);
             view.setUint16(4, 10, true);
             view.setUint16(6, 0, true);
-            view.setUint16(8, 0, true); // Store
-            view.setUint16(10, 0, true);
-            view.setUint16(12, 0, true);
+            view.setUint16(8, 0, true); 
+            view.setUint16(10, time, true);
+            view.setUint16(12, date, true);
             view.setUint32(14, crc, true);
             view.setUint32(18, size, true);
             view.setUint32(22, size, true);
@@ -839,7 +1059,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.parts.push(lfh);
             this.parts.push(dataUint8);
             
-            // Central Directory
             const cd = new Uint8Array(46 + nameBytes.length);
             const cdView = new DataView(cd.buffer);
             cdView.setUint32(0, 0x02014b50, true);
@@ -847,8 +1066,8 @@ document.addEventListener('DOMContentLoaded', () => {
             cdView.setUint16(6, 10, true);
             cdView.setUint16(8, 0, true);
             cdView.setUint16(10, 0, true);
-            cdView.setUint16(12, 0, true);
-            cdView.setUint16(14, 0, true);
+            cdView.setUint16(12, time, true);
+            cdView.setUint16(14, date, true);
             cdView.setUint32(16, crc, true);
             cdView.setUint32(20, size, true);
             cdView.setUint32(24, size, true);
@@ -915,12 +1134,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null });
                     }
                 }
-                // メインスレッドのブロック(フリーズ)を防ぐためのチャンク処理
                 if (++count % 100 === 0) {
                     await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
-            // 巨大配列のソート前にもスレッドを解放
             await new Promise(resolve => setTimeout(resolve, 0));
             items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
             return items;
@@ -934,12 +1151,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (USER_SETTINGS.validExts.includes(ext)) {
                     items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null });
                 }
-                // メインスレッドのブロック(フリーズ)を防ぐためのチャンク処理
                 if (i % 100 === 0) {
                     await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
-            // 巨大配列のソート前にもスレッドを解放
             await new Promise(resolve => setTimeout(resolve, 0));
             items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
             return items;
@@ -992,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     handle = await window.showSaveFilePicker({
                         suggestedName: 'output.pdf',
                         types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }],
-                        startIn: 'downloads' // ← 追加
+                        startIn: 'downloads'
                     });
                 } catch (e) {
                     if (e.name === 'AbortError') return false; 
@@ -1084,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     handle = await window.showSaveFilePicker({
                         suggestedName: 'thumbnail_sheet.pdf',
                         types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }],
-                        startIn: 'downloads' // ← 追加
+                        startIn: 'downloads'
                     });
                 } catch (e) {
                     if (e.name === 'AbortError') return false; 
@@ -1116,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     filesData.push({
                         file: await item.fileItem.handle.getFile(),
                         x: item.x, y: item.y, w: item.w, h: item.h,
-                        alignX: item.alignX, index: item.index // 配置情報とインデックスを追加
+                        alignX: item.alignX, index: item.index
                     });
                 }
 
@@ -1143,14 +1358,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const drawW = imgW * fitScale;
                                 const drawH = imgH * fitScale;
                                 
-                                // alignX に基づいてペアの隙間を詰める
                                 let offsetX = (item.w - drawW) / 2;
                                 if (item.alignX === 'left') offsetX = 0;
                                 else if (item.alignX === 'right') offsetX = item.w - drawW;
                                 
                                 const offsetY = (item.h - drawH) / 2;
                                 
-                                const textHeight = 20; // 連番テキスト用の高さ
+                                const textHeight = 20;
                                 const totalDrawH = drawH + textHeight;
                                 
                                 const pdfX = (item.x + offsetX) * scale;
@@ -1169,12 +1383,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ctx.imageSmoothingEnabled = true;
                                 ctx.imageSmoothingQuality = 'high';
                                 
-                                // 画像の描画
                                 const imgCanvasH = Math.floor(drawH * resScale);
                                 ctx.drawImage(bitmap, 0, 0, canvasW, imgCanvasH);
                                 bitmap.close();
 
-                                // 連番の描画 (001, 002...)
                                 const seqNum = String(item.index + 1).padStart(3, '0');
                                 ctx.fillStyle = '#000000';
                                 ctx.font = \`\${Math.floor(14 * resScale)}px sans-serif\`;
@@ -1230,7 +1442,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const bmpL = await createImageBitmap(fileL);
             const bmpR = await createImageBitmap(fileR);
             
-            // 高さを最大値に揃えてスケーリング
             const height = Math.max(bmpL.height, bmpR.height);
             const scaleL = height / bmpL.height;
             const scaleR = height / bmpR.height;
@@ -1295,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     handle = await window.showSaveFilePicker({
                         suggestedName: 'merged_output.pdf',
                         types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }],
-                        startIn: 'downloads' // ← 追加
+                        startIn: 'downloads'
                     });
                 } catch (e) {
                     if (e.name === 'AbortError') return false; 
@@ -1420,6 +1631,275 @@ document.addEventListener('DOMContentLoaded', () => {
                 worker.postMessage({ pairs: pairsData, quality });
             });
         }
+
+        async saveAsEpub(fileItems, metadata, viewMode, onProgress) {
+            let handle = null;
+            const suggestedName = (metadata.title || 'book') + '.epub';
+            if ('showSaveFilePicker' in window) {
+                try {
+                    handle = await window.showSaveFilePicker({
+                        suggestedName: suggestedName,
+                        types:[{ description: 'EPUB File', accept: { 'application/epub+zip':['.epub'] } }],
+                        startIn: 'downloads'
+                    });
+                } catch (e) {
+                    if (e.name === 'AbortError') return false; 
+                    throw e;
+                }
+            }
+
+            const zip = new ZipDocument();
+            const encoder = new TextEncoder();
+            
+            zip.addFile('mimetype', encoder.encode('application/epub+zip'));
+            
+            const containerXml = `<?xml version="1.0" encoding="UTF-8"?>\n<container\n version="1.0"\n xmlns="urn:oasis:names:tc:opendocument:xmlns:container"\n>\n<rootfiles>\n<rootfile\n full-path="item/standard.opf"\n media-type="application/oebps-package+xml"\n/>\n</rootfiles>\n</container>`;
+            zip.addFile('META-INF/container.xml', encoder.encode(containerXml));
+            
+            const cssContent = `@charset "UTF-8";\n\nhtml,\nbody {\n  margin:    0;\n  padding:   0;\n  font-size: 0;\n}\nsvg {\n  margin:    0;\n  padding:   0;\n}`;
+            zip.addFile('item/style/fixed-layout-jp.css', encoder.encode(cssContent));
+
+            let navList = '';
+            let manifestImage = '';
+            let manifestXhtml = '';
+            let spineStr = '';
+            
+            const padLength = Math.max(3, String(fileItems.length).length);
+            
+            const title = this._escapeXml(metadata.title || 'Untitled');
+            const titleRuby = this._escapeXml(metadata.titleRuby || metadata.title || 'Untitled');
+            const author = this._escapeXml(metadata.author || '');
+            const authorRuby = this._escapeXml(metadata.authorRuby || metadata.author || '');
+            const publisher = this._escapeXml(metadata.publisher || '');
+            const publisherRuby = this._escapeXml(metadata.publisherRuby || metadata.publisher || '');
+            const bookId = this._escapeXml(metadata.bookId || 'urn:uuid:' + this._generateUUID());
+            
+            let modifiedDate;
+            if (metadata.modified) {
+                // ISO 8601 CCYY-MM-DDThh:mm:ssZ に準拠
+                modifiedDate = metadata.modified + 'T00:00:00Z';
+            } else {
+                modifiedDate = new Date().toISOString().split('.')[0] + 'Z';
+            }
+
+            for (let i = 0; i < fileItems.length; i++) {
+                const item = fileItems[i];
+                const file = await item.handle.getFile();
+                const ext = item.name.includes('.') ? item.name.split('.').pop().toLowerCase() : 'jpg';
+                let mime = 'image/jpeg';
+                if (ext === 'png') mime = 'image/png';
+                else if (ext === 'gif') mime = 'image/gif';
+                else if (ext === 'webp') {
+                    mime = 'image/webp';
+                    // 【注意】Kindle (KDP) 等はEPUB内のWebPを弾く可能性があります。
+                }
+                
+                const index = i + 1;
+                const isCover = (index === 1);
+                const numStr = String(index).padStart(padLength, '0');
+                
+                const imgId = isCover ? 'cover' : `i-${numStr}`;
+                const imgName = isCover ? `cover.${ext}` : `i-${numStr}.${ext}`;
+                const xhtmlId = isCover ? 'p-cover' : `p-${numStr}`;
+                const xhtmlName = isCover ? 'p-cover.xhtml' : `p-${numStr}.xhtml`;
+                
+                const imgBuffer = new Uint8Array(await file.arrayBuffer());
+                
+                // 【修正】フルデコードによるメモリクラッシュを防ぐため、ヘッダからサイズを抽出
+                let w = 1000, h = 1414; // デフォルトフォールバックサイズ
+                const parsedSize = this._getImageSizeFromBuffer(imgBuffer);
+                if (parsedSize) {
+                    w = parsedSize.w;
+                    h = parsedSize.h;
+                } else {
+                    // ヘッダ解析に失敗した極稀なケースのみ、デコードして取得（安全策）
+                    try {
+                        const bitmap = await createImageBitmap(new Blob([imgBuffer]));
+                        w = bitmap.width; h = bitmap.height;
+                        bitmap.close();
+                    } catch (e) { console.warn('Could not determine image size for', item.name); }
+                }
+                
+                const xhtml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n<link rel="stylesheet" type="text/css" href="../style/fixed-layout-jp.css"/>\n<meta name="viewport" content="width=${w}, height=${h}"/>\n</head>\n<body>\n<div class="main">\n\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n xmlns:xlink="http://www.w3.org/1999/xlink"\n width="100%" height="100%" viewBox="0 0 ${w} ${h}">\n<image width="${w}" height="${h}" xlink:href="../image/${imgName}"/>\n</svg>\n\n</div>\n</body>\n</html>`;
+
+                zip.addFile(`item/image/${imgName}`, imgBuffer);
+                zip.addFile(`item/xhtml/${xhtmlName}`, encoder.encode(xhtml));
+                
+                if (isCover) {
+                    manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${imgName}" properties="cover-image"/>\n`;
+                } else {
+                    manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${imgName}"/>\n`;
+                }
+                
+                // 【修正】epubcheckでエラーになる不正な「fallback」属性を削除
+                manifestXhtml += `<item media-type="application/xhtml+xml" id="${xhtmlId}" href="xhtml/${xhtmlName}" properties="svg"/>\n`;
+                
+                navList += `<li><a href="xhtml/${xhtmlName}">本文${index}</a></li>\n`;
+                
+                let spreadProp = '';
+                if (viewMode === 'spread-rtl') {
+                    if (isCover) spreadProp = ' properties="rendition:page-spread-center"';
+                    else spreadProp = (index % 2 === 0) ? ' properties="page-spread-right"' : ' properties="page-spread-left"';
+                } else if (viewMode === 'spread-ltr') {
+                    if (isCover) spreadProp = ' properties="rendition:page-spread-center"';
+                    else spreadProp = (index % 2 === 0) ? ' properties="page-spread-left"' : ' properties="page-spread-right"';
+                }
+                spineStr += `<itemref linear="yes" idref="${xhtmlId}"${spreadProp}/>\n`;
+                
+                onProgress(index, fileItems.length, item.name);
+                
+                // UIフリーズを防ぐためのYield
+                if (i % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            const navXml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n</head>\n<body>\n<nav epub:type="toc" id="toc">\n<h1>${title}</h1>\n<ol>\n${navList}</ol>\n</nav>\n</body>\n</html>`;
+            zip.addFile('item/navigation-documents.xhtml', encoder.encode(navXml));
+
+            let direction = 'default';
+            if (viewMode === 'spread-rtl') direction = 'rtl';
+            else if (viewMode === 'spread-ltr') direction = 'ltr';
+
+            const opf = `<?xml version="1.0" encoding="UTF-8"?>
+<package
+ xmlns="http://www.idpf.org/2007/opf"
+ version="3.0"
+ xml:lang="ja"
+ unique-identifier="unique-id"
+ prefix="rendition: http://www.idpf.org/vocab/rendition/#
+         ebpaj: http://www.ebpaj.jp/"
+>
+
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms">
+
+<dc:title id="title">${title}</dc:title>
+<meta refines="#title" property="file-as">${titleRuby}</meta>
+
+<dc:creator id="author">${author}</dc:creator>
+<meta refines="#author" property="role" scheme="marc:relators">aut</meta>
+<meta refines="#author" property="file-as">${authorRuby}</meta>
+
+<dc:publisher id="publisher">${publisher}</dc:publisher>
+<meta refines="#publisher" property="file-as">${publisherRuby}</meta>
+
+<dc:language>ja</dc:language>
+
+<dc:identifier id="unique-id">${bookId}</dc:identifier>
+
+<meta property="dcterms:modified">${modifiedDate}</meta>
+
+<meta property="rendition:layout">pre-paginated</meta>
+<meta property="rendition:spread">landscape</meta>
+
+<meta property="ebpaj:guide-version">1.1.3</meta>
+<dc:contributor id="encoder">Image-sorting WebApp</dc:contributor>
+<meta refines="#encoder" property="role" scheme="marc:relators">mrk</meta>
+
+</metadata>
+
+<manifest>
+
+<item media-type="application/xhtml+xml" id="toc" href="navigation-documents.xhtml" properties="nav"/>
+<item media-type="text/css" id="fixed-layout-jp" href="style/fixed-layout-jp.css"/>
+
+${manifestImage}
+${manifestXhtml}
+</manifest>
+
+<spine page-progression-direction="${direction}">
+${spineStr}</spine>
+
+</package>`;
+
+            zip.addFile('item/standard.opf', encoder.encode(opf));
+
+            const blob = zip.finish();
+
+            if (handle) {
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = suggestedName;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+            return true;
+        }
+
+        _generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        _escapeXml(unsafe) {
+            return unsafe.replace(/[<>&'"]/g, c => {
+                switch (c) {
+                    case '<': return '&lt;'; case '>': return '&gt;';
+                    case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;';
+                }
+            });
+        }
+
+        // ==========================================
+        // 【修正】画像デコードによるメモリ爆発を防ぐため、
+        // バイナリヘッダから直接縦横ピクセル数を抽出する超軽量パーサー
+        // ==========================================
+        _getImageSizeFromBuffer(buffer) {
+            const view = new DataView(buffer.buffer);
+            const length = buffer.length;
+            let offset = 0;
+
+            try {
+                // JPEG (FF D8)
+                if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+                    offset = 2;
+                    while (offset < length) {
+                        if (buffer[offset] !== 0xFF) break;
+                        const marker = buffer[offset + 1];
+                        offset += 2;
+                        if (marker === 0xC0 || marker === 0xC1 || marker === 0xC2) { // SOF0, SOF1, SOF2
+                            offset += 3;
+                            return { h: view.getUint16(offset, false), w: view.getUint16(offset + 2, false) };
+                        }
+                        offset += view.getUint16(offset, false);
+                    }
+                }
+                // PNG (89 50 4E 47)
+                else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+                    if (length >= 24) return { w: view.getUint32(16, false), h: view.getUint32(20, false) };
+                }
+                // GIF (47 49 46)
+                else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+                    if (length >= 10) return { w: view.getUint16(6, true), h: view.getUint16(8, true) };
+                }
+                // WebP (RIFF....WEBPVP8 )
+                else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+                    if (length >= 30) {
+                        const format = String.fromCharCode(buffer[12], buffer[13], buffer[14], buffer[15]);
+                        if (format === 'VP8 ') {
+                            return { w: view.getUint16(26, true) & 0x3FFF, h: view.getUint16(28, true) & 0x3FFF };
+                        } else if (format === 'VP8L') {
+                            const b0 = buffer[21], b1 = buffer[22], b2 = buffer[23], b3 = buffer[24];
+                            return {
+                                w: 1 + (((b1 & 0x3F) << 8) | b0),
+                                h: 1 + (((b3 & 0xF) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6))
+                            };
+                        } else if (format === 'VP8X') {
+                            return {
+                                w: 1 + (buffer[24] | (buffer[25] << 8) | (buffer[26] << 16)),
+                                h: 1 + (buffer[27] | (buffer[28] << 8) | (buffer[29] << 16))
+                            };
+                        }
+                    }
+                }
+            } catch (e) { console.warn("Image header parse error", e); }
+            return null; // パース失敗時はnull
+        }
     }
 
     // ==========================================
@@ -1427,15 +1907,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     class App {
         constructor() {
-            this.ui = new UIManager((id) => this.getImageUrl(id));
+            this.ui = new UIManager(
+                (id) => this.getImageUrl(id),
+                (id) => this.releaseImageUrl(id)
+            );
             this.fs = new FileSystemManager();
-            this.sortManager = new SortManager(this.ui, (draggedIds, targetId, isLogicalBefore) => this.reorderFiles(draggedIds, targetId, isLogicalBefore));
+            this.sortManager = new SortManager(
+                this.ui, 
+                (draggedIds, targetId, isLogicalBefore) => this.reorderFiles(draggedIds, targetId, isLogicalBefore),
+                (itemsOrFiles, targetId, isLogicalBefore) => this.handleExternalDropToItem(itemsOrFiles, targetId, isLogicalBefore)
+            );
+            this.epubModal = new EpubMetadataModal();
             
             this.dirHandle = null;
             this.fileItems =[];
             this.isProcessing = false;
             this.historyUndo =[];
             this.historyRedo =[];
+            this.dragCounter = 0;
 
             this.hasFSApi = 'showDirectoryPicker' in window;
             if (!this.hasFSApi) {
@@ -1444,6 +1933,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             this.ui.changeViewMode('spread-rtl');
             this.bindEvents();
+        }
+
+        hideDropOverlay() {
+            this.dragCounter = 0;
+            const overlay = document.getElementById('drop-overlay');
+            if (overlay) overlay.style.display = 'none';
         }
 
         async getImageUrl(id) {
@@ -1456,15 +1951,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return item.objectUrl;
         }
 
+        releaseImageUrl(id) {
+            const item = this.fileItems.find(i => i.id === id);
+            if (item && item.objectUrl) {
+                URL.revokeObjectURL(item.objectUrl);
+                item.objectUrl = null;
+            }
+        }
+
         bindEvents() {
             this.ui.btnSelect.addEventListener('click', () => this.handleSelectFolder());
             this.ui.btnExecute.addEventListener('click', () => this.handleExecute());
             this.ui.btnUndo.addEventListener('click', () => this.undo());
             this.ui.btnRedo.addEventListener('click', () => this.redo());
             this.ui.btnReset.addEventListener('click', () => this.reset());
+            this.ui.btnAddBlank.addEventListener('click', () => this.handleAddBlank());
+            this.ui.btnDelete.addEventListener('click', () => this.handleDelete());
 
             document.addEventListener('keydown', (e) => {
                 if (this.isProcessing) return;
+                
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+
                 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
                 const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
                 
@@ -1475,56 +1983,90 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (cmdOrCtrl && e.key.toLowerCase() === 'y') {
                     e.preventDefault();
                     this.redo();
+                } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    this.handleDelete();
                 }
             });
 
             const overlay = document.getElementById('drop-overlay');
-            let dragCounter = 0;
 
             document.body.addEventListener('dragenter', (e) => {
                 e.preventDefault();
-                if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
-                    dragCounter++;
+                if (e.dataTransfer.types && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'))) {
+                    this.dragCounter++;
                     overlay.style.display = 'flex';
                 }
             });
             document.body.addEventListener('dragover', (e) => e.preventDefault());
             document.body.addEventListener('dragleave', (e) => {
                 e.preventDefault();
-                if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
-                    dragCounter--;
-                    if (dragCounter === 0) overlay.style.display = 'none';
+                if (e.dataTransfer.types && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'))) {
+                    this.dragCounter--;
+                    if (this.dragCounter <= 0) {
+                        this.hideDropOverlay();
+                    }
                 }
             });
             document.body.addEventListener('drop', async (e) => {
                 e.preventDefault();
-                dragCounter = 0;
-                overlay.style.display = 'none';
+                this.hideDropOverlay();
                 
-                if (!e.dataTransfer.types || !e.dataTransfer.types.includes('Files')) return;
+                if (!e.dataTransfer.types || (!e.dataTransfer.types.includes('Files') && !e.dataTransfer.types.includes('application/x-moz-file'))) return;
                 if (this.isProcessing) return;
 
-                if (this.hasFSApi) {
-                    const items = e.dataTransfer.items;
-                    let droppedDirHandle = null;
+                const items = e.dataTransfer.items;
+                let droppedDirHandle = null;
+                const fileHandles = [];
+                const filesFallback = [];
+                let hasDirectory = false;
+
+                if (this.hasFSApi && items) {
+                    const handlePromises = [];
                     for (let i = 0; i < items.length; i++) {
                         const item = items[i];
                         if (item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function') {
-                            const handle = await item.getAsFileSystemHandle();
-                            if (handle && handle.kind === 'directory') {
+                            handlePromises.push(item.getAsFileSystemHandle());
+                        }
+                    }
+                    
+                    const handles = await Promise.all(handlePromises);
+                    for (const handle of handles) {
+                        if (handle) {
+                            if (handle.kind === 'directory') {
+                                hasDirectory = true;
                                 droppedDirHandle = handle;
                                 break;
+                            } else if (handle.kind === 'file') {
+                                fileHandles.push(handle);
                             }
                         }
                     }
-
-                    if (droppedDirHandle) this.handleLoadDirectory(droppedDirHandle);
-                    else alert('❌ フォルダをドロップしてください。');
                 } else {
                     const files = Array.from(e.dataTransfer.files);
+                    for (let f of files) {
+                        if (!f.name) continue;
+                        const ext = f.name.split('.').pop().toLowerCase();
+                        if (USER_SETTINGS.validExts.includes(ext)) {
+                            filesFallback.push(f);
+                        } else if (!f.type) {
+                            hasDirectory = true; 
+                        }
+                    }
+                }
+
+                if (hasDirectory && droppedDirHandle) {
+                    this.handleLoadDirectory(droppedDirHandle);
+                } else if (hasDirectory && !this.hasFSApi) {
                     this.resetMemory();
-                    this.fileItems = await this.fs.loadImagesFallback(files);
+                    this.fileItems = await this.fs.loadImagesFallback(e.dataTransfer.files);
                     this.finalizeLoad();
+                } else {
+                    const targetFiles = this.hasFSApi ? fileHandles : filesFallback;
+                    if (targetFiles.length > 0) {
+                        const isHandles = this.hasFSApi && fileHandles.length > 0;
+                        await this.handleAddFilesToTail(targetFiles, isHandles);
+                    }
                 }
             });
         }
@@ -1542,6 +2084,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
             this.updateHistoryButtons();
+            this.ui.setButtonsState(false, this.fileItems.length > 0);
         }
 
         redo() {
@@ -1551,6 +2094,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
             this.updateHistoryButtons();
+            this.ui.setButtonsState(false, this.fileItems.length > 0);
         }
 
         updateHistoryButtons() {
@@ -1582,13 +2126,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.finalizeLoad();
             } catch (e) {
                 console.error(e);
-                alert('❌ エラーが発生しました: ' + e.message);
+                this.ui.showToast('❌ エラーが発生しました: ' + e.message, true);
             }
         }
 
         finalizeLoad() {
             if (this.fileItems.length === 0) {
-                alert('❌ 画像が見つかりませんでした。');
+                this.ui.showToast('❌ 画像が見つかりませんでした。', true);
                 return;
             }
             this.ui.renderItems(this.fileItems);
@@ -1600,6 +2144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         reorderFiles(draggedIds, targetId, isLogicalBefore) {
+            this.hideDropOverlay();
             this.saveHistory();
             
             const draggedItems = this.fileItems.filter(item => draggedIds.includes(item.id));
@@ -1613,10 +2158,191 @@ document.addEventListener('DOMContentLoaded', () => {
             
             this.fileItems = newItems;
             
-            this.ui.moveItems(draggedIds, targetId, isLogicalBefore);
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
             
             draggedIds.forEach(id => this.sortManager.selectById(id, true));
             this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
+        }
+
+        async handleAddBlank() {
+            const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected'));
+            if (selectedEls.length === 0) {
+                this.ui.showToast('白紙を挿入する基準となる画像を選択してください。', true);
+                return;
+            }
+
+            this.isProcessing = true;
+            this.ui.setButtonsState(true, true);
+            
+            try {
+                this.saveHistory();
+                
+                for (let i = selectedEls.length - 1; i >= 0; i--) {
+                    const id = selectedEls[i].dataset.id;
+                    const index = this.fileItems.findIndex(item => item.id === id);
+                    if (index === -1) continue;
+
+                    const baseItem = this.fileItems[index];
+                    const file = await baseItem.handle.getFile();
+                    const bmp = await createImageBitmap(file);
+                    const w = bmp.width;
+                    const h = bmp.height;
+                    bmp.close();
+
+                    const canvas = new OffscreenCanvas(w, h);
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, w, h);
+                    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+                    
+                    const newId = `blank_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
+                    const newName = `blank_${w}x${h}.jpg`;
+                    const dummyFile = new File([blob], newName, { type: 'image/jpeg' });
+                    
+                    const newItem = {
+                        id: newId,
+                        name: newName,
+                        handle: { getFile: async () => dummyFile },
+                        objectUrl: URL.createObjectURL(dummyFile)
+                    };
+                    
+                    this.fileItems.splice(index + 1, 0, newItem);
+                }
+                
+                this.ui.renderItems(this.fileItems);
+                this.sortManager.init();
+            } catch (e) {
+                console.error(e);
+                this.ui.showToast('白紙の挿入に失敗しました。', true);
+            } finally {
+                this.isProcessing = false;
+                this.ui.setButtonsState(false, true);
+                this.updateHistoryButtons();
+            }
+        }
+
+        handleDelete() {
+            const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected'));
+            if (selectedEls.length === 0) return;
+
+            this.saveHistory();
+            const idsToRemove = selectedEls.map(el => el.dataset.id);
+            
+            this.fileItems = this.fileItems.filter(item => !idsToRemove.includes(item.id));
+            
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
+            
+            this.ui.setButtonsState(false, this.fileItems.length > 0);
+        }
+
+        async handleExternalDropToItem(itemsOrFiles, targetId, isLogicalBefore) {
+            this.hideDropOverlay();
+            if (this.isProcessing) return;
+            this.isProcessing = true;
+            this.ui.setButtonsState(true, true);
+
+            try {
+                const newItems = [];
+                
+                if (this.hasFSApi && itemsOrFiles.length > 0 && typeof itemsOrFiles[0].getAsFileSystemHandle === 'function') {
+                    const handlePromises = [];
+                    for (let i = 0; i < itemsOrFiles.length; i++) {
+                        const item = itemsOrFiles[i];
+                        if (item.kind === 'file') {
+                            handlePromises.push(item.getAsFileSystemHandle());
+                        }
+                    }
+                    
+                    const handles = await Promise.all(handlePromises);
+                    for (const handle of handles) {
+                        if (handle && handle.kind === 'file') {
+                            const ext = handle.name.split('.').pop().toLowerCase();
+                            if (USER_SETTINGS.validExts.includes(ext)) {
+                                newItems.push({ handle, name: handle.name });
+                            }
+                        }
+                    }
+                } else {
+                    const files = itemsOrFiles instanceof FileList ? Array.from(itemsOrFiles) : Array.from(itemsOrFiles).map(i => i.getAsFile && i.getAsFile() || i);
+                    for (let f of files) {
+                        if (!f || !f.name) continue;
+                        const ext = f.name.split('.').pop().toLowerCase();
+                        if (USER_SETTINGS.validExts.includes(ext)) {
+                            newItems.push({ handle: { getFile: async () => f }, name: f.name });
+                        }
+                    }
+                }
+
+                if (newItems.length > 0) {
+                    if (this.fileItems.length > 0) this.saveHistory();
+                    
+                    const addedItems = newItems.map(ni => {
+                        return {
+                            id: `added_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${ni.name}`,
+                            name: ni.name,
+                            handle: ni.handle,
+                            objectUrl: null
+                        };
+                    });
+
+                    let targetIndex = this.fileItems.findIndex(item => item.id === targetId);
+                    if (targetIndex === -1) targetIndex = this.fileItems.length;
+                    const insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1;
+                    
+                    this.fileItems.splice(insertIndex, 0, ...addedItems);
+                    
+                    this.ui.renderItems(this.fileItems);
+                    this.sortManager.init();
+                }
+            } catch (e) {
+                console.error(e);
+                this.ui.showToast('画像の追加に失敗しました。', true);
+            } finally {
+                this.isProcessing = false;
+                this.ui.setButtonsState(false, this.fileItems.length > 0);
+                this.updateHistoryButtons();
+            }
+        }
+
+        async handleAddFilesToTail(filesOrHandles, isHandles) {
+            this.isProcessing = true;
+            this.ui.setButtonsState(true, true);
+            
+            try {
+                if (this.fileItems.length > 0) this.saveHistory();
+                
+                const newItems = [];
+                for (let i = 0; i < filesOrHandles.length; i++) {
+                    const f = filesOrHandles[i];
+                    const name = isHandles ? f.name : f.name;
+                    const ext = name.split('.').pop().toLowerCase();
+                    
+                    if (USER_SETTINGS.validExts.includes(ext)) {
+                        const id = `added_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${name}`;
+                        newItems.push({
+                            id: id,
+                            name: name,
+                            handle: isHandles ? f : { getFile: async () => f },
+                            objectUrl: null
+                        });
+                    }
+                }
+                
+                if (newItems.length > 0) {
+                    this.fileItems.push(...newItems);
+                    this.ui.renderItems(this.fileItems);
+                    this.sortManager.init();
+                }
+            } catch (e) {
+                console.error(e);
+                this.ui.showToast('画像の追加に失敗しました。', true);
+            } finally {
+                this.isProcessing = false;
+                this.ui.setButtonsState(false, this.fileItems.length > 0);
+                this.updateHistoryButtons();
+            }
         }
 
         getGridLayoutData() {
@@ -1642,7 +2368,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const w = rect.width;
                 const h = rect.height;
 
-                // 見開きペアの隙間を無くすための配置判定
                 let alignX = 'center';
                 if (viewMode === 'spread-ltr') {
                     if (index > 0) alignX = (index % 2 === 1) ? 'right' : 'left';
@@ -1653,7 +2378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 items.push({ fileItem, x, y, w, h, alignX, index });
 
                 if (x + w > maxX) maxX = x + w;
-                if (y + h + 20 > maxY) maxY = y + h + 20; // 連番テキスト用の高さ(20px)を考慮
+                if (y + h + 20 > maxY) maxY = y + h + 20; 
             });
 
             const padding = 20;
@@ -1672,7 +2397,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return pairs;
             }
             
-            // 1枚目は表紙として単独
             if (this.fileItems.length > 0) {
                 pairs.push([this.fileItems[0]]);
             }
@@ -1685,10 +2409,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     pairs.push([item1]);
                 } else {
                     if (viewMode === 'spread-rtl') {
-                        // 右開き: item2(左) + item1(右)
                         pairs.push([item2, item1]);
                     } else {
-                        // 左開き: item1(左) + item2(右)
                         pairs.push([item1, item2]);
                     }
                 }
@@ -1700,6 +2422,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.fileItems.length === 0) return;
 
             const saveFormat = this.ui.saveFormatSelect.value;
+            
+            if (saveFormat === 'epub') {
+                let metadata;
+                try {
+                    metadata = await this.epubModal.show();
+                } catch (e) {
+                    return; 
+                }
+                this.isProcessing = true;
+                this.ui.setButtonsState(true, true);
+                this.updateHistoryButtons();
+                
+                try {
+                    const success = await this.fs.saveAsEpub(this.fileItems, metadata, this.ui.viewModeSelect.value, (current, total, info) => {
+                        const percent = (current / total) * 100;
+                        const text = USER_SETTINGS.msgSavingEpub.replace('{current}', current).replace('{total}', total) + ` (${info})`;
+                        this.ui.updateProgress(percent, text);
+                    });
+                    if (success) this.ui.showToast(`EPUBを保存しました。`);
+                } catch (e) {
+                    console.error(e);
+                    if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true);
+                } finally {
+                    this.isProcessing = false;
+                    this.ui.setButtonsState(false, true);
+                    this.updateHistoryButtons();
+                    setTimeout(() => this.ui.updateProgress(0, ''), 3000);
+                }
+                return;
+            }
+
             this.isProcessing = true;
             this.ui.setButtonsState(true, true);
             this.updateHistoryButtons();
@@ -1712,7 +2465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             targetDirHandle = await window.showDirectoryPicker({ 
                                 mode: 'readwrite', 
                                 id: 'save-folder',
-                                startIn: 'downloads' // ← 追加
+                                startIn: 'downloads'
                             });
                         } catch (e) {
                             if (e.name === 'AbortError') return; 
@@ -1723,14 +2476,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
                         });
-                        alert(`選択したフォルダ内に画像を保存しました。`);
+                        this.ui.showToast(`選択したフォルダ内に画像を保存しました。`);
                     } else {
                         await this.fs.saveRenamedFilesFallback(this.fileItems, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
                         });
-                        alert(`ZIPファイルのダウンロードが完了しました。`);
+                        this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'merge-rename') {
                     const pairs = this.getSpreadPairs();
@@ -1740,7 +2493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             targetDirHandle = await window.showDirectoryPicker({ 
                                 mode: 'readwrite', 
                                 id: 'save-folder',
-                                startIn: 'downloads' // ← 追加
+                                startIn: 'downloads'
                             });
                         } catch (e) {
                             if (e.name === 'AbortError') return; 
@@ -1751,14 +2504,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
                         });
-                        alert(`選択したフォルダ内に結合画像を保存しました。`);
+                        this.ui.showToast(`選択したフォルダ内に結合画像を保存しました。`);
                     } else {
                         await this.fs.saveMergedRenamedFilesFallback(pairs, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
                         });
-                        alert(`ZIPファイルのダウンロードが完了しました。`);
+                        this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
                     const quality = parseInt(this.ui.pdfQuality.value, 10) || 30;
@@ -1786,11 +2539,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    if (success) alert(`PDFを保存しました。`);
+                    if (success) this.ui.showToast(`PDFを保存しました。`);
                 }
             } catch (e) {
                 console.error(e);
-                if (e.name !== 'AbortError') alert('保存中にエラーが発生しました: ' + e.message);
+                if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true);
             } finally {
                 this.isProcessing = false;
                 this.ui.setButtonsState(false, true);
@@ -1824,13 +2577,14 @@ document.addEventListener('DOMContentLoaded', () => {
             this.historyRedo = [];
             
             this.ui.clear();
-            this.updateHistoryButtons(); // 履歴ボタンをリセット(非活性化)
+            this.updateHistoryButtons();
             this.sortManager.destroy();
         }
 }
 
-// アプリケーションの初期化
 new App();
 
-}); // DOMContentLoaded の閉じカッコ
+});
 </script>
+</body>
+</html>
