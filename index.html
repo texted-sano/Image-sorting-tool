@@ -127,6 +127,14 @@
         .thumb-item img { width: 100%; height: var(--thumb-size); object-fit: contain; pointer-events: none; margin-bottom: 5px; border-radius: 4px; background: rgba(0,0,0,0.05); }
         .thumb-item .name { font-size: 12px; color: var(--text-main); text-align: center; word-break: break-all; pointer-events: none; }
         
+        /* --- 目次バッジのスタイル --- */
+        .thumb-item .toc-badge {
+            position: absolute; top: -5px; left: -5px; background: #ffc107; color: #000;
+            font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 12px;
+            pointer-events: none; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
         .mode-spread { justify-content: flex-start; gap: 5px 0; }
         .mode-spread .thumb-item { width: var(--thumb-size); padding: 8px 0; border-radius: 0; box-shadow: none; border: 1px solid var(--border-color); }
         .mode-spread .thumb-item .name { padding: 0 4px; }
@@ -261,7 +269,9 @@
             <button id="btn-redo" style="background: #6c757d;" disabled>↪ 進む</button>
             <button id="btn-reset" style="background: #6c757d; max-width: 100px;">リセット</button>
 
-            <button id="btn-add-blank" style="background: #28a745; margin-left: auto;" disabled title="選択した画像と同じサイズの白紙を直後に挿入します">＋ 白紙挿入</button>
+            <!-- 目次設定ボタンを追加 -->
+            <button id="btn-set-toc" style="background: #17a2b8; margin-left: auto;" disabled title="選択した画像を目次（チャプター）として登録します">目次設定</button>
+            <button id="btn-add-blank" style="background: #28a745;" disabled title="選択した画像と同じサイズの白紙を直後に挿入します">＋ 白紙挿入</button>
             <button id="btn-delete" style="background: #dc3545;" disabled title="選択した画像を削除します">－ 削除</button>
             
             <select id="view-mode" title="表示モード切替">
@@ -364,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.btnUndo = document.getElementById('btn-undo');
             this.btnRedo = document.getElementById('btn-redo');
             this.btnReset = document.getElementById('btn-reset');
+            this.btnSetToc = document.getElementById('btn-set-toc'); // 追加
             this.btnAddBlank = document.getElementById('btn-add-blank');
             this.btnDelete = document.getElementById('btn-delete');
             
@@ -383,17 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (isPdf && this.pdfQuality.value === '100') {
                         this.pdfQuality.value = 30;
                     }
-                    if (val === 'pdf') {
-                        this.btnExecute.textContent = '実行';
-                    } else if (val === 'merge-rename') {
-                        this.btnExecute.textContent = '実行';
-                    } else if (val === 'merge-pdf') {
-                        this.btnExecute.textContent = '実行';
-                    } else if (val === 'epub') {
-                        this.btnExecute.textContent = '実行';
-                    } else {
-                        this.btnExecute.textContent = '実行';
-                    }
+                    this.btnExecute.textContent = '実行';
                 }
             });
 
@@ -495,6 +496,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 thumbDiv.dataset.id = item.id;
                 thumbDiv.draggable = true;
                 
+                // 目次バッジの追加
+                if (item.tocName) {
+                    const badge = document.createElement('div');
+                    badge.className = 'toc-badge';
+                    badge.textContent = item.tocName;
+                    thumbDiv.appendChild(badge);
+                }
+                
                 const img = document.createElement('img');
                 img.dataset.id = item.id;
                 if (item.objectUrl) img.src = item.objectUrl;
@@ -529,6 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.saveFormatSelect.disabled = isProcessing;
             this.pdfQuality.disabled = isProcessing;
             
+            this.btnSetToc.disabled = isProcessing || !hasFiles;
             this.btnAddBlank.disabled = isProcessing || !hasFiles;
             this.btnDelete.disabled = isProcessing || !hasFiles;
             
@@ -1035,19 +1045,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return { time, date };
         }
         
-        // 既存の同期メソッド（テキストや小規模データ用）
         addFile(name, dataUint8) {
             this._addFileInternal(name, dataUint8, dataUint8.length, dataUint8);
         }
 
-        // 【追加】大容量ファイル（Blob/File）用の非同期メソッド
         async addFileAsync(name, blob) {
-            // CRC計算のために一時的に展開するが、スコープを抜ければGCされる
             const dataUint8 = new Uint8Array(await blob.arrayBuffer());
             this._addFileInternal(name, dataUint8, blob.size, blob);
         }
 
-        // 【追加】内部処理の共通化
         _addFileInternal(name, dataUint8, size, storeData) {
             const nameBytes = this.encoder.encode(name);
             const crc = this.crc32(dataUint8);
@@ -1069,7 +1075,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lfh.set(nameBytes, 30);
             
             this.parts.push(lfh);
-            // Uint8Arrayではなく、Blobの参照を保持することでメモリを節約
             this.parts.push(storeData);
             
             const cd = new Uint8Array(46 + nameBytes.length);
@@ -1144,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (entry.kind === 'file') {
                     const ext = entry.name.split('.').pop().toLowerCase();
                     if (USER_SETTINGS.validExts.includes(ext)) {
-                        items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null });
+                        items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null, tocName: null });
                     }
                 }
                 if (++count % 100 === 0) {
@@ -1162,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const file = files[i];
                 const ext = file.name.split('.').pop().toLowerCase();
                 if (USER_SETTINGS.validExts.includes(ext)) {
-                    items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null });
+                    items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null, tocName: null });
                 }
                 if (i % 100 === 0) {
                     await new Promise(resolve => setTimeout(resolve, 0));
@@ -1199,7 +1204,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
                 
                 const file = await item.handle.getFile();
-                // 【修正】メモリ爆発を防ぐため非同期メソッドを使用
                 await zip.addFileAsync(newName, file);
                 
                 onProgress(i + 1, fileItems.length, newName);
@@ -1498,7 +1502,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = await this._mergeImagePair(pairs[i]);
                 const newName = String(i + 1).padStart(padLength, '0') + '.jpg';
                 
-                // 【修正】メモリ爆発を防ぐため非同期メソッドを使用
                 await zip.addFileAsync(newName, blob);
                 
                 onProgress(i + 1, pairs.length, newName);
@@ -1645,7 +1648,59 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        async saveAsEpub(fileItems, metadata, viewMode, onProgress) {
+        _generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        _escapeXml(unsafe) {
+            return unsafe.replace(/[<>&'"]/g, c => {
+                switch (c) {
+                    case '<': return '&lt;'; case '>': return '&gt;';
+                    case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;';
+                }
+            });
+        }
+    }
+
+    // ==========================================
+    // 6.5. EPUB生成クラス (商用対応版)
+    // ==========================================
+    class EpubGenerator {
+        constructor(fileSystemManager) {
+            this.fs = fileSystemManager;
+        }
+
+        // 【追加】画像最適化パイプライン (リサイズ＆JPEG統一)
+        async _optimizeImage(file, maxDim = 1920, quality = 0.85) {
+            const bitmap = await createImageBitmap(file);
+            let w = bitmap.width;
+            let h = bitmap.height;
+            
+            if (w > maxDim || h > maxDim) {
+                const scale = Math.min(maxDim / w, maxDim / h);
+                w = Math.max(1, Math.floor(w * scale));
+                h = Math.max(1, Math.floor(h * scale));
+            }
+            
+            const canvas = new OffscreenCanvas(w, h);
+            const ctx = canvas.getContext('2d');
+            // 背景を白で塗りつぶす（透過PNG対策）
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(bitmap, 0, 0, w, h);
+            bitmap.close();
+            
+            const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality });
+            return { blob, w, h };
+        }
+
+        async generate(fileItems, metadata, viewMode, onProgress) {
             let handle = null;
             const suggestedName = (metadata.title || 'book') + '.epub';
             if ('showSaveFilePicker' in window) {
@@ -1673,37 +1728,37 @@ document.addEventListener('DOMContentLoaded', () => {
             zip.addFile('item/style/fixed-layout-jp.css', encoder.encode(cssContent));
 
             let navList = '';
+            let navPoints = ''; // 【追加】NCX用目次
+            let playOrder = 1;  // 【追加】NCX用順序
+            
             let manifestImage = '';
             let manifestXhtml = '';
             let spineStr = '';
             
             const padLength = Math.max(3, String(fileItems.length).length);
             
-            const title = this._escapeXml(metadata.title || 'Untitled');
-            const titleRuby = this._escapeXml(metadata.titleRuby || metadata.title || 'Untitled');
-            const author = this._escapeXml(metadata.author || '');
-            const authorRuby = this._escapeXml(metadata.authorRuby || metadata.author || '');
-            const publisher = this._escapeXml(metadata.publisher || '');
-            const publisherRuby = this._escapeXml(metadata.publisherRuby || metadata.publisher || '');
-            const bookId = this._escapeXml(metadata.bookId || 'urn:uuid:' + this._generateUUID());
+            const title = this.fs._escapeXml(metadata.title || 'Untitled');
+            const titleRuby = this.fs._escapeXml(metadata.titleRuby || metadata.title || 'Untitled');
+            const author = this.fs._escapeXml(metadata.author || '');
+            const authorRuby = this.fs._escapeXml(metadata.authorRuby || metadata.author || '');
+            const publisher = this.fs._escapeXml(metadata.publisher || '');
+            const publisherRuby = this.fs._escapeXml(metadata.publisherRuby || metadata.publisher || '');
+            const bookId = this.fs._escapeXml(metadata.bookId || 'urn:uuid:' + this.fs._generateUUID());
             
-            let modifiedDate;
-            if (metadata.modified) {
-                modifiedDate = metadata.modified + 'T00:00:00Z';
-            } else {
-                modifiedDate = new Date().toISOString().split('.')[0] + 'Z';
-            }
+            let modifiedDate = metadata.modified ? metadata.modified + 'T00:00:00Z' : new Date().toISOString().split('.')[0] + 'Z';
 
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const file = await item.handle.getFile();
-                const ext = item.name.includes('.') ? item.name.split('.').pop().toLowerCase() : 'jpg';
-                let mime = 'image/jpeg';
-                if (ext === 'png') mime = 'image/png';
-                else if (ext === 'gif') mime = 'image/gif';
-                else if (ext === 'webp') {
-                    mime = 'image/webp';
-                }
+                
+                // 【修正】画像最適化パイプラインを通す (長辺1920px, JPEG 85%)
+                const optimized = await this._optimizeImage(file, 1920, 0.85);
+                const w = optimized.w;
+                const h = optimized.h;
+                const imgBlob = optimized.blob;
+                
+                const mime = 'image/jpeg';
+                const ext = 'jpg';
                 
                 const index = i + 1;
                 const isCover = (index === 1);
@@ -1714,40 +1769,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const xhtmlId = isCover ? 'p-cover' : `p-${numStr}`;
                 const xhtmlName = isCover ? 'p-cover.xhtml' : `p-${numStr}.xhtml`;
                 
-                // 【修正】メモリ節約のため、ヘッダ解析用に先頭64KBだけ読み込む
-                const headerSlice = file.slice(0, 65536);
-                const imgBuffer = new Uint8Array(await headerSlice.arrayBuffer());
-                
-                let w = 1000, h = 1414;
-                const parsedSize = this._getImageSizeFromBuffer(imgBuffer);
-                if (parsedSize) {
-                    w = parsedSize.w;
-                    h = parsedSize.h;
-                } else {
-                    try {
-                        const bitmap = await createImageBitmap(file);
-                        w = bitmap.width; h = bitmap.height;
-                        bitmap.close();
-                    } catch (e) { console.warn('Could not determine image size for', item.name); }
-                }
-                
-                const xhtml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n<link rel="stylesheet" type="text/css" href="../style/fixed-layout-jp.css"/>\n<meta name="viewport" content="width=${w}, height=${h}"/>\n</head>\n<body>\n<div class="main">\n\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n xmlns:xlink="http://www.w3.org/1999/xlink"\n width="100%" height="100%" viewBox="0 0 ${w} ${h}">\n<image width="${w}" height="${h}" xlink:href="../image/${imgName}"/>\n</svg>\n\n</div>\n</body>\n</html>`;
+                // 【修正】SVGに preserveAspectRatio="xMidYMid meet" を追加して堅牢化
+                const xhtml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n<link rel="stylesheet" type="text/css" href="../style/fixed-layout-jp.css"/>\n<meta name="viewport" content="width=${w}, height=${h}"/>\n</head>\n<body>\n<div class="main">\n\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n xmlns:xlink="http://www.w3.org/1999/xlink"\n width="100%" height="100%" viewBox="0 0 ${w} ${h}">\n<image width="${w}" height="${h}" xlink:href="../image/${imgName}" preserveAspectRatio="xMidYMid meet"/>\n</svg>\n\n</div>\n</body>\n</html>`;
 
-                // 【修正】Fileオブジェクトをそのまま渡し、メモリ爆発を防ぐ
-                await zip.addFileAsync(`item/image/${imgName}`, file);
+                await zip.addFileAsync(`item/image/${imgName}`, imgBlob);
                 zip.addFile(`item/xhtml/${xhtmlName}`, encoder.encode(xhtml));
                 
-                if (isCover) {
-                    manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${imgName}" properties="cover-image"/>\n`;
-                } else {
-                    manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${imgName}"/>\n`;
-                }
-                
+                manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${imgName}"${isCover ? ' properties="cover-image"' : ''}/>\n`;
                 manifestXhtml += `<item media-type="application/xhtml+xml" id="${xhtmlId}" href="xhtml/${xhtmlName}" properties="svg"/>\n`;
                 
-                // 【修正】目次（TOC）の崩壊を防ぐため、表紙のみを目次に登録する
-                if (isCover) {
-                    navList += `<li><a href="xhtml/${xhtmlName}">表紙</a></li>\n`;
+                // 【修正】目次（TOC）の構築（表紙 または ユーザーが設定した目次名）
+                if (isCover || item.tocName) {
+                    const tocLabel = item.tocName ? this.fs._escapeXml(item.tocName) : '表紙';
+                    navList += `<li><a href="xhtml/${xhtmlName}">${tocLabel}</a></li>\n`;
+                    navPoints += `<navPoint id="navPoint-${playOrder}" playOrder="${playOrder}">\n<navLabel><text>${tocLabel}</text></navLabel>\n<content src="xhtml/${xhtmlName}"/>\n</navPoint>\n`;
+                    playOrder++;
                 }
                 
                 let spreadProp = '';
@@ -1761,67 +1797,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 spineStr += `<itemref linear="yes" idref="${xhtmlId}"${spreadProp}/>\n`;
                 
                 onProgress(index, fileItems.length, item.name);
-                
-                // UIフリーズを防ぐためのYield
                 if (i % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
             }
 
+            // XHTMLナビゲーション文書
             const navXml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n</head>\n<body>\n<nav epub:type="toc" id="toc">\n<h1>${title}</h1>\n<ol>\n${navList}</ol>\n</nav>\n</body>\n</html>`;
             zip.addFile('item/navigation-documents.xhtml', encoder.encode(navXml));
+
+            // 【追加】NCXファイルの生成 (EpubCheck / 古いリーダー対応)
+            const ncxXml = `<?xml version="1.0" encoding="UTF-8"?>\n<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">\n<head>\n<meta name="dtb:uid" content="${bookId}"/>\n<meta name="dtb:depth" content="1"/>\n<meta name="dtb:totalPageCount" content="0"/>\n<meta name="dtb:maxPageNumber" content="0"/>\n</head>\n<docTitle><text>${title}</text></docTitle>\n<navMap>\n${navPoints}</navMap>\n</ncx>`;
+            zip.addFile('item/toc.ncx', encoder.encode(ncxXml));
 
             let direction = 'default';
             if (viewMode === 'spread-rtl') direction = 'rtl';
             else if (viewMode === 'spread-ltr') direction = 'ltr';
 
+            // 【修正】OPFにNCXを登録
             const opf = `<?xml version="1.0" encoding="UTF-8"?>
-<package
- xmlns="http://www.idpf.org/2007/opf"
- version="3.0"
- xml:lang="ja"
- unique-identifier="unique-id"
- prefix="rendition: http://www.idpf.org/vocab/rendition/#
-         ebpaj: http://www.ebpaj.jp/"
->
-
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" xml:lang="ja" unique-identifier="unique-id" prefix="rendition: http://www.idpf.org/vocab/rendition/# ebpaj: http://www.ebpaj.jp/">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms">
-
 <dc:title id="title">${title}</dc:title>
 <meta refines="#title" property="file-as">${titleRuby}</meta>
-
 <dc:creator id="author">${author}</dc:creator>
 <meta refines="#author" property="role" scheme="marc:relators">aut</meta>
 <meta refines="#author" property="file-as">${authorRuby}</meta>
-
 <dc:publisher id="publisher">${publisher}</dc:publisher>
 <meta refines="#publisher" property="file-as">${publisherRuby}</meta>
-
 <dc:language>ja</dc:language>
-
 <dc:identifier id="unique-id">${bookId}</dc:identifier>
-
 <meta property="dcterms:modified">${modifiedDate}</meta>
-
 <meta property="rendition:layout">pre-paginated</meta>
 <meta property="rendition:spread">landscape</meta>
-
 <meta property="ebpaj:guide-version">1.1.3</meta>
 <dc:contributor id="encoder">Image-sorting WebApp</dc:contributor>
 <meta refines="#encoder" property="role" scheme="marc:relators">mrk</meta>
-
 </metadata>
-
 <manifest>
-
 <item media-type="application/xhtml+xml" id="toc" href="navigation-documents.xhtml" properties="nav"/>
+<item media-type="application/x-dtbncx+xml" id="ncx" href="toc.ncx"/>
 <item media-type="text/css" id="fixed-layout-jp" href="style/fixed-layout-jp.css"/>
-
-${manifestImage}
-${manifestXhtml}
-</manifest>
-
-<spine page-progression-direction="${direction}">
+${manifestImage}${manifestXhtml}</manifest>
+<spine page-progression-direction="${direction}" toc="ncx">
 ${spineStr}</spine>
-
 </package>`;
 
             zip.addFile('item/standard.opf', encoder.encode(opf));
@@ -1841,75 +1858,6 @@ ${spineStr}</spine>
             }
             return true;
         }
-
-        _generateUUID() {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        }
-
-        _escapeXml(unsafe) {
-            return unsafe.replace(/[<>&'"]/g, c => {
-                switch (c) {
-                    case '<': return '&lt;'; case '>': return '&gt;';
-                    case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;';
-                }
-            });
-        }
-
-        _getImageSizeFromBuffer(buffer) {
-            const view = new DataView(buffer.buffer);
-            const length = buffer.length;
-            let offset = 0;
-
-            try {
-                // JPEG (FF D8)
-                if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
-                    offset = 2;
-                    while (offset < length) {
-                        if (buffer[offset] !== 0xFF) break;
-                        const marker = buffer[offset + 1];
-                        offset += 2;
-                        if (marker === 0xC0 || marker === 0xC1 || marker === 0xC2) { // SOF0, SOF1, SOF2
-                            offset += 3;
-                            return { h: view.getUint16(offset, false), w: view.getUint16(offset + 2, false) };
-                        }
-                        offset += view.getUint16(offset, false);
-                    }
-                }
-                // PNG (89 50 4E 47)
-                else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
-                    if (length >= 24) return { w: view.getUint32(16, false), h: view.getUint32(20, false) };
-                }
-                // GIF (47 49 46)
-                else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
-                    if (length >= 10) return { w: view.getUint16(6, true), h: view.getUint16(8, true) };
-                }
-                // WebP (RIFF....WEBPVP8 )
-                else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
-                    if (length >= 30) {
-                        const format = String.fromCharCode(buffer[12], buffer[13], buffer[14], buffer[15]);
-                        if (format === 'VP8 ') {
-                            return { w: view.getUint16(26, true) & 0x3FFF, h: view.getUint16(28, true) & 0x3FFF };
-                        } else if (format === 'VP8L') {
-                            const b0 = buffer[21], b1 = buffer[22], b2 = buffer[23], b3 = buffer[24];
-                            return {
-                                w: 1 + (((b1 & 0x3F) << 8) | b0),
-                                h: 1 + (((b3 & 0xF) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6))
-                            };
-                        } else if (format === 'VP8X') {
-                            return {
-                                w: 1 + (buffer[24] | (buffer[25] << 8) | (buffer[26] << 16)),
-                                h: 1 + (buffer[27] | (buffer[28] << 8) | (buffer[29] << 16))
-                            };
-                        }
-                    }
-                }
-            } catch (e) { console.warn("Image header parse error", e); }
-            return null; 
-        }
     }
 
     // ==========================================
@@ -1922,6 +1870,7 @@ ${spineStr}</spine>
                 (id) => this.releaseImageUrl(id)
             );
             this.fs = new FileSystemManager();
+            this.epubGen = new EpubGenerator(this.fs);
             this.sortManager = new SortManager(
                 this.ui, 
                 (draggedIds, targetId, isLogicalBefore) => this.reorderFiles(draggedIds, targetId, isLogicalBefore),
@@ -1943,6 +1892,14 @@ ${spineStr}</spine>
             
             this.ui.changeViewMode('spread-rtl');
             this.bindEvents();
+        }
+
+        setProcessingState(isProcessing) {
+            this.isProcessing = isProcessing;
+            this.ui.setButtonsState(isProcessing, this.fileItems.length > 0);
+            if (!isProcessing) {
+                this.updateHistoryButtons();
+            }
         }
 
         hideDropOverlay() {
@@ -1975,8 +1932,16 @@ ${spineStr}</spine>
             this.ui.btnUndo.addEventListener('click', () => this.undo());
             this.ui.btnRedo.addEventListener('click', () => this.redo());
             this.ui.btnReset.addEventListener('click', () => this.reset());
+            this.ui.btnSetToc.addEventListener('click', () => this.handleSetToc()); // 追加
             this.ui.btnAddBlank.addEventListener('click', () => this.handleAddBlank());
             this.ui.btnDelete.addEventListener('click', () => this.handleDelete());
+
+            window.addEventListener('beforeunload', (e) => {
+                if (this.isProcessing) {
+                    e.preventDefault();
+                    e.returnValue = '処理中です。ページを離れるとデータが失われます。';
+                }
+            });
 
             document.addEventListener('keydown', (e) => {
                 if (this.isProcessing) return;
@@ -2082,14 +2047,14 @@ ${spineStr}</spine>
         }
 
         saveHistory() {
-            this.historyUndo.push([...this.fileItems]);
+            this.historyUndo.push(this.fileItems.map(item => ({...item})));
             this.historyRedo =[];
             this.updateHistoryButtons();
         }
 
         undo() {
             if (this.historyUndo.length === 0 || this.isProcessing) return;
-            this.historyRedo.push([...this.fileItems]);
+            this.historyRedo.push(this.fileItems.map(item => ({...item})));
             this.fileItems = this.historyUndo.pop();
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
@@ -2099,7 +2064,7 @@ ${spineStr}</spine>
 
         redo() {
             if (this.historyRedo.length === 0 || this.isProcessing) return;
-            this.historyUndo.push([...this.fileItems]);
+            this.historyUndo.push(this.fileItems.map(item => ({...item})));
             this.fileItems = this.historyRedo.pop();
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
@@ -2175,6 +2140,38 @@ ${spineStr}</spine>
             this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
         }
 
+        // 【追加】目次設定ハンドラ
+        handleSetToc() {
+            const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected'));
+            if (selectedEls.length === 0) {
+                this.ui.showToast('目次を設定する画像を選択してください。', true);
+                return;
+            }
+
+            const firstId = selectedEls[0].dataset.id;
+            const firstItem = this.fileItems.find(item => item.id === firstId);
+            const currentToc = firstItem ? (firstItem.tocName || '') : '';
+
+            const newToc = prompt('目次名（チャプター名）を入力してください。\n空欄にすると目次設定を解除します。', currentToc);
+            if (newToc === null) return; // キャンセル
+
+            this.saveHistory();
+            
+            selectedEls.forEach(el => {
+                const id = el.dataset.id;
+                const item = this.fileItems.find(i => i.id === id);
+                if (item) {
+                    item.tocName = newToc.trim() === '' ? null : newToc.trim();
+                }
+            });
+
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
+            
+            // 選択状態を復元
+            selectedEls.forEach(el => this.sortManager.selectById(el.dataset.id, true));
+        }
+
         async handleAddBlank() {
             const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected'));
             if (selectedEls.length === 0) {
@@ -2182,8 +2179,7 @@ ${spineStr}</spine>
                 return;
             }
 
-            this.isProcessing = true;
-            this.ui.setButtonsState(true, true);
+            this.setProcessingState(true);
             
             try {
                 this.saveHistory();
@@ -2214,7 +2210,8 @@ ${spineStr}</spine>
                         id: newId,
                         name: newName,
                         handle: { getFile: async () => dummyFile },
-                        objectUrl: URL.createObjectURL(dummyFile)
+                        objectUrl: URL.createObjectURL(dummyFile),
+                        tocName: null
                     };
                     
                     this.fileItems.splice(index + 1, 0, newItem);
@@ -2226,9 +2223,7 @@ ${spineStr}</spine>
                 console.error(e);
                 this.ui.showToast('白紙の挿入に失敗しました。', true);
             } finally {
-                this.isProcessing = false;
-                this.ui.setButtonsState(false, true);
-                this.updateHistoryButtons();
+                this.setProcessingState(false);
             }
         }
 
@@ -2250,8 +2245,7 @@ ${spineStr}</spine>
         async handleExternalDropToItem(itemsOrFiles, targetId, isLogicalBefore) {
             this.hideDropOverlay();
             if (this.isProcessing) return;
-            this.isProcessing = true;
-            this.ui.setButtonsState(true, true);
+            this.setProcessingState(true);
 
             try {
                 const newItems = [];
@@ -2293,7 +2287,8 @@ ${spineStr}</spine>
                             id: `added_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${ni.name}`,
                             name: ni.name,
                             handle: ni.handle,
-                            objectUrl: null
+                            objectUrl: null,
+                            tocName: null
                         };
                     });
 
@@ -2310,15 +2305,12 @@ ${spineStr}</spine>
                 console.error(e);
                 this.ui.showToast('画像の追加に失敗しました。', true);
             } finally {
-                this.isProcessing = false;
-                this.ui.setButtonsState(false, this.fileItems.length > 0);
-                this.updateHistoryButtons();
+                this.setProcessingState(false);
             }
         }
 
         async handleAddFilesToTail(filesOrHandles, isHandles) {
-            this.isProcessing = true;
-            this.ui.setButtonsState(true, true);
+            this.setProcessingState(true);
             
             try {
                 if (this.fileItems.length > 0) this.saveHistory();
@@ -2335,7 +2327,8 @@ ${spineStr}</spine>
                             id: id,
                             name: name,
                             handle: isHandles ? f : { getFile: async () => f },
-                            objectUrl: null
+                            objectUrl: null,
+                            tocName: null
                         });
                     }
                 }
@@ -2349,9 +2342,7 @@ ${spineStr}</spine>
                 console.error(e);
                 this.ui.showToast('画像の追加に失敗しました。', true);
             } finally {
-                this.isProcessing = false;
-                this.ui.setButtonsState(false, this.fileItems.length > 0);
-                this.updateHistoryButtons();
+                this.setProcessingState(false);
             }
         }
 
@@ -2440,12 +2431,10 @@ ${spineStr}</spine>
                 } catch (e) {
                     return; 
                 }
-                this.isProcessing = true;
-                this.ui.setButtonsState(true, true);
-                this.updateHistoryButtons();
+                this.setProcessingState(true);
                 
                 try {
-                    const success = await this.fs.saveAsEpub(this.fileItems, metadata, this.ui.viewModeSelect.value, (current, total, info) => {
+                    const success = await this.epubGen.generate(this.fileItems, metadata, this.ui.viewModeSelect.value, (current, total, info) => {
                         const percent = (current / total) * 100;
                         const text = USER_SETTINGS.msgSavingEpub.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                         this.ui.updateProgress(percent, text);
@@ -2455,17 +2444,14 @@ ${spineStr}</spine>
                     console.error(e);
                     if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true);
                 } finally {
-                    this.isProcessing = false;
-                    this.ui.setButtonsState(false, true);
-                    this.updateHistoryButtons();
+                    this.setProcessingState(false);
                     setTimeout(() => this.ui.updateProgress(0, ''), 3000);
+                    if (window.gc) { try { window.gc(); } catch (e) {} }
                 }
                 return;
             }
 
-            this.isProcessing = true;
-            this.ui.setButtonsState(true, true);
-            this.updateHistoryButtons();
+            this.setProcessingState(true);
 
             try {
                 if (saveFormat === 'rename') {
@@ -2555,10 +2541,9 @@ ${spineStr}</spine>
                 console.error(e);
                 if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true);
             } finally {
-                this.isProcessing = false;
-                this.ui.setButtonsState(false, true);
-                this.updateHistoryButtons();
+                this.setProcessingState(false);
                 setTimeout(() => this.ui.updateProgress(0, ''), 3000);
+                if (window.gc) { try { window.gc(); } catch (e) {} }
             }
         }
 
