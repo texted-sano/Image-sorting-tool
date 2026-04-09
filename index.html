@@ -934,18 +934,24 @@ this.manualModal.addEventListener('click', (e) => {
             const onDrop = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!this.markerTarget) return;
-
-                const targetEl = this.markerTarget.el;
-                const visualPos = this.markerTarget.visualPos;
-                const refId = targetEl.dataset.id;
-
+                
+                let refId = null;
                 let isLogicalBefore = false;
-                if (isMain) {
-                    const isRTL = container.classList.contains('mode-spread-rtl');
-                    isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
+
+                if (this.markerTarget) {
+                    const targetEl = this.markerTarget.el;
+                    const visualPos = this.markerTarget.visualPos; // ←これが必要です
+                    refId = targetEl.dataset.id;
+
+                    if (isMain) {
+                        const isRTL = container.classList.contains('mode-spread-rtl');
+                        isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
+                    } else {
+                        isLogicalBefore = (visualPos === 'top');
+                    }
                 } else {
-                    isLogicalBefore = (visualPos === 'top');
+                    const isExternal = e.dataTransfer.types && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'));
+                    if (!isExternal) return;
                 }
 
                 try {
@@ -2311,8 +2317,12 @@ ${spineStr}</spine>
                         
                         const dummyFile = new File([blob], line, { type: 'image/jpeg' });
                         
+                        // ★ 生成時と同じ "blank_固有文字列" の形式でIDを復元する
+                        const uniqueStr = line.replace('.jpg', '').split('_').pop();
+                        const correctId = `blank_${uniqueStr}`;
+                        
                         newItems.push({
-                            id: line.replace('.jpg', ''),
+                            id: correctId,
                             name: line,
                             handle: { getFile: async () => dummyFile },
                             objectUrl: URL.createObjectURL(dummyFile),
@@ -2814,7 +2824,7 @@ ${spineStr}</spine>
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
-                    const quality = parseInt(this.ui.pdfQuality.value, 10) || 30;
+                    const quality = Math.max(1, Math.min(100, parseInt(this.ui.pdfQuality.value, 10) || 30));
                     let success = false;
                     
                     if (saveFormat === 'pdf') {
