@@ -237,10 +237,8 @@
     <div class="section">
         <label>1. 操作パネル</label>
         <div class="btn-group">
-            <button id="btn-select" style="background: var(--primary-color); flex: 1;">フォルダを選択</button>
-            
-            <!-- 出力ファイル名入力欄を追加 -->
-            <input type="text" id="output-filename" placeholder="出力ファイル名" style="padding: 9px; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); width: 160px; margin-left: 5px;">
+            <!-- 出力ファイル名入力欄 -->
+            <input type="text" id="output-filename" placeholder="出力ファイル名" style="padding: 9px; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); width: 160px;">
             
             <select id="save-format" title="保存形式" style="margin-left: 5px;">
                 <option value="export-order">並び順テキストのみ保存</option>
@@ -282,7 +280,13 @@
     <div class="app-layout">
         <div class="main-area">
             <div class="area-title">サムネイル一覧</div>
-            <div id="main-grid" class="thumb-grid"></div>
+            <!-- クリック可能な案内メッセージを追加 -->
+            <div id="empty-message" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: calc(100% - 30px); color: var(--text-sub); cursor: pointer; user-select: none;">
+                <div style="font-size: 14px; font-weight: bold;">クリックしてフォルダを選択</div>
+                <div style="font-size: 12px; margin-top: 5px;">またはファイル/フォルダをドロップ</div>
+            </div>
+            <!-- 初期状態は非表示にする -->
+            <div id="main-grid" class="thumb-grid" style="display: none;"></div>
         </div>
         <div class="sidebar-area">
             <div class="area-title">ファイル名一覧</div>
@@ -373,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.onRequestImage = onRequestImage;
             this.onReleaseImage = onReleaseImage;
 
-            this.btnSelect = document.getElementById('btn-select');
+            this.emptyMessage = document.getElementById('empty-message');
             this.btnExecute = document.getElementById('btn-execute');
             this.btnUndo = document.getElementById('btn-undo');
             this.btnRedo = document.getElementById('btn-redo');
@@ -492,6 +496,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.sidebarList.innerHTML = '';
             this.imageObserver.disconnect();
             
+            this.emptyMessage.style.display = fileItems.length > 0 ? 'none' : 'flex';
+            this.mainGrid.style.display = fileItems.length > 0 ? '' : 'none';
+            
             const fragmentMain = document.createDocumentFragment();
             const fragmentSidebar = document.createDocumentFragment();
             
@@ -535,7 +542,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setButtonsState(isProcessing, hasFiles) {
-            this.btnSelect.disabled = isProcessing;
+            this.emptyMessage.style.pointerEvents = isProcessing ? 'none' : 'auto';
+            this.emptyMessage.style.opacity = isProcessing ? '0.5' : '1';
+            
             this.btnExecute.disabled = isProcessing || !hasFiles;
             this.btnReset.disabled = isProcessing;
             this.viewModeSelect.disabled = isProcessing;
@@ -559,6 +568,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.imageObserver.disconnect();
             this.updateProgress(0, '');
             this.setButtonsState(false, false);
+            
+            this.emptyMessage.style.display = 'flex';
+            this.mainGrid.style.display = 'none';
         }
 
         showToast(message, isError = false) {
@@ -1986,7 +1998,7 @@ ${spineStr}</spine>
         }
 
         bindEvents() {
-            this.ui.btnSelect.addEventListener('click', () => this.handleSelectFolder());
+            this.ui.emptyMessage.addEventListener('click', () => this.handleSelectFolder());
             this.ui.btnExecute.addEventListener('click', () => this.handleExecute());
             this.ui.btnUndo.addEventListener('click', () => this.undo());
             this.ui.btnRedo.addEventListener('click', () => this.redo());
