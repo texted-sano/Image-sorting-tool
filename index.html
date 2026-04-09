@@ -50,13 +50,16 @@
             position: relative;
         }
         
-        #theme-toggle {
+        .top-right-controls {
             position: absolute; top: 15px; right: 20px;
+            display: flex; gap: 10px; z-index: 10;
+        }
+        .top-right-controls button {
             background: transparent; border: 1px solid var(--border-color);
             color: var(--text-main); padding: 5px 10px; cursor: pointer;
-            border-radius: 4px; font-size: 14px; z-index: 10;
+            border-radius: 4px; font-size: 14px; transition: background 0.2s;
         }
-        #theme-toggle:hover { background: var(--input-bg); }
+        .top-right-controls button:hover { background: var(--input-bg); }
         h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
         
         .section { margin-bottom: 5px; }
@@ -231,7 +234,10 @@
 <body>
 
 <div class="container" id="app-container">
-    <button id="theme-toggle">☀ Light Mode</button>
+    <div class="top-right-controls">
+        <button id="btn-manual">📖 使い方</button>
+        <button id="theme-toggle">☀ Light Mode</button>
+    </div>
     <h1>画像並び替えツール</h1>
 
     <div class="section">
@@ -355,6 +361,53 @@
     </div>
 </div>
 
+<!-- 追加: マニュアル用モーダル -->
+<div id="manual-modal" class="modal-overlay">
+    <div class="modal-content" style="width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column;">
+        <h2>使い方と仕様マニュアル</h2>
+        <div style="overflow-y: auto; padding-right: 15px; font-size: 14px; line-height: 1.7; flex: 1;">
+            
+            <h3 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">1. 画像の読み込み仕様</h3>
+            <p>画面中央をクリック、またはファイル/フォルダをドラッグ＆ドロップして画像を読み込みます。</p>
+            <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><b>対応フォーマット:</b> JPG, PNG, GIF, WEBP</li>
+                <li><b>ブラウザによる挙動の違い:</b> ChromeやEdge等の「File System API」対応ブラウザでは、フォルダを直接読み書きできます。FirefoxやSafari等の非対応ブラウザでは、標準のファイル選択ダイアログが開き、保存時はZIPファイルにまとめられます。</li>
+            </ul>
+            
+            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">2. 並び替えとリスト操作</h3>
+            <p>サムネイル（左側）またはファイル名リスト（右側）をドラッグ＆ドロップして直感的に並び替えます。</p>
+            <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><b>複数選択:</b> <code>Shift</code>キーで範囲選択、<code>Ctrl</code>(Macは<code>Cmd</code>)キーで個別選択が可能です。</li>
+                <li><b>外部からの追加:</b> PCのフォルダから直接特定の場所に画像をドロップして割り込ませることも可能です。</li>
+                <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます。</li>
+                <li><b>設定の復元:</b> 出力した「現在の設定（.json）」を画面にドロップすると、現在のを設定を自動で復元できます。</li>
+            </ul>
+            
+            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集機能の仕組み</h3>
+            <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><b>目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に <code>toc.ncx</code> および <code>navigation-documents.xhtml</code> に書き込まれ、電子書籍リーダーの目次機能として動作します。</li>
+                <li><b>白紙挿入:</b> 見開き表示のズレを調整するため、選択した画像と「全く同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、直後に挿入します。</li>
+                <li><b>削除:</b> リストから除外するだけで、PC上の元の画像ファイルが削除されることはありません。</li>
+            </ul>
+
+            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">4. 保存・出力の仕様</h3>
+            <p>「出力ファイル名」に入力した文字が、各出力ファイルのベース名として使用されます。</p>
+            <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><b>💾 並び順を保存（text）:</b> 現在のファイル名の並び順を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
+                <li><b>💾 現在の設定を保存（json:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
+                <li><b>🔢 連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
+                <li><b>⛓️ 連結してPDF保存:</b> 画像を1ページずつPDF化します。ブラウザのバックグラウンドで処理されるため、大容量でもフリーズしにくくなっています。「画像縮小率」を下げることでPDFのファイルサイズを軽量化できます。</li>
+                <li><b>📚 サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
+                <li><b>➕ 見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
+                <li><b>📘 EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定は <code>standard.opf</code> のページ進行方向としてメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
+            </ul>
+        </div>
+        <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button id="manual-btn-close" style="background: var(--primary-color); padding: 10px 30px;">閉じる</button>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -419,6 +472,18 @@ document.addEventListener('DOMContentLoaded', () => {
             this.progressArea = document.getElementById('progress-area');
             this.progressBar = document.getElementById('progress-bar');
             this.progressText = document.getElementById('progress-text');
+            this.btnManual = document.getElementById('btn-manual');
+            this.manualModal = document.getElementById('manual-modal');
+            this.manualBtnClose = document.getElementById('manual-btn-close');
+
+            this.btnManual.addEventListener('click', () => this.manualModal.style.display = 'flex');
+            this.manualBtnClose.addEventListener('click', () => this.manualModal.style.display = 'none');
+            this.manualModal.addEventListener('click', (e) => {
+                if (e.target === this.manualModal) this.manualModal.style.display = 'none';
+            });
+
+            this.themeToggle.addEventListener('click', () => this.toggleTheme());
+            this.viewModeSelect.addEventListener('change', (e) => this.changeViewMode(e.target.value));
             this.themeToggle = document.getElementById('theme-toggle');
 
             this.themeToggle.addEventListener('click', () => this.toggleTheme());
