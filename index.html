@@ -20,6 +20,11 @@
             --scroll-track: #1e1e1e;
             --scroll-thumb: #555;
             --thumb-size: 150px; 
+            /* リボンUI用カラー */
+            --ribbon-bg: #2d2d2d;
+            --ribbon-border: #444444;
+            --ribbon-hover: #444444;
+            --ribbon-active: #555555;
         }
         body.light-mode {
             --bg-color: #fdfdfd;
@@ -32,6 +37,11 @@
             --danger-color: #dc3545;
             --scroll-track: #f1f1f1;
             --scroll-thumb: #888;
+            /* ライトモード時のリボンUI用カラー(Word風グレー) */
+            --ribbon-bg: #f3f2f1;
+            --ribbon-border: #e1dfdd;
+            --ribbon-hover: #e1dfdd;
+            --ribbon-active: #c8c6c4;
         }
 
         body {
@@ -50,50 +60,7 @@
             position: relative;
         }
         
-        .top-right-controls {
-            position: absolute; top: 15px; right: 20px;
-            display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; justify-content: flex-end;
-            max-width: calc(100vw - 250px);
-        }
-        .top-right-controls button {
-            background: transparent; border: 1px solid var(--border-color);
-            color: var(--text-main); padding: 5px 10px; cursor: pointer;
-            border-radius: 4px; font-size: 13px; transition: all 0.2s;
-            display: inline-flex; align-items: center; gap: 4px;
-        }
-        .top-right-controls button:hover:not(:disabled) { 
-            background: var(--input-bg); border-color: var(--primary-color); 
-        }
-        .top-right-controls button:disabled { 
-            opacity: 0.4; cursor: not-allowed; border-color: var(--border-color);
-        }
-        .top-right-divider {
-            width: 1px; background: var(--border-color); margin: 0 4px;
-        }
-
         h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
-        
-        .section { margin-bottom: 5px; }
-        label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-sub); }
-        
-        .btn-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        
-        /* モダンなボタンスタイル */
-        button {
-            padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600;
-            font-size: 13px; cursor: pointer; color: var(--btn-text); 
-            transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-        }
-        button:hover:not(:disabled) { 
-            transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); filter: brightness(1.1);
-        }
-        button:active:not(:disabled) {
-            transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        button:disabled { 
-            background: var(--border-color) !important; cursor: not-allowed; opacity: 0.6; box-shadow: none; transform: none;
-        }
         
         /* モダンな入力フォームスタイル */
         select, input[type="text"], input[type="number"] {
@@ -106,11 +73,6 @@
         }
         select:focus, input[type="text"]:focus, input[type="number"]:focus {
             outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
-        }
-
-        .slider-wrap {
-            display: flex; align-items: center; gap: 8px; background: var(--input-bg); 
-            padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color);
         }
 
         .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; }
@@ -245,6 +207,10 @@
             border-radius: 4px;
         }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .modal-actions button {
+            padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600;
+            font-size: 13px; cursor: pointer; color: var(--btn-text); transition: all 0.2s ease;
+        }
 
         /* トースト通知用スタイル */
         #toast-container {
@@ -261,63 +227,164 @@
         }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.error { background: var(--danger-color); }
+
+        /* --- リボンUI（Word風）スタイル --- */
+        .ribbon {
+            display: flex; background: var(--ribbon-bg); border-bottom: 1px solid var(--ribbon-border);
+            padding: 6px 10px 4px 10px; gap: 15px; user-select: none;
+            overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+            margin: -5px -5px 5px -5px; /* containerのpadding相殺 */
+        }
+        .ribbon::-webkit-scrollbar { height: 6px; }
+        .ribbon::-webkit-scrollbar-track { background: transparent; }
+        .ribbon::-webkit-scrollbar-thumb { background: var(--ribbon-border); border-radius: 3px; }
+
+        .ribbon-brand {
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 15px; font-weight: 600; font-size: 15px; 
+            border-right: 1px solid var(--ribbon-border); color: var(--text-main); letter-spacing: 0.5px;
+        }
+
+        .ribbon-group {
+            display: flex; flex-direction: column; align-items: center;
+            border-right: 1px solid var(--ribbon-border); padding-right: 15px;
+        }
+
+        .ribbon-items { display: flex; align-items: stretch; height: 56px; gap: 2px; }
+
+        .ribbon-group-title { font-size: 11px; color: var(--text-sub); margin-top: 4px; text-align: center; }
+
+        .ribbon-col {
+            display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; padding: 0 4px;
+        }
+        .ribbon-col input, .ribbon-col select {
+            font-size: 11px; padding: 3px 6px; height: 24px; border-radius: 3px; box-sizing: border-box;
+        }
+
+        .ribbon-btn {
+            background: transparent !important; border: 1px solid transparent !important;
+            color: var(--text-main) !important; display: flex !important; flex-direction: column !important;
+            align-items: center !important; justify-content: center !important;
+            padding: 4px 8px !important; min-width: 52px; border-radius: 4px !important;
+            cursor: pointer; transition: background 0.1s !important; font-size: 11px !important;
+            font-weight: normal !important; box-shadow: none !important; gap: 2px !important;
+            height: 100%; transform: none !important;
+        }
+        .ribbon-btn .icon { font-size: 20px; line-height: 1; margin-bottom: 2px; }
+        .ribbon-btn:hover:not(:disabled) { background: var(--ribbon-hover) !important; border-color: var(--border-color) !important; }
+        .ribbon-btn:active:not(:disabled) { background: var(--ribbon-active) !important; }
+        .ribbon-btn:disabled { opacity: 0.3 !important; cursor: not-allowed; }
+
+        .ribbon-btn.primary .icon { color: var(--primary-color); }
+        .ribbon-btn.danger .icon { color: var(--danger-color); }
+        .ribbon-btn.success .icon { color: #28a745; }
+        .ribbon-btn.info .icon { color: #17a2b8; }
+
+        .ribbon-divider { width: 1px; background: var(--ribbon-border); margin: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container" id="app-container">
-    <div class="top-right-controls">
-        <button id="btn-export-order" disabled title="現在の並び順をテキストで保存します">💾 並び順保存</button>
-        <button id="btn-export-settings" title="現在の設定をJSONで保存します">💾 設定保存</button>
-        
-        <div class="top-right-divider"></div>
+    <div class="ribbon">
+        <!-- 左端のアプリタイトル -->
+        <div class="ribbon-brand">
+            Image<br>Sorting
+        </div>
 
-        <button id="btn-undo" disabled title="元に戻す">↩ 戻る</button>
-        <button id="btn-redo" disabled title="やり直す">↪ 進む</button>
-        <button id="btn-reset" title="すべてリセット">✖ リセット</button>
-        
-        <div class="top-right-divider"></div>
-        
-        <button id="btn-manual">📖 使い方</button>
-        <button id="theme-toggle">☀ Light Mode</button>
-    </div>
-    <h1>画像並び替えツール</h1>
+        <!-- グループ1: 出力・保存 -->
+        <div class="ribbon-group">
+            <div class="ribbon-items">
+                <div class="ribbon-col" style="width: 200px;">
+                    <input type="text" id="output-filename" placeholder="出力ファイル名">
+                    <select id="save-format" title="保存形式">
+                        <option value="pdf">🔗 連結してPDF保存</option>
+                        <option value="rename">🔢 連番リネームで保存</option>
+                        <option value="merge-rename">➕ 見開きを結合して連番保存</option>
+                        <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
+                        <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
+                        <option value="epub">📘 EPUB形式で保存</option>
+                    </select>
+                </div>
+                
+                <!-- PDF画質設定 -->
+                <div id="pdf-options" class="ribbon-col" style="display: none; align-items: center; border-left: 1px dashed var(--ribbon-border); padding-left: 8px;">
+                    <span id="label-pdf-quality" style="font-size:10px; color:var(--text-sub);">縮小率(%)</span>
+                    <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 45px; text-align: center;">
+                </div>
 
-    <div class="section">
-        <label>1. 操作パネル</label>
-        <div class="btn-group">
-            <!-- 出力ファイル名入力欄 -->
-            <input type="text" id="output-filename" placeholder="出力ファイル名" style="width: 160px;">
-            
-            <select id="save-format" title="保存形式">
-                <option value="pdf">⛓️ 連結してPDF保存</option>
-                <option value="rename">🔢 連番リネームで保存</option>
-                <option value="merge-rename">➕ 見開きを結合して連番保存</option>
-                <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
-                <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
-                <option value="epub">📘 EPUB形式で保存</option>
-            </select>
-            <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
-                <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
-                <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 60px;">
+                <button id="btn-execute" class="ribbon-btn primary" disabled title="実行">
+                    <span class="icon">🔴</span><span class="label">実行</span>
+                </button>
+
+                <div class="ribbon-divider"></div>
+
+                <button id="btn-export-order" class="ribbon-btn" disabled title="現在の並び順をテキストで保存します">
+                    <span class="icon">💾</span><span class="label">並び保存</span>
+                </button>
+                <button id="btn-export-settings" class="ribbon-btn" title="現在の設定をJSONで保存します">
+                    <span class="icon">⚙️</span><span class="label">設定保存</span>
+                </button>
             </div>
+            <div class="ribbon-group-title">出力・保存</div>
+        </div>
 
-            <button id="btn-execute" style="background: var(--danger-color); padding: 8px 24px; font-size: 14px;" disabled>▶ 実行</button>
-            
-            <button id="btn-set-toc" style="background: #17a2b8; margin-left: auto;" disabled title="選択した画像を目次（チャプター）として登録します">📑 目次設定</button>
-            <button id="btn-add-blank" style="background: #28a745;" disabled title="選択した画像と同じサイズの白紙を直後に挿入します">📄 白紙挿入</button>
-            <button id="btn-delete" style="background: #dc3545;" disabled title="選択した画像を削除します">🗑 削除</button>
-
-            <select id="view-mode" title="表示モード切替">
-                <option value="grid">表示: 単ページ</option>
-                <option value="spread-rtl" selected>表示: 見開き (右開き)</option>
-                <option value="spread-ltr">表示: 見開き (左開き)</option>
-            </select>
-
-            <div class="slider-wrap">
-                <span style="font-size: 12px;">サイズ</span>
-                <input type="range" id="size-slider" min="80" max="300" value="150" style="width: 100px; cursor: pointer;">
+        <!-- グループ2: 編集 -->
+        <div class="ribbon-group">
+            <div class="ribbon-items">
+                <button id="btn-undo" class="ribbon-btn" disabled title="元に戻す">
+                    <span class="icon">↩</span><span class="label">戻る</span>
+                </button>
+                <button id="btn-redo" class="ribbon-btn" disabled title="やり直す">
+                    <span class="icon">↪</span><span class="label">進む</span>
+                </button>
+                
+                <div class="ribbon-divider"></div>
+                
+                <button id="btn-set-toc" class="ribbon-btn info" disabled title="選択した画像を目次として登録します">
+                    <span class="icon">📑</span><span class="label">目次設定</span>
+                </button>
+                <button id="btn-add-blank" class="ribbon-btn success" disabled title="選択した画像の直後に白紙を挿入します">
+                    <span class="icon">📄</span><span class="label">白紙挿入</span>
+                </button>
+                
+                <div class="ribbon-divider"></div>
+                
+                <button id="btn-delete" class="ribbon-btn danger" disabled title="選択した画像を削除します">
+                    <span class="icon">🗑</span><span class="label">削除</span>
+                </button>
+                <button id="btn-reset" class="ribbon-btn danger" title="すべてリセット">
+                    <span class="icon">✖</span><span class="label">リセット</span>
+                </button>
             </div>
+            <div class="ribbon-group-title">編集</div>
+        </div>
+
+        <!-- グループ3: 表示・設定 -->
+        <div class="ribbon-group">
+            <div class="ribbon-items">
+                <div class="ribbon-col">
+                    <select id="view-mode" title="表示モード切替">
+                        <option value="grid">単ページ</option>
+                        <option value="spread-rtl" selected>見開き(右開き)</option>
+                        <option value="spread-ltr">見開き(左開き)</option>
+                    </select>
+                    <div class="slider-wrap" style="background:transparent; border:none; padding:0; gap:4px; margin-top:2px; display: flex; align-items: center;">
+                        <span style="font-size: 10px; color:var(--text-sub);">サイズ</span>
+                        <input type="range" id="size-slider" min="80" max="300" value="150" style="width: 70px; padding:0; height:auto; cursor: pointer;">
+                    </div>
+                </div>
+                
+                <div class="ribbon-divider"></div>
+                
+                <button id="theme-toggle" class="ribbon-btn">
+                    <span class="icon">☀</span><span class="label">テーマ</span>
+                </button>
+                <button id="btn-manual" class="ribbon-btn">
+                    <span class="icon">📖</span><span class="label">使い方</span>
+                </button>
+            </div>
+            <div class="ribbon-group-title">表示・設定</div>
         </div>
     </div>
 
@@ -398,7 +465,7 @@
     </div>
 </div>
 
-<!-- 追加: マニュアル用モーダル -->
+<!-- マニュアル用モーダル -->
 <div id="manual-modal" class="modal-overlay">
     <div class="modal-content" style="width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column;">
         <h2>使い方と仕様マニュアル</h2>
@@ -423,20 +490,20 @@
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集機能の仕組み</h3>
             <ul style="padding-left: 20px; margin-top: 5px;">
                 <li><b>💾 並び順保存:</b> 現在のファイル名の並び順を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
-                <li><b>💾 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
-                <li><b>目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
-                <li><b>白紙挿入:</b> 選択した画像と「全く同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
-                <li><b>削除:</b> サムネイル一覧とファイル名リストから除外します。なお、PC上の元の画像ファイルが削除されることはありません。</li>
+                <li><b>⚙️ 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
+                <li><b>📑 目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
+                <li><b>📄 白紙挿入:</b> 選択した画像と「全く同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
+                <li><b>🗑 削除:</b> サムネイル一覧とファイル名リストから除外します。なお、PC上の元の画像ファイルが削除されることはありません。</li>
             </ul>
 
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">4. 保存・出力の仕様</h3>
             <p>「出力ファイル名」に入力した文字が、各出力ファイルのベース名として使用されます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
-                <li><b>⛓️ 連結してPDF保存:</b> 画像を1ページずつPDF化します。ブラウザのバックグラウンドで処理されるため、大容量でもフリーズしにくくなっています。「画像縮小率」を下げることでPDFのファイルサイズを軽量化できます。</li>
-                <li><b>🔢 連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
-                <li><b>➕ 見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
-                <li><b>📚 サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
-                <li><b>📘 EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定は <code>standard.opf</code> のページ進行方向としてメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
+                <li><b>連結してPDF保存:</b> 画像を1ページずつPDF化します。ブラウザのバックグラウンドで処理されるため、大容量でもフリーズしにくくなっています。「画像縮小率」を下げることでPDFのファイルサイズを軽量化できます。</li>
+                <li><b>連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
+                <li><b>見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
+                <li><b>サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
+                <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定は <code>standard.opf</code> のページ進行方向としてメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
             </ul>
         </div>
         <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
@@ -571,7 +638,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         toggleTheme() {
             document.body.classList.toggle('light-mode');
-            this.themeToggle.textContent = document.body.classList.contains('light-mode') ? '🌙 Dark Mode' : '☀ Light Mode';
+            this.themeToggle.innerHTML = document.body.classList.contains('light-mode') 
+                ? '<span class="icon">🌙</span><span class="label">テーマ</span>' 
+                : '<span class="icon">☀</span><span class="label">テーマ</span>';
         }
 
         changeViewMode(mode) {
