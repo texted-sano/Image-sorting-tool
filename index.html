@@ -1191,8 +1191,8 @@ this.manualModal.addEventListener('click', (e) => {
             const view = new DataView(lfh.buffer);
             view.setUint32(0, 0x04034b50, true);
             view.setUint16(4, 10, true);
-            view.setUint16(6, 0, true);
-            view.setUint16(8, 0, true); 
+            view.setUint16(6, 0x0800, true);
+            view.setUint16(8, 0x0800, true); 
             view.setUint16(10, time, true);
             view.setUint16(12, date, true);
             view.setUint32(14, crc, true);
