@@ -241,13 +241,14 @@
             <input type="text" id="output-filename" placeholder="出力ファイル名" style="padding: 9px; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); width: 160px;">
             
             <select id="save-format" title="保存形式" style="margin-left: 5px;">
-                <option value="export-order">並び順テキストのみ保存</option>
-                <option value="rename">連番リネームでコピーを保存</option>
-                <option value="pdf">連結してPDFで保存</option>
-                <option value="pdf-sheet">サムネイル一覧を1枚のPDFで保存</option>
-                <option value="merge-rename">見開きを結合して連番保存</option>
-                <option value="merge-pdf">見開きを結合してPDFで保存</option>
-                <option value="epub">EPUB形式で保存</option>
+                <option value="export-order">💾 並び順を保存（text）</option>
+                <option value="export-settings">💾 現在の設定を保存（json）</option>
+                <option value="rename">🔢 連番リネームで複製</option>
+                <option value="pdf">⛓️ 連結してPDF保存</option>
+                <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
+                <option value="merge-rename">➕ 見開きを結合して連番保存</option>
+                <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
+                <option value="epub">📘 EPUB形式で保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
                 <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
@@ -348,8 +349,8 @@
 
         <div class="modal-actions">
             <button id="epub-btn-reset" style="background: var(--border-color); margin-right: auto; color: var(--text-main);">リセット</button>
-            <button id="epub-btn-cancel" style="background: #6c757d;">キャンセル</button>
-            <button id="epub-btn-start" style="background: var(--primary-color);">生成開始</button>
+            <button id="epub-btn-close" style="background: #6c757d;">閉じる</button>
+            <button id="epub-btn-start" style="background: var(--primary-color);">実行</button>
         </div>
     </div>
 </div>
@@ -399,6 +400,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (val === 'pdf-sheet') {
                     this.pdfQuality.value = 100;
                     this.btnExecute.textContent = '実行';
+                } else if (val === 'export-settings') {
+                    this.btnExecute.textContent = '保存';
+                    this.btnExecute.disabled = false; // 設定保存は画像がなくても実行可能
                 } else {
                     if (isPdf && this.pdfQuality.value === '100') {
                         this.pdfQuality.value = 30;
@@ -545,7 +549,12 @@ document.addEventListener('DOMContentLoaded', () => {
             this.emptyMessage.style.pointerEvents = isProcessing ? 'none' : 'auto';
             this.emptyMessage.style.opacity = isProcessing ? '0.5' : '1';
             
-            this.btnExecute.disabled = isProcessing || !hasFiles;
+            if (this.saveFormatSelect.value === 'export-settings') {
+                this.btnExecute.disabled = isProcessing;
+            } else {
+                this.btnExecute.disabled = isProcessing || !hasFiles;
+            }
+            
             this.btnReset.disabled = isProcessing;
             this.viewModeSelect.disabled = isProcessing;
             this.saveFormatSelect.disabled = isProcessing;
@@ -617,8 +626,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.inPublisherRuby = document.getElementById('epub-publisher-ruby');
             this.inBookId = document.getElementById('epub-bookid');
             this.inModified = document.getElementById('epub-modified');
-            this.chkIncludeImages = document.getElementById('epub-include-images');
+             this.chkIncludeImages = document.getElementById('epub-include-images');
             this.chkExportOrder = document.getElementById('epub-export-order');
+            this.btnClose = document.getElementById('epub-btn-close'); // 追加: 閉じるボタンの取得
             this.btnStart = document.getElementById('epub-btn-start');
             
             this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: true };
@@ -651,7 +661,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: true };
             });
 
-            document.getElementById('epub-btn-cancel').addEventListener('click', () => {
+            this.btnClose.addEventListener('click', () => {
+                this.savedData = this.getCurrentData();
                 this.hide();
                 if (this.rejectFunc) this.rejectFunc(new Error('cancel'));
             });
@@ -683,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         show(defaultTitle = '') {
-            this.inTitle.value = this.savedData.title || defaultTitle;
+            this.inTitle.value = defaultTitle || this.savedData.title || '';
             this.inTitleRuby.value = this.savedData.titleRuby;
             this.inAuthor.value = this.savedData.author;
             this.inAuthorRuby.value = this.savedData.authorRuby;
@@ -704,6 +715,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         hide() {
             this.overlay.style.display = 'none';
+        }
+
+        getCurrentData() {
+            return {
+                title: this.inTitle.value.trim(),
+                titleRuby: this.inTitleRuby.value.trim(),
+                author: this.inAuthor.value.trim(),
+                authorRuby: this.inAuthorRuby.value.trim(),
+                publisher: this.inPublisher.value.trim(),
+                publisherRuby: this.inPublisherRuby.value.trim(),
+                bookId: this.inBookId.value.trim(),
+                modified: this.inModified.value,
+                includeImages: this.chkIncludeImages.checked,
+                exportOrder: this.chkExportOrder.checked
+            };
+        }
+
+        setSavedData(data) {
+            this.savedData = { ...this.savedData, ...data };
+            this.inTitle.value = this.savedData.title || '';
+            this.inTitleRuby.value = this.savedData.titleRuby || '';
+            this.inAuthor.value = this.savedData.author || '';
+            this.inAuthorRuby.value = this.savedData.authorRuby || '';
+            this.inPublisher.value = this.savedData.publisher || '';
+            this.inPublisherRuby.value = this.savedData.publisherRuby || '';
+            this.inBookId.value = this.savedData.bookId || '';
+            this.inModified.value = this.savedData.modified || '';
+            this.chkIncludeImages.checked = this.savedData.includeImages !== false;
+            this.chkExportOrder.checked = this.savedData.exportOrder !== false;
         }
     }
 
@@ -1202,13 +1242,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return items;
         }
 
-        async saveRenamedFiles(targetDirHandle, fileItems, onProgress) {
+        async saveRenamedFiles(targetDirHandle, fileItems, onProgress, prefix = '') {
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const file = await item.handle.getFile();
                 const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
+                const numStr = String(i + 1).padStart(padLength, '0');
+                const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
                 
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
                 const writable = await newFileHandle.createWritable();
@@ -1219,13 +1260,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async saveRenamedFilesFallback(fileItems, onProgress, baseName) {
+        async saveRenamedFilesFallback(fileItems, onProgress, baseName, prefix = '') {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                const newName = String(i + 1).padStart(padLength, '0') + '.' + ext;
+                const numStr = String(i + 1).padStart(padLength, '0');
+                const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
                 
                 const file = await item.handle.getFile();
                 await zip.addFileAsync(newName, file);
@@ -1506,11 +1548,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
         }
 
-        async saveMergedRenamedFiles(targetDirHandle, pairs, onProgress) {
+        async saveMergedRenamedFiles(targetDirHandle, pairs, onProgress, prefix = '') {
             const padLength = Math.max(3, String(pairs.length).length);
             for (let i = 0; i < pairs.length; i++) {
                 const blob = await this._mergeImagePair(pairs[i]);
-                const newName = String(i + 1).padStart(padLength, '0') + '.jpg';
+                const numStr = String(i + 1).padStart(padLength, '0');
+                const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
                 
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
                 const writable = await newFileHandle.createWritable();
@@ -1521,12 +1564,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async saveMergedRenamedFilesFallback(pairs, onProgress, baseName) {
+        async saveMergedRenamedFilesFallback(pairs, onProgress, baseName, prefix = '') {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(pairs.length).length);
             for (let i = 0; i < pairs.length; i++) {
                 const blob = await this._mergeImagePair(pairs[i]);
-                const newName = String(i + 1).padStart(padLength, '0') + '.jpg';
+                const numStr = String(i + 1).padStart(padLength, '0');
+                const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
                 
                 await zip.addFileAsync(newName, blob);
                 
@@ -1971,6 +2015,60 @@ ${spineStr}</spine>
             this.bindEvents();
         }
 
+        // 設定をJSONファイルとしてダウンロード
+        saveSettings(baseName) {
+            try {
+                const settings = {
+                    outputFilename: this.ui.outputFilename.value,
+                    saveFormat: this.ui.saveFormatSelect.value,
+                    pdfQuality: this.ui.pdfQuality.value,
+                    viewMode: this.ui.viewModeSelect.value,
+                    thumbSize: this.ui.sizeSlider.value,
+                    epubMetadata: this.epubModal.getCurrentData()
+                };
+                const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = baseName ? `${baseName}_setting.json` : 'image_sorting_setting.json';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                this.ui.showToast('設定ファイルを保存しました。');
+            } catch (e) {
+                console.error(e);
+                this.ui.showToast('設定の保存に失敗しました。', true);
+            }
+        }
+
+        // 設定ファイルを読み込んで復元
+        async processLoadSettings(file) {
+            try {
+                const text = await file.text();
+                const settings = JSON.parse(text);
+                
+                if (settings.outputFilename !== undefined) this.ui.outputFilename.value = settings.outputFilename;
+                if (settings.saveFormat) {
+                    this.ui.saveFormatSelect.value = settings.saveFormat;
+                    this.ui.saveFormatSelect.dispatchEvent(new Event('change')); // PDFオプションの表示切替を発火
+                }
+                if (settings.pdfQuality) this.ui.pdfQuality.value = settings.pdfQuality;
+                if (settings.viewMode) {
+                    this.ui.viewModeSelect.value = settings.viewMode;
+                    this.ui.changeViewMode(settings.viewMode);
+                }
+                if (settings.thumbSize) {
+                    this.ui.sizeSlider.value = settings.thumbSize;
+                    this.ui.sizeSlider.dispatchEvent(new Event('input')); // サムネイルサイズの変更を発火
+                }
+                if (settings.epubMetadata) {
+                    this.epubModal.setSavedData(settings.epubMetadata);
+                }
+                this.ui.showToast('設定を復元しました。');
+            } catch (e) {
+                console.error(e);
+                this.ui.showToast('設定ファイルの読み込みに失敗しました。正しいファイルを選択してください。', true);
+            }
+        }
+
         setProcessingState(isProcessing) {
             this.isProcessing = isProcessing;
             this.ui.setButtonsState(isProcessing, this.fileItems.length > 0);
@@ -2044,6 +2142,14 @@ ${spineStr}</spine>
                 if (this.isProcessing) return;
 
                 const rawFiles = Array.from(e.dataTransfer.files);
+                
+                // 設定ファイル（.json または .js）がドロップされた場合の処理
+                const settingsFile = rawFiles.find(f => f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.js')));
+                if (settingsFile) {
+                    await this.processLoadSettings(settingsFile);
+                    return; // 設定を読み込んだらここで処理を終了
+                }
+
                 const txtFile = rawFiles.find(f => f.name && f.name.toLowerCase().endsWith('.txt'));
                 if (txtFile) {
                     const text = await txtFile.text();
@@ -2546,15 +2652,22 @@ ${spineStr}</spine>
         }
 
         async handleExecute() {
-            if (this.fileItems.length === 0) return;
+            if (this.fileItems.length === 0 && this.ui.saveFormatSelect.value !== 'export-settings') return;
 
             const saveFormat = this.ui.saveFormatSelect.value;
-            const baseName = this.ui.outputFilename.value.trim() || this.sourceFolderName;
+            const prefix = this.ui.outputFilename.value.trim();
+            const baseName = prefix || this.sourceFolderName;
             
+            if (saveFormat === 'export-settings') {
+                this.saveSettings(baseName);
+                return;
+            }
+
             if (saveFormat === 'epub') {
                 let metadata;
                 try {
-                    metadata = await this.epubModal.show(baseName);
+                    // baseName(フォルダ名含む)ではなく、prefix(出力ファイル名のみ)を渡す
+                    metadata = await this.epubModal.show(prefix);
                 } catch (e) {
                     return; 
                 }
@@ -2598,14 +2711,14 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, prefix);
                         this.ui.showToast(`選択したフォルダ内に画像を保存しました。`);
                     } else {
                         await this.fs.saveRenamedFilesFallback(this.fileItems, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName);
+                        }, baseName, prefix);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'merge-rename') {
@@ -2626,14 +2739,14 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, prefix);
                         this.ui.showToast(`選択したフォルダ内に結合画像を保存しました。`);
                     } else {
                         await this.fs.saveMergedRenamedFilesFallback(pairs, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName);
+                        }, baseName, prefix);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
@@ -2648,11 +2761,12 @@ ${spineStr}</spine>
                         }, baseName);
                     } else if (saveFormat === 'pdf-sheet') {
                         const layoutData = this.getGridLayoutData();
+                        const sheetBaseName = baseName ? `${baseName}_thumbnail` : 'thumbnail_sheet';
                         success = await this.fs.saveAsThumbnailPDF(layoutData, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName);
+                        }, sheetBaseName);
                     } else if (saveFormat === 'merge-pdf') {
                         const pairs = this.getSpreadPairs();
                         success = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => {
@@ -2668,7 +2782,7 @@ ${spineStr}</spine>
                     const blob = new Blob([orderText], { type: 'text/plain' });
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
-                    a.download = baseName ? `${baseName}.txt` : 'image_order.txt';
+                    a.download = baseName ? `${baseName}_order.txt` : 'image_order.txt';
                     a.click();
                     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
                     this.ui.showToast(`並び順テキストを保存しました。`);
