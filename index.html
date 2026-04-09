@@ -52,33 +52,65 @@
         
         .top-right-controls {
             position: absolute; top: 15px; right: 20px;
-            display: flex; gap: 10px; z-index: 10;
+            display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; justify-content: flex-end;
+            max-width: calc(100vw - 250px);
         }
         .top-right-controls button {
             background: transparent; border: 1px solid var(--border-color);
             color: var(--text-main); padding: 5px 10px; cursor: pointer;
-            border-radius: 4px; font-size: 14px; transition: background 0.2s;
+            border-radius: 4px; font-size: 13px; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 4px;
         }
-        .top-right-controls button:hover { background: var(--input-bg); }
+        .top-right-controls button:hover:not(:disabled) { 
+            background: var(--input-bg); border-color: var(--primary-color); 
+        }
+        .top-right-controls button:disabled { 
+            opacity: 0.4; cursor: not-allowed; border-color: var(--border-color);
+        }
+        .top-right-divider {
+            width: 1px; background: var(--border-color); margin: 0 4px;
+        }
+
         h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
         
         .section { margin-bottom: 5px; }
         label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-sub); }
-        .btn-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        button {
-            padding: 10px; border: none; border-radius: 4px; font-weight: bold;
-            font-size: 14px; cursor: pointer; color: var(--btn-text); transition: opacity 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        button:disabled { background: var(--border-color) !important; cursor: not-allowed; opacity: 0.5; }
         
-        select {
-            padding: 9px; border-radius: 4px; background: var(--input-bg);
-            color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;
+        .btn-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        
+        /* モダンなボタンスタイル */
+        button {
+            padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600;
+            font-size: 13px; cursor: pointer; color: var(--btn-text); 
+            transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
         }
+        button:hover:not(:disabled) { 
+            transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); filter: brightness(1.1);
+        }
+        button:active:not(:disabled) {
+            transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        button:disabled { 
+            background: var(--border-color) !important; cursor: not-allowed; opacity: 0.6; box-shadow: none; transform: none;
+        }
+        
+        /* モダンな入力フォームスタイル */
+        select, input[type="text"], input[type="number"] {
+            padding: 8px 12px; border-radius: 6px; background: var(--input-bg);
+            color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;
+            font-size: 13px; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        select:hover, input[type="text"]:hover, input[type="number"]:hover {
+            border-color: var(--primary-color);
+        }
+        select:focus, input[type="text"]:focus, input[type="number"]:focus {
+            outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+
         .slider-wrap {
-            display: flex; align-items: center; gap: 8px; margin-left: auto; background: var(--input-bg); 
-            padding: 5px 15px; border-radius: 4px; border: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 8px; background: var(--input-bg); 
+            padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color);
         }
 
         .app-layout { display: flex; gap: 5px; flex: 1; overflow: hidden; margin-bottom: 5px; }
@@ -235,6 +267,17 @@
 
 <div class="container" id="app-container">
     <div class="top-right-controls">
+        <button id="btn-export-order" disabled title="現在の並び順をテキストで保存します">💾 並び順保存</button>
+        <button id="btn-export-settings" title="現在の設定をJSONで保存します">💾 設定保存</button>
+        
+        <div class="top-right-divider"></div>
+
+        <button id="btn-undo" disabled title="元に戻す">↩ 戻る</button>
+        <button id="btn-redo" disabled title="やり直す">↪ 進む</button>
+        <button id="btn-reset" title="すべてリセット">✖ リセット</button>
+        
+        <div class="top-right-divider"></div>
+        
         <button id="btn-manual">📖 使い方</button>
         <button id="theme-toggle">☀ Light Mode</button>
     </div>
@@ -244,33 +287,27 @@
         <label>1. 操作パネル</label>
         <div class="btn-group">
             <!-- 出力ファイル名入力欄 -->
-            <input type="text" id="output-filename" placeholder="出力ファイル名" style="padding: 9px; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); width: 160px;">
+            <input type="text" id="output-filename" placeholder="出力ファイル名" style="width: 160px;">
             
-            <select id="save-format" title="保存形式" style="margin-left: 5px;">
-                <option value="export-order">💾 並び順を保存（text）</option>
-                <option value="export-settings">💾 現在の設定を保存（json）</option>
-                <option value="rename">🔢 連番リネームで複製</option>
+            <select id="save-format" title="保存形式">
                 <option value="pdf">⛓️ 連結してPDF保存</option>
-                <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
+                <option value="rename">🔢 連番リネームで保存</option>
                 <option value="merge-rename">➕ 見開きを結合して連番保存</option>
                 <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
+                <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
                 <option value="epub">📘 EPUB形式で保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
                 <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
-                <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 50px; padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
+                <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 60px;">
             </div>
 
-            <button id="btn-execute" style="background: var(--danger-color); flex: 1;" disabled>実行</button>
-            <button id="btn-undo" style="background: #6c757d;" disabled>↩ 戻る</button>
-            <button id="btn-redo" style="background: #6c757d;" disabled>↪ 進む</button>
-            <button id="btn-reset" style="background: #6c757d; max-width: 100px;">リセット</button>
-
-            <!-- 目次設定ボタンを追加 -->
-            <button id="btn-set-toc" style="background: #17a2b8; margin-left: auto;" disabled title="選択した画像を目次（チャプター）として登録します">目次設定</button>
-            <button id="btn-add-blank" style="background: #28a745;" disabled title="選択した画像と同じサイズの白紙を直後に挿入します">＋ 白紙挿入</button>
-            <button id="btn-delete" style="background: #dc3545;" disabled title="選択した画像を削除します">－ 削除</button>
+            <button id="btn-execute" style="background: var(--danger-color); padding: 8px 24px; font-size: 14px;" disabled>▶ 実行</button>
             
+            <button id="btn-set-toc" style="background: #17a2b8; margin-left: auto;" disabled title="選択した画像を目次（チャプター）として登録します">📑 目次設定</button>
+            <button id="btn-add-blank" style="background: #28a745;" disabled title="選択した画像と同じサイズの白紙を直後に挿入します">📄 白紙挿入</button>
+            <button id="btn-delete" style="background: #dc3545;" disabled title="選択した画像を削除します">🗑 削除</button>
+
             <select id="view-mode" title="表示モード切替">
                 <option value="grid">表示: 単ページ</option>
                 <option value="spread-rtl" selected>表示: 見開き (右開き)</option>
@@ -385,6 +422,8 @@
             
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集機能の仕組み</h3>
             <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><b>💾 並び順保存:</b> 現在のファイル名の並び順を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
+                <li><b>💾 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
                 <li><b>目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
                 <li><b>白紙挿入:</b> 選択した画像と「全く同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
                 <li><b>削除:</b> サムネイル一覧とファイル名リストから除外します。なお、PC上の元の画像ファイルが削除されることはありません。</li>
@@ -393,12 +432,10 @@
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">4. 保存・出力の仕様</h3>
             <p>「出力ファイル名」に入力した文字が、各出力ファイルのベース名として使用されます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
-                <li><b>💾 並び順を保存（text）:</b> 現在のファイル名の並び順を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
-                <li><b>💾 現在の設定を保存（json:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
-                <li><b>🔢 連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
                 <li><b>⛓️ 連結してPDF保存:</b> 画像を1ページずつPDF化します。ブラウザのバックグラウンドで処理されるため、大容量でもフリーズしにくくなっています。「画像縮小率」を下げることでPDFのファイルサイズを軽量化できます。</li>
-                <li><b>📚 サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
+                <li><b>🔢 連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
                 <li><b>➕ 見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
+                <li><b>📚 サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
                 <li><b>📘 EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定は <code>standard.opf</code> のページ進行方向としてメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
             </ul>
         </div>
@@ -420,7 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
         msgSavingEpub: 'EPUB生成中... {current} / {total}',
         validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
         msgFallbackLoad: 'File System API非対応ブラウザのため、標準のファイル選択を使用します。',
-        msgFallbackSave: 'File System API非対応ブラウザのため、ZIPファイルにまとめて保存します。'
+        msgFallbackSave: 'File System API非対応ブラウザのため、ZIPファイルにまとめて保存します。',
+        msgConfirmReset: '本当にリセットしてもよろしいですか？\n編集中のデータはすべて失われます。'
     };
 
     // ==========================================
@@ -440,6 +478,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.btnAddBlank = document.getElementById('btn-add-blank');
             this.btnDelete = document.getElementById('btn-delete');
             
+            this.btnExportOrder = document.getElementById('btn-export-order');
+            this.btnExportSettings = document.getElementById('btn-export-settings');
+            
             this.outputFilename = document.getElementById('output-filename');
             this.saveFormatSelect = document.getElementById('save-format');
             this.pdfOptions = document.getElementById('pdf-options');
@@ -452,15 +493,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (val === 'pdf-sheet') {
                     this.pdfQuality.value = 100;
-                    this.btnExecute.textContent = '実行';
-                } else if (val === 'export-settings') {
-                    this.btnExecute.textContent = '保存';
-                    this.btnExecute.disabled = false; // 設定保存は画像がなくても実行可能
                 } else {
                     if (isPdf && this.pdfQuality.value === '100') {
                         this.pdfQuality.value = 30;
                     }
-                    this.btnExecute.textContent = '実行';
                 }
             });
 
@@ -479,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.btnManual.addEventListener('click', () => this.manualModal.style.display = 'flex');
             this.manualBtnClose.addEventListener('click', () => this.manualModal.style.display = 'none');
 
-this.manualModal.addEventListener('click', (e) => {
+            this.manualModal.addEventListener('click', (e) => {
                 if (e.target === this.manualModal) this.manualModal.style.display = 'none';
             });
 
@@ -488,7 +524,6 @@ this.manualModal.addEventListener('click', (e) => {
             this.viewModeSelect.addEventListener('change', (e) => this.changeViewMode(e.target.value));
 
             this.sizeSlider.addEventListener('input', (e) => {
-
                 document.documentElement.style.setProperty('--thumb-size', `${e.target.value}px`);
                 this.adjustGridWidth();
             });
@@ -613,11 +648,7 @@ this.manualModal.addEventListener('click', (e) => {
             this.emptyMessage.style.pointerEvents = isProcessing ? 'none' : 'auto';
             this.emptyMessage.style.opacity = isProcessing ? '0.5' : '1';
             
-            if (this.saveFormatSelect.value === 'export-settings') {
-                this.btnExecute.disabled = isProcessing;
-            } else {
-                this.btnExecute.disabled = isProcessing || !hasFiles;
-            }
+            this.btnExecute.disabled = isProcessing || !hasFiles;
             
             this.btnReset.disabled = isProcessing;
             this.viewModeSelect.disabled = isProcessing;
@@ -628,6 +659,9 @@ this.manualModal.addEventListener('click', (e) => {
             this.btnSetToc.disabled = isProcessing || !hasFiles;
             this.btnAddBlank.disabled = isProcessing || !hasFiles;
             this.btnDelete.disabled = isProcessing || !hasFiles;
+            
+            this.btnExportOrder.disabled = isProcessing || !hasFiles;
+            this.btnExportSettings.disabled = isProcessing;
             
             if (isProcessing) {
                 this.btnUndo.disabled = true;
@@ -690,9 +724,9 @@ this.manualModal.addEventListener('click', (e) => {
             this.inPublisherRuby = document.getElementById('epub-publisher-ruby');
             this.inBookId = document.getElementById('epub-bookid');
             this.inModified = document.getElementById('epub-modified');
-             this.chkIncludeImages = document.getElementById('epub-include-images');
+            this.chkIncludeImages = document.getElementById('epub-include-images');
             this.chkExportOrder = document.getElementById('epub-export-order');
-            this.btnClose = document.getElementById('epub-btn-close'); // 追加: 閉じるボタンの取得
+            this.btnClose = document.getElementById('epub-btn-close');
             this.btnStart = document.getElementById('epub-btn-start');
             
             this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: true };
@@ -940,7 +974,7 @@ this.manualModal.addEventListener('click', (e) => {
 
                 if (this.markerTarget) {
                     const targetEl = this.markerTarget.el;
-                    const visualPos = this.markerTarget.visualPos; // ←これが必要です
+                    const visualPos = this.markerTarget.visualPos;
                     refId = targetEl.dataset.id;
 
                     if (isMain) {
@@ -2085,7 +2119,6 @@ ${spineStr}</spine>
             this.bindEvents();
         }
 
-        // 設定をJSONファイルとしてダウンロード
         saveSettings(baseName) {
             try {
                 const settings = {
@@ -2109,7 +2142,6 @@ ${spineStr}</spine>
             }
         }
 
-        // 設定ファイルを読み込んで復元
         async processLoadSettings(file) {
             try {
                 const text = await file.text();
@@ -2118,7 +2150,7 @@ ${spineStr}</spine>
                 if (settings.outputFilename !== undefined) this.ui.outputFilename.value = settings.outputFilename;
                 if (settings.saveFormat) {
                     this.ui.saveFormatSelect.value = settings.saveFormat;
-                    this.ui.saveFormatSelect.dispatchEvent(new Event('change')); // PDFオプションの表示切替を発火
+                    this.ui.saveFormatSelect.dispatchEvent(new Event('change'));
                 }
                 if (settings.pdfQuality) this.ui.pdfQuality.value = settings.pdfQuality;
                 if (settings.viewMode) {
@@ -2127,7 +2159,7 @@ ${spineStr}</spine>
                 }
                 if (settings.thumbSize) {
                     this.ui.sizeSlider.value = settings.thumbSize;
-                    this.ui.sizeSlider.dispatchEvent(new Event('input')); // サムネイルサイズの変更を発火
+                    this.ui.sizeSlider.dispatchEvent(new Event('input'));
                 }
                 if (settings.epubMetadata) {
                     this.epubModal.setSavedData(settings.epubMetadata);
@@ -2174,6 +2206,9 @@ ${spineStr}</spine>
             this.ui.btnSetToc.addEventListener('click', () => this.handleSetToc()); 
             this.ui.btnAddBlank.addEventListener('click', () => this.handleAddBlank());
             this.ui.btnDelete.addEventListener('click', () => this.handleDelete());
+            
+            this.ui.btnExportOrder.addEventListener('click', () => this.handleExportOrder());
+            this.ui.btnExportSettings.addEventListener('click', () => this.handleExportSettings());
 
             window.addEventListener('beforeunload', (e) => {
                 if (this.isProcessing || this.fileItems.length > 0) {
@@ -2213,11 +2248,10 @@ ${spineStr}</spine>
 
                 const rawFiles = Array.from(e.dataTransfer.files);
                 
-                // 設定ファイル（.json または .js）がドロップされた場合の処理
                 const settingsFile = rawFiles.find(f => f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.js')));
                 if (settingsFile) {
                     await this.processLoadSettings(settingsFile);
-                    return; // 設定を読み込んだらここで処理を終了
+                    return;
                 }
 
                 const txtFile = rawFiles.find(f => f.name && f.name.toLowerCase().endsWith('.txt'));
@@ -2317,7 +2351,6 @@ ${spineStr}</spine>
                         
                         const dummyFile = new File([blob], line, { type: 'image/jpeg' });
                         
-                        // ★ 生成時と同じ "blank_固有文字列" の形式でIDを復元する
                         const uniqueStr = line.replace('.jpg', '').split('_').pop();
                         const correctId = `blank_${uniqueStr}`;
                         
@@ -2725,22 +2758,37 @@ ${spineStr}</spine>
             return pairs;
         }
 
+        handleExportSettings() {
+            const prefix = this.ui.outputFilename.value.trim();
+            const baseName = prefix || this.sourceFolderName;
+            this.saveSettings(baseName);
+        }
+
+        handleExportOrder() {
+            if (this.fileItems.length === 0) return;
+            const prefix = this.ui.outputFilename.value.trim();
+            const baseName = prefix || this.sourceFolderName;
+            
+            const orderText = this.fileItems.map(item => item.name).join('\n');
+            const blob = new Blob([orderText], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = baseName ? `${baseName}_order.txt` : 'image_order.txt';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            this.ui.showToast(`並び順テキストを保存しました。`);
+        }
+
         async handleExecute() {
-            if (this.fileItems.length === 0 && this.ui.saveFormatSelect.value !== 'export-settings') return;
+            if (this.fileItems.length === 0) return;
 
             const saveFormat = this.ui.saveFormatSelect.value;
             const prefix = this.ui.outputFilename.value.trim();
             const baseName = prefix || this.sourceFolderName;
-            
-            if (saveFormat === 'export-settings') {
-                this.saveSettings(baseName);
-                return;
-            }
 
             if (saveFormat === 'epub') {
                 let metadata;
                 try {
-                    // baseName(フォルダ名含む)ではなく、prefix(出力ファイル名のみ)を渡す
                     metadata = await this.epubModal.show(prefix);
                 } catch (e) {
                     return; 
@@ -2851,15 +2899,6 @@ ${spineStr}</spine>
                     }
                     
                     if (success) this.ui.showToast(`PDFを保存しました。`);
-                } else if (saveFormat === 'export-order') {
-                    const orderText = this.fileItems.map(item => item.name).join('\n');
-                    const blob = new Blob([orderText], { type: 'text/plain' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = baseName ? `${baseName}_order.txt` : 'image_order.txt';
-                    a.click();
-                    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-                    this.ui.showToast(`並び順テキストを保存しました。`);
                 }
             } catch (e) {
                 console.error(e);
@@ -2889,6 +2928,12 @@ ${spineStr}</spine>
         reset() {
             if (this.isProcessing) return;
             
+            if (this.fileItems.length > 0) {
+                if (!confirm(USER_SETTINGS.msgConfirmReset)) {
+                    return;
+                }
+            }
+            
             this.resetMemory();
             this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
             this.fileItems = [];
@@ -2901,9 +2946,9 @@ ${spineStr}</spine>
             this.updateHistoryButtons();
             this.sortManager.destroy();
         }
-}
+    }
 
-new App();
+    new App();
 
 });
 </script>
