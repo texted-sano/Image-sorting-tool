@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image-sorting</title>
+    <title>Image sorting</title>
     
     <style>
         /* --- 共通カラー＆テーマ設定 --- */
@@ -232,21 +232,24 @@
 
 <div class="container" id="app-container">
     <button id="theme-toggle">☀ Light Mode</button>
-    <h1>Image-sorting</h1>
+    <h1>画像並び替えツール</h1>
 
     <div class="section">
         <label>1. 操作パネル</label>
         <div class="btn-group">
             <button id="btn-select" style="background: var(--primary-color); flex: 1;">フォルダを選択</button>
             
+            <!-- 出力ファイル名入力欄を追加 -->
+            <input type="text" id="output-filename" placeholder="出力ファイル名" style="padding: 9px; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); width: 160px; margin-left: 5px;">
+            
             <select id="save-format" title="保存形式" style="margin-left: 5px;">
+                <option value="export-order">並び順テキストのみ保存</option>
                 <option value="rename">連番リネームでコピーを保存</option>
                 <option value="pdf">連結してPDFで保存</option>
                 <option value="pdf-sheet">サムネイル一覧を1枚のPDFで保存</option>
                 <option value="merge-rename">見開きを結合して連番保存</option>
                 <option value="merge-pdf">見開きを結合してPDFで保存</option>
                 <option value="epub">EPUB形式で保存</option>
-                <option value="export-order">並び順テキストのみ保存</option>
             </select>
             <div id="pdf-options" style="display: none; align-items: center; gap: 5px;">
                 <label style="margin:0;" id="label-pdf-quality">画像縮小率(%)</label>
@@ -278,7 +281,7 @@
 
     <div class="app-layout">
         <div class="main-area">
-            <div class="area-title">サムネイル一覧 (ドラッグ＆ドロップで並び替えや追加 / Shift・Ctrl等で複数選択 / Deleteキーで削除)</div>
+            <div class="area-title">サムネイル一覧</div>
             <div id="main-grid" class="thumb-grid"></div>
         </div>
         <div class="sidebar-area">
@@ -379,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.btnAddBlank = document.getElementById('btn-add-blank');
             this.btnDelete = document.getElementById('btn-delete');
             
+            this.outputFilename = document.getElementById('output-filename');
             this.saveFormatSelect = document.getElementById('save-format');
             this.pdfOptions = document.getElementById('pdf-options');
             this.pdfQuality = document.getElementById('pdf-quality');
@@ -537,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.viewModeSelect.disabled = isProcessing;
             this.saveFormatSelect.disabled = isProcessing;
             this.pdfQuality.disabled = isProcessing;
+            this.outputFilename.disabled = isProcessing;
             
             this.btnSetToc.disabled = isProcessing || !hasFiles;
             this.btnAddBlank.disabled = isProcessing || !hasFiles;
@@ -665,8 +670,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        show() {
-            this.inTitle.value = this.savedData.title;
+        show(defaultTitle = '') {
+            this.inTitle.value = this.savedData.title || defaultTitle;
             this.inTitleRuby.value = this.savedData.titleRuby;
             this.inAuthor.value = this.savedData.author;
             this.inAuthorRuby.value = this.savedData.authorRuby;
@@ -1202,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async saveRenamedFilesFallback(fileItems, onProgress) {
+        async saveRenamedFilesFallback(fileItems, onProgress, baseName) {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
@@ -1219,17 +1224,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const blob = zip.finish();
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'renamed_images.zip';
+            a.download = baseName ? `${baseName}.zip` : 'renamed_images.zip';
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveAsPDF(fileItems, quality, onProgress) {
+        async saveAsPDF(fileItems, quality, onProgress, baseName) {
+            const defaultName = baseName ? `${baseName}.pdf` : 'output.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
-                        suggestedName: 'output.pdf',
+                        suggestedName: defaultName,
                         types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }],
                         startIn: 'downloads'
                     });
@@ -1248,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'output.pdf';
+                a.download = defaultName;
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 1000);
             }
@@ -1316,12 +1322,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        async saveAsThumbnailPDF(layoutInfo, quality, onProgress) {
+        async saveAsThumbnailPDF(layoutInfo, quality, onProgress, baseName) {
+            const defaultName = baseName ? `${baseName}.pdf` : 'thumbnail_sheet.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
-                        suggestedName: 'thumbnail_sheet.pdf',
+                        suggestedName: defaultName,
                         types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }],
                         startIn: 'downloads'
                     });
@@ -1340,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'thumbnail_sheet.pdf';
+                a.download = defaultName;
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 1000);
             }
@@ -1502,7 +1509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async saveMergedRenamedFilesFallback(pairs, onProgress) {
+        async saveMergedRenamedFilesFallback(pairs, onProgress, baseName) {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(pairs.length).length);
             for (let i = 0; i < pairs.length; i++) {
@@ -1517,17 +1524,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const zipBlob = zip.finish();
             const a = document.createElement('a');
             a.href = URL.createObjectURL(zipBlob);
-            a.download = 'merged_images.zip';
+            a.download = baseName ? `${baseName}.zip` : 'merged_images.zip';
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveMergedAsPDF(pairs, quality, onProgress) {
+        async saveMergedAsPDF(pairs, quality, onProgress, baseName) {
+            const defaultName = baseName ? `${baseName}.pdf` : 'merged_output.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
-                        suggestedName: 'merged_output.pdf',
+                        suggestedName: defaultName,
                         types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }],
                         startIn: 'downloads'
                     });
@@ -1546,7 +1554,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'merged_output.pdf';
+                a.download = defaultName;
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 1000);
             }
@@ -1681,9 +1689,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.fs = fileSystemManager;
         }
 
-        async generate(fileItems, metadata, viewMode, onProgress) {
+        async generate(fileItems, metadata, viewMode, onProgress, baseName) {
             let handle = null;
-            const suggestedName = (metadata.title || 'book') + '.epub';
+            const suggestedName = baseName ? `${baseName}.epub` : (metadata.title || 'book') + '.epub';
             if ('showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
@@ -1860,7 +1868,7 @@ ${navPoints}</navMap>
 
 <!-- etc. -->
 <meta property="ebpaj:guide-version">1.1.3</meta>
-<dc:contributor id="encoder">Image-sorting WebApp</dc:contributor>
+<dc:contributor id="encoder"></dc:contributor>
 <meta refines="#encoder" property="role" scheme="marc:relators">mrk</meta>
 
 <!-- kindle用 -->
@@ -1936,6 +1944,7 @@ ${spineStr}</spine>
             this.epubModal = new EpubMetadataModal();
             
             this.dirHandle = null;
+            this.sourceFolderName = null;
             this.fileItems =[];
             this.isProcessing = false;
             this.historyUndo =[];
@@ -2073,7 +2082,13 @@ ${spineStr}</spine>
                     this.handleLoadDirectory(droppedDirHandle);
                 } else if (hasDirectory && !this.hasFSApi) {
                     this.resetMemory();
-                    this.fileItems = await this.fs.loadImagesFallback(e.dataTransfer.files);
+                    const filesArray = Array.from(e.dataTransfer.files);
+                    if (filesArray.length > 0 && filesArray[0].webkitRelativePath) {
+                        this.sourceFolderName = filesArray[0].webkitRelativePath.split('/')[0];
+                    } else {
+                        this.sourceFolderName = null;
+                    }
+                    this.fileItems = await this.fs.loadImagesFallback(filesArray);
                     this.finalizeLoad();
                 } else {
                     const targetFiles = this.hasFSApi ? fileHandles : filesFallback;
@@ -2173,6 +2188,11 @@ ${spineStr}</spine>
                 } else {
                     const files = await this.fs.selectDirectoryFallback();
                     this.resetMemory();
+                    if (files.length > 0 && files[0].webkitRelativePath) {
+                        this.sourceFolderName = files[0].webkitRelativePath.split('/')[0];
+                    } else {
+                        this.sourceFolderName = null;
+                    }
                     this.fileItems = await this.fs.loadImagesFallback(files);
                     this.finalizeLoad();
                 }
@@ -2183,6 +2203,7 @@ ${spineStr}</spine>
 
         async handleLoadDirectory(dirHandle) {
             this.dirHandle = dirHandle;
+            this.sourceFolderName = dirHandle.name;
             try {
                 this.resetMemory();
                 this.fileItems = await this.fs.loadImages(this.dirHandle);
@@ -2516,11 +2537,12 @@ ${spineStr}</spine>
             if (this.fileItems.length === 0) return;
 
             const saveFormat = this.ui.saveFormatSelect.value;
+            const baseName = this.ui.outputFilename.value.trim() || this.sourceFolderName;
             
             if (saveFormat === 'epub') {
                 let metadata;
                 try {
-                    metadata = await this.epubModal.show();
+                    metadata = await this.epubModal.show(baseName);
                 } catch (e) {
                     return; 
                 }
@@ -2531,7 +2553,7 @@ ${spineStr}</spine>
                         const percent = (current / total) * 100;
                         const text = USER_SETTINGS.msgSavingEpub.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                         this.ui.updateProgress(percent, text);
-                    });
+                    }, baseName);
                     if (success) this.ui.showToast(`EPUBを保存しました。`);
                 } catch (e) {
                     console.error(e);
@@ -2571,7 +2593,7 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, baseName);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'merge-rename') {
@@ -2599,7 +2621,7 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, baseName);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
@@ -2611,21 +2633,21 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, baseName);
                     } else if (saveFormat === 'pdf-sheet') {
                         const layoutData = this.getGridLayoutData();
                         success = await this.fs.saveAsThumbnailPDF(layoutData, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, baseName);
                     } else if (saveFormat === 'merge-pdf') {
                         const pairs = this.getSpreadPairs();
                         success = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        });
+                        }, baseName);
                     }
                     
                     if (success) this.ui.showToast(`PDFを保存しました。`);
@@ -2634,7 +2656,7 @@ ${spineStr}</spine>
                     const blob = new Blob([orderText], { type: 'text/plain' });
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
-                    a.download = 'image_order.txt';
+                    a.download = baseName ? `${baseName}.txt` : 'image_order.txt';
                     a.click();
                     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
                     this.ui.showToast(`並び順テキストを保存しました。`);
@@ -2672,6 +2694,8 @@ ${spineStr}</spine>
             this.fileItems = [];
             this.historyUndo = [];
             this.historyRedo = [];
+            this.sourceFolderName = null;
+            this.ui.outputFilename.value = '';
             
             this.ui.clear();
             this.updateHistoryButtons();
