@@ -231,34 +231,39 @@
         /* --- リボンUI（Word風）スタイル --- */
         .ribbon {
             display: flex; background: var(--ribbon-bg); border-bottom: 1px solid var(--ribbon-border);
-            padding: 6px 10px 4px 10px; gap: 15px; user-select: none;
-            overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+            padding: 0; user-select: none;
             margin: -5px -5px 5px -5px; /* containerのpadding相殺 */
+            flex-direction: row;
         }
-        .ribbon::-webkit-scrollbar { height: 6px; }
-        .ribbon::-webkit-scrollbar-track { background: transparent; }
-        .ribbon::-webkit-scrollbar-thumb { background: var(--ribbon-border); border-radius: 3px; }
 
         .ribbon-brand {
-            display: flex; align-items: center; justify-content: center;
-            padding: 0 15px; font-weight: 600; font-size: 15px; 
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 15px; font-weight: 600; font-size: 15px; 
             border-right: 1px solid var(--ribbon-border); color: var(--text-main); letter-spacing: 0.5px;
+            min-width: 80px;
         }
 
+        .ribbon-content {
+            display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; gap: 15px; padding: 6px 10px 4px 10px;
+        }
+        .ribbon-content::-webkit-scrollbar { height: 6px; }
+        .ribbon-content::-webkit-scrollbar-track { background: transparent; }
+        .ribbon-content::-webkit-scrollbar-thumb { background: var(--ribbon-border); border-radius: 3px; }
+
         .ribbon-group {
-            display: flex; flex-direction: column; align-items: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
             border-right: 1px solid var(--ribbon-border); padding-right: 15px;
         }
 
-        .ribbon-items { display: flex; align-items: stretch; height: 56px; gap: 2px; }
+        .ribbon-items { display: flex; align-items: stretch; gap: 4px; margin-bottom: auto; }
 
-        .ribbon-group-title { font-size: 11px; color: var(--text-sub); margin-top: 4px; text-align: center; }
+        .ribbon-group-title { font-size: 11px; color: var(--text-sub); margin-top: 8px; text-align: center; line-height: 1; }
 
         .ribbon-col {
-            display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; padding: 0 4px;
+            display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 4px;
         }
         .ribbon-col input, .ribbon-col select {
-            font-size: 11px; padding: 3px 6px; height: 24px; border-radius: 3px; box-sizing: border-box;
+            font-size: 11px; padding: 3px 6px; height: 24px; border-radius: 3px; box-sizing: border-box; margin: 0;
         }
 
         .ribbon-btn {
@@ -268,7 +273,7 @@
             padding: 4px 8px !important; min-width: 52px; border-radius: 4px !important;
             cursor: pointer; transition: background 0.1s !important; font-size: 11px !important;
             font-weight: normal !important; box-shadow: none !important; gap: 2px !important;
-            height: 100%; transform: none !important;
+            min-height: 52px; transform: none !important;
         }
         .ribbon-btn .icon { font-size: 20px; line-height: 1; margin-bottom: 2px; }
         .ribbon-btn:hover:not(:disabled) { background: var(--ribbon-hover) !important; border-color: var(--border-color) !important; }
@@ -281,6 +286,72 @@
         .ribbon-btn.info .icon { color: #17a2b8; }
 
         .ribbon-divider { width: 1px; background: var(--ribbon-border); margin: 4px; }
+
+/* --- レスポンシブ対応（グループごとのプルダウン化） --- */
+        @media (max-width: 950px) {
+            .ribbon-brand { display: none; /* 狭い画面ではタイトルを隠してスペースを確保 */ }
+            
+            .ribbon-content {
+                display: flex !important; 
+                flex-wrap: wrap; /* 横スクロールではなく折り返してすべて表示する */
+                gap: 8px; 
+                padding: 6px 10px 10px 10px; 
+                overflow: visible !important; /* ★修正: はみ出し（ドロップダウン）を許可する */
+            }
+            
+            /* グループをプルダウンボタン化 */
+            .ribbon-group {
+                border: 1px solid var(--border-color); border-radius: 4px;
+                padding: 8px 12px; background: var(--input-bg);
+                justify-content: center; align-items: center; cursor: pointer;
+                position: relative; /* プルダウンの基準位置 */
+                flex: 0 0 auto;
+            }
+            .ribbon-group:hover { border-color: var(--primary-color); }
+            
+            /* 展開したメニューを最前面にするための設定 */
+            .ribbon-group.active { z-index: 1000; }
+            
+            /* タイトルをボタンのラベルにする */
+            .ribbon-group-title {
+                margin: 0; font-size: 13px; font-weight: bold; color: var(--text-main); pointer-events: none;
+            }
+            .ribbon-group-title::after {
+                content: ' ▼'; font-size: 10px; color: var(--text-sub); margin-left: 4px;
+            }
+
+            /* 中身（アイテム群）は初期状態で隠す */
+            .ribbon-items {
+                display: none; position: absolute; top: calc(100% + 4px); left: 0;
+                background: var(--container-bg); border: 1px solid var(--border-color);
+                border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+                padding: 8px; z-index: 1000;
+                flex-direction: column; /* 縦並びのメニューに変化 */
+                width: max-content; min-width: 180px; gap: 6px; margin: 0;
+            }
+
+            /* 右端に配置されやすいグループ（「表示」等）のメニューが画面外にはみ出すのを防ぐ */
+            .ribbon-group:nth-last-child(1) .ribbon-items,
+            .ribbon-group:nth-last-child(2) .ribbon-items {
+                left: auto; right: 0;
+            }
+
+            /* ホバー または JSでクラスが付与された時に表示 */
+            .ribbon-group.active .ribbon-items {
+                display: flex;
+            }
+
+            /* 各ボタンをドロップダウン内の横向きリストデザインに調整 */
+            .ribbon-btn {
+                flex-direction: row !important; justify-content: flex-start !important;
+                min-height: 36px; width: 100%; padding: 6px 12px !important;
+            }
+            .ribbon-btn .icon { margin-right: 12px; margin-bottom: 0; width: 20px; text-align: center; }
+            
+            /* 区切り線を横線に変更 */
+            .ribbon-divider { width: 100%; height: 1px; margin: 4px 0; background: var(--border-color); }
+            .ribbon-col { align-items: stretch; gap: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -289,102 +360,124 @@
     <div class="ribbon">
         <!-- 左端のアプリタイトル -->
         <div class="ribbon-brand">
-            Image<br>Sorting
+            <span class="brand-text">Image<br>Sorting</span>
         </div>
 
-        <!-- グループ1: 出力・保存 -->
-        <div class="ribbon-group">
-            <div class="ribbon-items">
-                <div class="ribbon-col" style="width: 200px;">
-                    <input type="text" id="output-filename" placeholder="出力ファイル名">
-                    <select id="save-format" title="保存形式">
-                        <option value="pdf">🔗 連結してPDF保存</option>
-                        <option value="rename">🔢 連番リネームで保存</option>
-                        <option value="merge-rename">➕ 見開きを結合して連番保存</option>
-                        <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
-                        <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
-                        <option value="epub">📘 EPUB形式で保存</option>
-                    </select>
+        <div class="ribbon-content" id="ribbon-content">
+            <!-- グループ1: 出力・保存 -->
+            <div class="ribbon-group">
+                <div class="ribbon-items">
+                    <div class="ribbon-col" style="width: 200px;">
+                        <input type="text" id="output-filename" placeholder="出力ファイル名">
+                        <select id="save-format" title="保存形式">
+                            <option value="pdf">🔗 連結してPDF保存</option>
+                            <option value="rename">🔢 連番リネームで保存</option>
+                            <option value="merge-rename">➕ 見開きを結合して連番保存</option>
+                            <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
+                            <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
+                            <option value="epub">📘 EPUB形式で保存</option>
+                        </select>
+                    </div>
+
+                    <!-- PDF画質設定 -->
+                    <div id="pdf-options" class="ribbon-col" style="display: none; align-items: center; border-left: 1px dashed var(--ribbon-border); padding-left: 8px;">
+                        <span id="label-pdf-quality" style="font-size:10px; color:var(--text-sub);">縮小率(%)</span>
+                        <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 45px; text-align: center;">
+                    </div>
+
+                    <button id="btn-execute" class="ribbon-btn primary" disabled title="実行">
+                        <span class="icon">🔴</span><span class="label">実行</span>
+                    </button>
+
+                    <div class="ribbon-divider"></div>
+
+                    <button id="btn-export-order" class="ribbon-btn" disabled title="現在の並び順と目次情報を保存します">
+                        <span class="icon">💾</span><span class="label">並び保存</span>
+                    </button>
+                    <button id="btn-export-settings" class="ribbon-btn" title="現在の設定をJSONで保存します">
+                        <span class="icon">⚙️</span><span class="label">設定保存</span>
+                    </button>
                 </div>
-                
-                <!-- PDF画質設定 -->
-                <div id="pdf-options" class="ribbon-col" style="display: none; align-items: center; border-left: 1px dashed var(--ribbon-border); padding-left: 8px;">
-                    <span id="label-pdf-quality" style="font-size:10px; color:var(--text-sub);">縮小率(%)</span>
-                    <input type="number" id="pdf-quality" min="1" max="100" value="30" style="width: 45px; text-align: center;">
-                </div>
-
-                <button id="btn-execute" class="ribbon-btn primary" disabled title="実行">
-                    <span class="icon">🔴</span><span class="label">実行</span>
-                </button>
-
-                <div class="ribbon-divider"></div>
-
-                <button id="btn-export-order" class="ribbon-btn" disabled title="現在の並び順をテキストで保存します">
-                    <span class="icon">💾</span><span class="label">並び保存</span>
-                </button>
-                <button id="btn-export-settings" class="ribbon-btn" title="現在の設定をJSONで保存します">
-                    <span class="icon">⚙️</span><span class="label">設定保存</span>
-                </button>
+                <div class="ribbon-group-title">出力・保存</div>
             </div>
-            <div class="ribbon-group-title">出力・保存</div>
-        </div>
 
-        <!-- グループ2: 編集 -->
-        <div class="ribbon-group">
-            <div class="ribbon-items">
-                <button id="btn-undo" class="ribbon-btn" disabled title="元に戻す">
-                    <span class="icon">↩</span><span class="label">戻る</span>
-                </button>
-                <button id="btn-redo" class="ribbon-btn" disabled title="やり直す">
-                    <span class="icon">↪</span><span class="label">進む</span>
-                </button>
-                
-                <div class="ribbon-divider"></div>
-                
-                <button id="btn-set-toc" class="ribbon-btn info" disabled title="選択した画像を目次として登録します">
-                    <span class="icon">📑</span><span class="label">目次設定</span>
-                </button>
-                <button id="btn-add-blank" class="ribbon-btn success" disabled title="選択した画像の直後に白紙を挿入します">
-                    <span class="icon">📄</span><span class="label">白紙挿入</span>
-                </button>
-                
-                <div class="ribbon-divider"></div>
-                
-                <button id="btn-delete" class="ribbon-btn danger" disabled title="選択した画像を削除します">
-                    <span class="icon">🗑</span><span class="label">削除</span>
-                </button>
-                <button id="btn-reset" class="ribbon-btn danger" title="すべてリセット">
-                    <span class="icon">✖</span><span class="label">リセット</span>
-                </button>
-            </div>
-            <div class="ribbon-group-title">編集</div>
-        </div>
-
-        <!-- グループ3: 表示・設定 -->
-        <div class="ribbon-group">
-            <div class="ribbon-items">
-                <div class="ribbon-col">
-                    <select id="view-mode" title="表示モード切替">
-                        <option value="grid">単ページ</option>
-                        <option value="spread-rtl" selected>見開き(右開き)</option>
-                        <option value="spread-ltr">見開き(左開き)</option>
-                    </select>
-                    <div class="slider-wrap" style="background:transparent; border:none; padding:0; gap:4px; margin-top:2px; display: flex; align-items: center;">
-                        <span style="font-size: 10px; color:var(--text-sub);">サイズ</span>
-                        <input type="range" id="size-slider" min="80" max="300" value="150" style="width: 70px; padding:0; height:auto; cursor: pointer;">
+            <!-- 新設グループ: 画像サイズ調整 -->
+            <div class="ribbon-group">
+                <div class="ribbon-items">
+                    <div class="ribbon-col">
+                        <select id="resize-mode" title="処理方法">
+                            <option value="none" selected>調整なし</option>
+                            <option value="fit-width">幅を揃える</option>
+                            <option value="fit-height">高さを揃える</option>
+                            <option value="pad-white">余白を白埋め (中央配置)</option>
+                        </select>
+                        <select id="resize-base" title="基準とするサイズ" disabled>
+                            <option value="max" selected>最大サイズに合わせる</option>
+                            <option value="avg">平均サイズに合わせる</option>
+                            <option value="min">最小サイズに合わせる</option>
+                        </select>
                     </div>
                 </div>
-                
-                <div class="ribbon-divider"></div>
-                
-                <button id="theme-toggle" class="ribbon-btn">
-                    <span class="icon">☀</span><span class="label">テーマ</span>
-                </button>
-                <button id="btn-manual" class="ribbon-btn">
-                    <span class="icon">📖</span><span class="label">使い方</span>
-                </button>
+                <div class="ribbon-group-title">画像サイズ調整</div>
             </div>
-            <div class="ribbon-group-title">表示・設定</div>
+
+            <!-- グループ2: 編集 -->
+            <div class="ribbon-group">
+                <div class="ribbon-items">
+                    <button id="btn-undo" class="ribbon-btn" disabled title="元に戻す">
+                        <span class="icon">↩</span><span class="label">戻る</span>
+                    </button>
+                    <button id="btn-redo" class="ribbon-btn" disabled title="やり直す">
+                        <span class="icon">↪</span><span class="label">進む</span>
+                    </button>
+                    
+                    <div class="ribbon-divider"></div>
+                    
+                    <button id="btn-set-toc" class="ribbon-btn info" disabled title="選択した画像を目次として登録します">
+                        <span class="icon">📑</span><span class="label">目次設定</span>
+                    </button>
+                    <button id="btn-add-blank" class="ribbon-btn success" disabled title="選択した画像の直後に白紙を挿入します">
+                        <span class="icon">📄</span><span class="label">白紙挿入</span>
+                    </button>
+                    
+                    <div class="ribbon-divider"></div>
+                    
+                    <button id="btn-delete" class="ribbon-btn danger" disabled title="選択した画像を削除します">
+                        <span class="icon">🗑</span><span class="label">削除</span>
+                    </button>
+                    <button id="btn-reset" class="ribbon-btn danger" title="すべてリセット">
+                        <span class="icon">✖</span><span class="label">リセット</span>
+                    </button>
+                </div>
+                <div class="ribbon-group-title">編集</div>
+            </div>
+
+            <!-- グループ3: 表示 -->
+            <div class="ribbon-group">
+                <div class="ribbon-items">
+                    <div class="ribbon-col">
+                        <select id="view-mode" title="表示モード切替">
+                            <option value="grid">単ページ</option>
+                            <option value="spread-rtl" selected>見開き(右開き)</option>
+                            <option value="spread-ltr">見開き(左開き)</option>
+                        </select>
+                        <div class="slider-wrap" style="background:transparent; border:none; padding:0; gap:4px; margin-top:2px; display: flex; align-items: center;">
+                            <span style="font-size: 10px; color:var(--text-sub);">サイズ</span>
+                            <input type="range" id="size-slider" min="80" max="300" value="150" style="width: 70px; padding:0; height:auto; cursor: pointer;">
+                        </div>
+                    </div>
+                    
+                    <div class="ribbon-divider"></div>
+                    
+                    <button id="theme-toggle" class="ribbon-btn">
+                        <span class="icon">☀</span><span class="label">テーマ</span>
+                    </button>
+                    <button id="btn-manual" class="ribbon-btn">
+                        <span class="icon">📖</span><span class="label">使い方</span>
+                    </button>
+                </div>
+                <div class="ribbon-group-title">表示</div>
+            </div>
         </div>
     </div>
 
@@ -417,30 +510,12 @@
         <h2>EPUB 出力設定</h2>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 15px;">
-            <div>
-                <label>作品名</label>
-                <input type="text" id="epub-title" placeholder="">
-            </div>
-            <div>
-                <label>作品名 (読み)</label>
-                <input type="text" id="epub-title-ruby" placeholder="">
-            </div>
-            <div>
-                <label>著者名</label>
-                <input type="text" id="epub-author" placeholder="">
-            </div>
-            <div>
-                <label>著者名 (読み)</label>
-                <input type="text" id="epub-author-ruby" placeholder="">
-            </div>
-            <div>
-                <label>出版社</label>
-                <input type="text" id="epub-publisher" placeholder="">
-            </div>
-            <div>
-                <label>出版社 (読み)</label>
-                <input type="text" id="epub-publisher-ruby" placeholder="">
-            </div>
+            <div><label>作品名</label><input type="text" id="epub-title" placeholder=""></div>
+            <div><label>作品名 (読み)</label><input type="text" id="epub-title-ruby" placeholder=""></div>
+            <div><label>著者名</label><input type="text" id="epub-author" placeholder=""></div>
+            <div><label>著者名 (読み)</label><input type="text" id="epub-author-ruby" placeholder=""></div>
+            <div><label>出版社</label><input type="text" id="epub-publisher" placeholder=""></div>
+            <div><label>出版社 (読み)</label><input type="text" id="epub-publisher-ruby" placeholder=""></div>
         </div>
 
         <label>ファイルID (空欄で自動生成)</label><input type="text" id="epub-bookid" placeholder="">
@@ -483,13 +558,13 @@
             <ul style="padding-left: 20px; margin-top: 5px;">
                 <li><b>複数選択:</b> <code>Shift</code>キーで範囲選択、<code>Ctrl</code>(Macは<code>Cmd</code>)キーで個別選択が可能です。</li>
                 <li><b>外部からの追加:</b> PCのフォルダから直接特定の場所に画像をドロップして割り込ませることも可能です。</li>
-                <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます。</li>
+                <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます（目次情報も復元されます）。</li>
                 <li><b>設定の復元:</b> 出力した「現在の設定（.json）」を画面にドロップすると、保存した設定を自動で復元できます。</li>
             </ul>
             
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集機能の仕組み</h3>
             <ul style="padding-left: 20px; margin-top: 5px;">
-                <li><b>💾 並び順保存:</b> 現在のファイル名の並び順を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
+                <li><b>💾 並び順保存:</b> 現在のファイル名の並び順と目次情報を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
                 <li><b>⚙️ 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
                 <li><b>📑 目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
                 <li><b>📄 白紙挿入:</b> 選択した画像と「全く同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
@@ -497,7 +572,7 @@
             </ul>
 
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">4. 保存・出力の仕様</h3>
-            <p>「出力ファイル名」に入力した文字が、各出力ファイルのベース名として使用されます。</p>
+            <p>「出力ファイル名」に入力した文字が、各出力ファイルのベース名として使用されます。「画像サイズ調整」オプションで、出力前にサイズを揃えることができます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
                 <li><b>連結してPDF保存:</b> 画像を1ページずつPDF化します。ブラウザのバックグラウンドで処理されるため、大容量でもフリーズしにくくなっています。「画像縮小率」を下げることでPDFのファイルサイズを軽量化できます。</li>
                 <li><b>連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
@@ -553,6 +628,33 @@ document.addEventListener('DOMContentLoaded', () => {
             this.pdfOptions = document.getElementById('pdf-options');
             this.pdfQuality = document.getElementById('pdf-quality');
             
+            this.resizeModeSelect = document.getElementById('resize-mode');
+            this.resizeBaseSelect = document.getElementById('resize-base');
+            
+            this.resizeModeSelect.addEventListener('change', (e) => {
+                this.resizeBaseSelect.disabled = e.target.value === 'none';
+            });
+
+            // グループ別プルダウンの制御（モバイル・タッチデバイス用）
+            const ribbonGroups = document.querySelectorAll('.ribbon-group');
+            ribbonGroups.forEach(group => {
+                group.addEventListener('click', (e) => {
+                    // ドロップダウン内の入力欄やボタンをクリックした時は閉じない
+                    if (e.target.closest('.ribbon-items')) return;
+                    
+                    const isActive = group.classList.contains('active');
+                    ribbonGroups.forEach(g => g.classList.remove('active')); // 他のグループを閉じる
+                    if (!isActive) group.classList.add('active');
+                });
+            });
+
+            // リボン外の領域をクリックしたらすべてのプルダウンを閉じる
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.ribbon-group')) {
+                    ribbonGroups.forEach(g => g.classList.remove('active'));
+                }
+            });
+
             this.saveFormatSelect.addEventListener('change', (e) => {
                 const val = e.target.value;
                 const isPdf = val === 'pdf' || val === 'pdf-sheet' || val === 'merge-pdf';
@@ -718,12 +820,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.emptyMessage.style.opacity = isProcessing ? '0.5' : '1';
             
             this.btnExecute.disabled = isProcessing || !hasFiles;
-            
             this.btnReset.disabled = isProcessing;
             this.viewModeSelect.disabled = isProcessing;
             this.saveFormatSelect.disabled = isProcessing;
             this.pdfQuality.disabled = isProcessing;
             this.outputFilename.disabled = isProcessing;
+            this.resizeModeSelect.disabled = isProcessing;
+            this.resizeBaseSelect.disabled = isProcessing || this.resizeModeSelect.value === 'none';
             
             this.btnSetToc.disabled = isProcessing || !hasFiles;
             this.btnAddBlank.disabled = isProcessing || !hasFiles;
@@ -1364,6 +1467,72 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. ローカルファイル操作クラス
     // ==========================================
     class FileSystemManager {
+
+        async calculateBaseDimensions(fileItems, baseType) {
+            let widths = [];
+            let heights = [];
+            for (let item of fileItems) {
+                const file = await item.handle.getFile();
+                const bmp = await createImageBitmap(file);
+                widths.push(bmp.width);
+                heights.push(bmp.height);
+                bmp.close();
+            }
+            
+            let baseW = 0, baseH = 0;
+            if (baseType === 'max') {
+                baseW = Math.max(...widths);
+                baseH = Math.max(...heights);
+            } else if (baseType === 'min') {
+                baseW = Math.min(...widths);
+                baseH = Math.min(...heights);
+            } else if (baseType === 'avg') {
+                baseW = Math.round(widths.reduce((a,b)=>a+b, 0) / widths.length);
+                baseH = Math.round(heights.reduce((a,b)=>a+b, 0) / heights.length);
+            }
+            return { baseW, baseH };
+        }
+
+        async processImageResize(file, opts) {
+            const bmp = await createImageBitmap(file);
+            let targetW = bmp.width;
+            let targetH = bmp.height;
+            let dx = 0, dy = 0;
+            let drawW = bmp.width;
+            let drawH = bmp.height;
+            
+            if (opts.mode === 'fit-width') {
+                const scale = opts.baseW / bmp.width;
+                targetW = opts.baseW;
+                targetH = Math.max(1, Math.round(bmp.height * scale));
+                drawW = targetW; drawH = targetH;
+            } else if (opts.mode === 'fit-height') {
+                const scale = opts.baseH / bmp.height;
+                targetW = Math.max(1, Math.round(bmp.width * scale));
+                targetH = opts.baseH;
+                drawW = targetW; drawH = targetH;
+            } else if (opts.mode === 'pad-white') {
+                targetW = opts.baseW;
+                targetH = opts.baseH;
+                const fitScale = Math.min(opts.baseW / bmp.width, opts.baseH / bmp.height);
+                drawW = Math.max(1, Math.round(bmp.width * fitScale));
+                drawH = Math.max(1, Math.round(bmp.height * fitScale));
+                dx = (opts.baseW - drawW) / 2;
+                dy = (opts.baseH - drawH) / 2;
+            }
+            
+            const canvas = new OffscreenCanvas(targetW, targetH);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, targetW, targetH);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(bmp, dx, dy, drawW, drawH);
+            
+            bmp.close();
+            return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+        }
+
         async selectDirectory() {
             return await window.showDirectoryPicker({ mode: 'readwrite' });
         }
@@ -1415,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return items;
         }
 
-        async saveRenamedFiles(targetDirHandle, fileItems, onProgress, prefix = '') {
+        async saveRenamedFiles(targetDirHandle, fileItems, onProgress, prefix = '', resizeOpts = null) {
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
@@ -1426,14 +1595,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
                 const writable = await newFileHandle.createWritable();
-                await writable.write(file);
-                await writable.close();
                 
+                if (resizeOpts && resizeOpts.mode !== 'none') {
+                    const blob = await this.processImageResize(file, resizeOpts);
+                    await writable.write(blob);
+                } else {
+                    await writable.write(file);
+                }
+                await writable.close();
                 onProgress(i + 1, fileItems.length, newName);
             }
         }
 
-        async saveRenamedFilesFallback(fileItems, onProgress, baseName, prefix = '') {
+        async saveRenamedFilesFallback(fileItems, onProgress, baseName, prefix = '', resizeOpts = null) {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
@@ -1443,7 +1617,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
                 
                 const file = await item.handle.getFile();
-                await zip.addFileAsync(newName, file);
+                if (resizeOpts && resizeOpts.mode !== 'none') {
+                    const blob = await this.processImageResize(file, resizeOpts);
+                    await zip.addFileAsync(newName, blob);
+                } else {
+                    await zip.addFileAsync(newName, file);
+                }
                 
                 onProgress(i + 1, fileItems.length, newName);
                 await new Promise(resolve => setTimeout(resolve, 0)); 
@@ -1456,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveAsPDF(fileItems, quality, onProgress, baseName) {
+        async saveAsPDF(fileItems, quality, onProgress, baseName, resizeOpts = null) {
             const defaultName = baseName ? `${baseName}.pdf` : 'output.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
@@ -1472,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const blob = await this._runPdfWorker(fileItems, quality, onProgress);
+            const blob = await this._runPdfWorker(fileItems, quality, onProgress, resizeOpts);
 
             if (handle) {
                 const writable = await handle.createWritable();
@@ -1488,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
-        async _runPdfWorker(fileItems, quality, onProgress) {
+        async _runPdfWorker(fileItems, quality, onProgress, resizeOpts) {
             return new Promise(async (resolve, reject) => {
                 const filesData =[];
                 for (let i = 0; i < fileItems.length; i++) {
@@ -1498,22 +1677,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
-                        const { files, quality } = e.data;
+                        const { files, quality, resizeOpts } = e.data;
                         try {
                             const pdf = new PDFDocument();
                             for (let i = 0; i < files.length; i++) {
                                 const bitmap = await createImageBitmap(files[i].file);
+                                let targetW = bitmap.width, targetH = bitmap.height;
+                                let dx = 0, dy = 0, drawW = bitmap.width, drawH = bitmap.height;
+                                
+                                if (resizeOpts && resizeOpts.mode === 'fit-width') {
+                                    const s = resizeOpts.baseW / bitmap.width;
+                                    targetW = resizeOpts.baseW; targetH = Math.max(1, Math.round(bitmap.height * s));
+                                    drawW = targetW; drawH = targetH;
+                                } else if (resizeOpts && resizeOpts.mode === 'fit-height') {
+                                    const s = resizeOpts.baseH / bitmap.height;
+                                    targetW = Math.max(1, Math.round(bitmap.width * s)); targetH = resizeOpts.baseH;
+                                    drawW = targetW; drawH = targetH;
+                                } else if (resizeOpts && resizeOpts.mode === 'pad-white') {
+                                    targetW = resizeOpts.baseW; targetH = resizeOpts.baseH;
+                                    const fitScale = Math.min(resizeOpts.baseW / bitmap.width, resizeOpts.baseH / bitmap.height);
+                                    drawW = Math.max(1, Math.round(bitmap.width * fitScale));
+                                    drawH = Math.max(1, Math.round(bitmap.height * fitScale));
+                                    dx = (targetW - drawW) / 2; dy = (targetH - drawH) / 2;
+                                }
+
                                 const scale = quality / 100;
-                                const width = Math.max(1, Math.floor(bitmap.width * scale));
-                                const height = Math.max(1, Math.floor(bitmap.height * scale));
+                                const width = Math.max(1, Math.floor(targetW * scale));
+                                const height = Math.max(1, Math.floor(targetH * scale));
 
                                 const canvas = new OffscreenCanvas(width, height);
                                 const ctx = canvas.getContext('2d');
-                                ctx.fillStyle = '#ffffff';
-                                ctx.fillRect(0, 0, width, height);
-                                ctx.imageSmoothingEnabled = true;
-                                ctx.imageSmoothingQuality = 'high';
-                                ctx.drawImage(bitmap, 0, 0, width, height);
+                                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+                                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                                ctx.drawImage(bitmap, dx * scale, dy * scale, drawW * scale, drawH * scale);
                                 bitmap.close();
 
                                 const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
@@ -1545,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         reject(new Error(msg.error));
                     }
                 };
-                worker.postMessage({ files: filesData, quality });
+                worker.postMessage({ files: filesData, quality, resizeOpts });
             });
         }
 
@@ -1691,40 +1887,66 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        async _mergeImagePair(pair) {
+        async _mergeImagePair(pair, resizeOpts = null) {
             if (pair.length === 1) {
-                return await pair[0].handle.getFile();
+                const file = await pair[0].handle.getFile();
+                return resizeOpts && resizeOpts.mode !== 'none' ? await this.processImageResize(file, resizeOpts) : file;
             }
             const fileL = await pair[0].handle.getFile();
             const fileR = await pair[1].handle.getFile();
             const bmpL = await createImageBitmap(fileL);
             const bmpR = await createImageBitmap(fileR);
             
-            const height = Math.max(bmpL.height, bmpR.height);
-            const scaleL = height / bmpL.height;
-            const scaleR = height / bmpR.height;
-            const widthL = Math.round(bmpL.width * scaleL);
-            const widthR = Math.round(bmpR.width * scaleR);
-            const width = widthL + widthR;
+            let canvasW, canvasH;
             
-            const canvas = new OffscreenCanvas(width, height);
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            
-            ctx.drawImage(bmpL, 0, 0, widthL, height);
-            ctx.drawImage(bmpR, widthL, 0, widthR, height);
-            
-            bmpL.close();
-            bmpR.close();
-            
-            return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+            if (resizeOpts && resizeOpts.mode === 'pad-white') {
+                canvasH = resizeOpts.baseH;
+                canvasW = resizeOpts.baseW * 2; 
+                const canvas = new OffscreenCanvas(canvasW, canvasH);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH);
+                
+                const fitL = Math.min(resizeOpts.baseW / bmpL.width, resizeOpts.baseH / bmpL.height);
+                const dWL = Math.round(bmpL.width * fitL), dHL = Math.round(bmpL.height * fitL);
+                ctx.drawImage(bmpL, (resizeOpts.baseW - dWL) / 2, (canvasH - dHL) / 2, dWL, dHL);
+                
+                const fitR = Math.min(resizeOpts.baseW / bmpR.width, resizeOpts.baseH / bmpR.height);
+                const dWR = Math.round(bmpR.width * fitR), dHR = Math.round(bmpR.height * fitR);
+                ctx.drawImage(bmpR, resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2, (canvasH - dHR) / 2, dWR, dHR);
+                
+                bmpL.close(); bmpR.close();
+                return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+            } else {
+                let tempHeight = Math.max(bmpL.height, bmpR.height);
+                let scaleL1 = tempHeight / bmpL.height, scaleR1 = tempHeight / bmpR.height;
+                let tempWL = bmpL.width * scaleL1, tempWR = bmpR.width * scaleR1;
+                let tempTotalW = tempWL + tempWR;
+                
+                let finalScale = 1;
+                if (resizeOpts && resizeOpts.mode === 'fit-height') finalScale = resizeOpts.baseH / tempHeight;
+                else if (resizeOpts && resizeOpts.mode === 'fit-width') finalScale = (resizeOpts.baseW * 2) / tempTotalW;
+                
+                canvasH = Math.max(1, Math.round(tempHeight * finalScale));
+                canvasW = Math.max(1, Math.round(tempTotalW * finalScale));
+                let drawWL = Math.round(tempWL * finalScale);
+                let drawWR = canvasW - drawWL;
+                
+                const canvas = new OffscreenCanvas(canvasW, canvasH);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH);
+                
+                ctx.drawImage(bmpL, 0, 0, drawWL, canvasH);
+                ctx.drawImage(bmpR, drawWL, 0, drawWR, canvasH);
+                
+                bmpL.close(); bmpR.close();
+                return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+            }
         }
 
-        async saveMergedRenamedFiles(targetDirHandle, pairs, onProgress, prefix = '') {
+        async saveMergedRenamedFiles(targetDirHandle, pairs, onProgress, prefix = '', resizeOpts = null) {
             const padLength = Math.max(3, String(pairs.length).length);
             for (let i = 0; i < pairs.length; i++) {
-                const blob = await this._mergeImagePair(pairs[i]);
+                const blob = await this._mergeImagePair(pairs[i], resizeOpts);
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
                 
@@ -1737,11 +1959,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async saveMergedRenamedFilesFallback(pairs, onProgress, baseName, prefix = '') {
+        async saveMergedRenamedFilesFallback(pairs, onProgress, baseName, prefix = '', resizeOpts = null) {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(pairs.length).length);
             for (let i = 0; i < pairs.length; i++) {
-                const blob = await this._mergeImagePair(pairs[i]);
+                const blob = await this._mergeImagePair(pairs[i], resizeOpts);
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
                 
@@ -1758,7 +1980,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveMergedAsPDF(pairs, quality, onProgress, baseName) {
+        async saveMergedAsPDF(pairs, quality, onProgress, baseName, resizeOpts = null) {
             const defaultName = baseName ? `${baseName}.pdf` : 'merged_output.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
@@ -1774,7 +1996,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const blob = await this._runMergedPdfWorker(pairs, quality, onProgress);
+            const blob = await this._runMergedPdfWorker(pairs, quality, onProgress, resizeOpts);
 
             if (handle) {
                 const writable = await handle.createWritable();
@@ -1790,7 +2012,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
-        async _runMergedPdfWorker(pairs, quality, onProgress) {
+        async _runMergedPdfWorker(pairs, quality, onProgress, resizeOpts) {
             return new Promise(async (resolve, reject) => {
                 const pairsData =[];
                 for (let i = 0; i < pairs.length; i++) {
@@ -1808,7 +2030,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
-                        const { pairs, quality } = e.data;
+                        const { pairs, quality, resizeOpts } = e.data;
                         try {
                             const pdf = new PDFDocument();
                             for (let i = 0; i < pairs.length; i++) {
@@ -1817,46 +2039,68 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 if (pair.length === 1) {
                                     const bitmap = await createImageBitmap(pair[0].file);
+                                    let tW = bitmap.width, tH = bitmap.height, dx = 0, dy = 0;
+                                    if (resizeOpts && resizeOpts.mode === 'fit-width') {
+                                        tW = resizeOpts.baseW; tH = Math.max(1, Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width)));
+                                    } else if (resizeOpts && resizeOpts.mode === 'fit-height') {
+                                        tW = Math.max(1, Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height))); tH = resizeOpts.baseH;
+                                    } else if (resizeOpts && resizeOpts.mode === 'pad-white') {
+                                        tW = resizeOpts.baseW; tH = resizeOpts.baseH;
+                                        dx = (tW - bitmap.width) / 2; dy = (tH - bitmap.height) / 2;
+                                    }
                                     const scale = quality / 100;
-                                    width = Math.max(1, Math.floor(bitmap.width * scale));
-                                    height = Math.max(1, Math.floor(bitmap.height * scale));
+                                    width = Math.max(1, Math.floor(tW * scale)); height = Math.max(1, Math.floor(tH * scale));
                                     canvas = new OffscreenCanvas(width, height);
                                     const ctx = canvas.getContext('2d');
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.fillRect(0, 0, width, height);
-                                    ctx.imageSmoothingEnabled = true;
-                                    ctx.imageSmoothingQuality = 'high';
-                                    ctx.drawImage(bitmap, 0, 0, width, height);
+                                    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                                    if (resizeOpts && resizeOpts.mode === 'pad-white') ctx.drawImage(bitmap, dx * scale, dy * scale, bitmap.width * scale, bitmap.height * scale);
+                                    else ctx.drawImage(bitmap, 0, 0, width, height);
                                     bitmap.close();
                                 } else {
                                     const bmpL = await createImageBitmap(pair[0].file);
                                     const bmpR = await createImageBitmap(pair[1].file);
-                                    
-                                    const origHeight = Math.max(bmpL.height, bmpR.height);
-                                    const scaleL = origHeight / bmpL.height;
-                                    const scaleR = origHeight / bmpR.height;
-                                    const origWidthL = Math.round(bmpL.width * scaleL);
-                                    const origWidthR = Math.round(bmpR.width * scaleR);
-                                    const origWidth = origWidthL + origWidthR;
-                                    
                                     const scale = quality / 100;
-                                    width = Math.max(1, Math.floor(origWidth * scale));
-                                    height = Math.max(1, Math.floor(origHeight * scale));
                                     
-                                    const drawWL = Math.max(1, Math.floor(origWidthL * scale));
-                                    const drawWR = width - drawWL;
-                                    
-                                    canvas = new OffscreenCanvas(width, height);
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.fillRect(0, 0, width, height);
-                                    ctx.imageSmoothingEnabled = true;
-                                    ctx.imageSmoothingQuality = 'high';
-                                    ctx.drawImage(bmpL, 0, 0, drawWL, height);
-                                    ctx.drawImage(bmpR, drawWL, 0, drawWR, height);
-                                    
-                                    bmpL.close();
-                                    bmpR.close();
+                                    if (resizeOpts && resizeOpts.mode === 'pad-white') {
+                                        const origH = resizeOpts.baseH;
+                                        const origW = resizeOpts.baseW * 2;
+                                        width = Math.max(1, Math.floor(origW * scale));
+                                        height = Math.max(1, Math.floor(origH * scale));
+                                        canvas = new OffscreenCanvas(width, height);
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                                        
+                                        const fitL = Math.min(resizeOpts.baseW / bmpL.width, resizeOpts.baseH / bmpL.height);
+                                        const dWL = Math.round(bmpL.width * fitL), dHL = Math.round(bmpL.height * fitL);
+                                        const dxL = (resizeOpts.baseW - dWL) / 2; const dyL = (origH - dHL) / 2;
+                                        ctx.drawImage(bmpL, dxL * scale, dyL * scale, dWL * scale, dHL * scale);
+                                        
+                                        const fitR = Math.min(resizeOpts.baseW / bmpR.width, resizeOpts.baseH / bmpR.height);
+                                        const dWR = Math.round(bmpR.width * fitR), dHR = Math.round(bmpR.height * fitR);
+                                        const dxR = resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2; const dyR = (origH - dHR) / 2;
+                                        ctx.drawImage(bmpR, dxR * scale, dyR * scale, dWR * scale, dHR * scale);
+                                    } else {
+                                        let tempHeight = Math.max(bmpL.height, bmpR.height);
+                                        let scaleL1 = tempHeight / bmpL.height, scaleR1 = tempHeight / bmpR.height;
+                                        let tempWL = bmpL.width * scaleL1, tempWR = bmpR.width * scaleR1;
+                                        let tempTotalW = tempWL + tempWR;
+                                        
+                                        let finalScale = 1;
+                                        if (resizeOpts && resizeOpts.mode === 'fit-height') finalScale = resizeOpts.baseH / tempHeight;
+                                        else if (resizeOpts && resizeOpts.mode === 'fit-width') finalScale = (resizeOpts.baseW * 2) / tempTotalW;
+                                        
+                                        width = Math.max(1, Math.floor(tempTotalW * finalScale * scale));
+                                        height = Math.max(1, Math.floor(tempHeight * finalScale * scale));
+                                        const drawWL = Math.max(1, Math.floor(tempWL * finalScale * scale));
+                                        const drawWR = width - drawWL;
+                                        
+                                        canvas = new OffscreenCanvas(width, height);
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                                        ctx.drawImage(bmpL, 0, 0, drawWL, height);
+                                        ctx.drawImage(bmpR, drawWL, 0, drawWR, height);
+                                    }
+                                    bmpL.close(); bmpR.close();
                                 }
 
                                 const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
@@ -1888,7 +2132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         reject(new Error(msg.error));
                     }
                 };
-                worker.postMessage({ pairs: pairsData, quality });
+                worker.postMessage({ pairs: pairsData, quality, resizeOpts });
             });
         }
 
@@ -1911,14 +2155,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 6.5. EPUB生成クラス (商用対応版)
+    // 6.5. EPUB生成クラス
     // ==========================================
     class EpubGenerator {
         constructor(fileSystemManager) {
             this.fs = fileSystemManager;
         }
 
-        async generate(fileItems, metadata, viewMode, onProgress, baseName) {
+        async generate(fileItems, metadata, viewMode, onProgress, baseName, resizeOpts = null) {
             let handle = null;
             const suggestedName = baseName ? `${baseName}.epub` : (metadata.title || 'book') + '.epub';
             if ('showSaveFilePicker' in window) {
@@ -1974,14 +2218,21 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const file = await item.handle.getFile();
-                
-                const bitmap = await createImageBitmap(file);
-                const w = bitmap.width;
-                const h = bitmap.height;
-                bitmap.close();
+                let dataToWrite = file;
+                let w, h;
+
+                if (resizeOpts && resizeOpts.mode !== 'none') {
+                    const blob = await this.fs.processImageResize(file, resizeOpts);
+                    dataToWrite = new File([blob], item.name, { type: 'image/jpeg' });
+                    const bmp = await createImageBitmap(dataToWrite);
+                    w = bmp.width; h = bmp.height; bmp.close();
+                } else {
+                    const bmp = await createImageBitmap(file);
+                    w = bmp.width; h = bmp.height; bmp.close();
+                }
 
                 if (metadata.includeImages || item.name.startsWith('blank_')) {
-                    const fileData = new Uint8Array(await file.arrayBuffer());
+                    const fileData = new Uint8Array(await dataToWrite.arrayBuffer());
                     await zip.addFileAsync(`item/image/${item.name}`, new Blob([fileData]));
                 }
                 
@@ -2069,55 +2320,39 @@ ${navPoints}</navMap>
 
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms">
 
-<!-- 作品名 -->
 <dc:title id="title">${title}</dc:title>
 <meta refines="#title" property="file-as">${titleRuby}</meta>
 
-<!-- 著者名 -->
 <dc:creator id="author">${author}</dc:creator>
 <meta refines="#author" property="role" scheme="marc:relators">aut</meta>
 <meta refines="#author" property="file-as">${authorRuby}</meta>
 
-<!-- 出版社名 -->
 <dc:publisher id="publisher">${publisher}</dc:publisher>
 <meta refines="#publisher" property="file-as">${publisherRuby}</meta>
 
-<!-- 言語 -->
 <dc:language>ja</dc:language>
 
-<!-- ファイルid -->
 <dc:identifier id="unique-id">${bookId}</dc:identifier>
 
-<!-- 更新日 -->
 <meta property="dcterms:modified">${modifiedDate}</meta>
 
-<!-- Fixed-Layout Documents指定 -->
 <meta property="rendition:layout">pre-paginated</meta>
 <meta property="rendition:spread">landscape</meta>
 
-<!-- etc. -->
 <meta property="ebpaj:guide-version">1.1.3</meta>
 <dc:contributor id="encoder"></dc:contributor>
 <meta refines="#encoder" property="role" scheme="marc:relators">mrk</meta>
 
-<!-- kindle用 -->
 <meta name="original-resolution" content="${coverW}x${coverH}"/>
 <meta name="RegionMagnification" content="true"/>
 
 </metadata>
 
 <manifest>
-
-<!-- navigation -->
 <item media-type="application/xhtml+xml" id="toc" href="navigation-documents.xhtml" properties="nav"/>
 <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-
-<!-- style -->
 <item media-type="text/css" id="fixed-layout-jp" href="style/fixed-layout-jp.css"/>
-
-<!-- image -->
 ${manifestImage}
-<!-- xhtml -->
 ${manifestXhtml}</manifest>
 
 <spine toc="ncx" page-progression-direction="${direction}">
@@ -2130,7 +2365,7 @@ ${spineStr}</spine>
             const blob = zip.finish();
 
             if (metadata.exportOrder) {
-                const orderText = fileItems.map(item => item.name).join('\n');
+                const orderText = fileItems.map(item => item.tocName ? `${item.name}\t${item.tocName}` : item.name).join('\n');
                 const txtBlob = new Blob([orderText], { type: 'text/plain' });
                 const txtA = document.createElement('a');
                 txtA.href = URL.createObjectURL(txtBlob);
@@ -2196,6 +2431,8 @@ ${spineStr}</spine>
                     pdfQuality: this.ui.pdfQuality.value,
                     viewMode: this.ui.viewModeSelect.value,
                     thumbSize: this.ui.sizeSlider.value,
+                    resizeMode: this.ui.resizeModeSelect.value,
+                    resizeBase: this.ui.resizeBaseSelect.value,
                     epubMetadata: this.epubModal.getCurrentData()
                 };
                 const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -2230,13 +2467,19 @@ ${spineStr}</spine>
                     this.ui.sizeSlider.value = settings.thumbSize;
                     this.ui.sizeSlider.dispatchEvent(new Event('input'));
                 }
+                if (settings.resizeMode) {
+                    this.ui.resizeModeSelect.value = settings.resizeMode;
+                    this.ui.resizeModeSelect.dispatchEvent(new Event('change'));
+                }
+                if (settings.resizeBase) this.ui.resizeBaseSelect.value = settings.resizeBase;
+                
                 if (settings.epubMetadata) {
                     this.epubModal.setSavedData(settings.epubMetadata);
                 }
                 this.ui.showToast('設定を復元しました。');
             } catch (e) {
                 console.error(e);
-                this.ui.showToast('設定ファイルの読み込みに失敗しました。正しいファイルを選択してください。', true);
+                this.ui.showToast('設定ファイルの読み込みに失敗しました。', true);
             }
         }
 
@@ -2288,9 +2531,7 @@ ${spineStr}</spine>
 
             document.addEventListener('keydown', (e) => {
                 if (this.isProcessing) return;
-                
                 if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-
                 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
                 const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
                 
@@ -2344,14 +2585,11 @@ ${spineStr}</spine>
                             handlePromises.push(item.getAsFileSystemHandle());
                         }
                     }
-                    
                     const handles = await Promise.all(handlePromises);
                     for (const handle of handles) {
                         if (handle) {
                             if (handle.kind === 'directory') {
-                                hasDirectory = true;
-                                droppedDirHandle = handle;
-                                break;
+                                hasDirectory = true; droppedDirHandle = handle; break;
                             } else if (handle.kind === 'file') {
                                 fileHandles.push(handle);
                             }
@@ -2402,12 +2640,18 @@ ${spineStr}</spine>
             const remainingItems = [...this.fileItems];
             
             for (const line of lines) {
-                const idx = remainingItems.findIndex(item => item.name === line);
+                const parts = line.split('\t');
+                const name = parts[0];
+                const tocName = parts.length > 1 ? parts[1] : null;
+
+                const idx = remainingItems.findIndex(item => item.name === name);
                 if (idx !== -1) {
-                    newItems.push(remainingItems[idx]);
+                    const item = remainingItems[idx];
+                    item.tocName = tocName;
+                    newItems.push(item);
                     remainingItems.splice(idx, 1);
-                } else if (line.startsWith('blank_')) {
-                    const match = line.match(/^blank_(\d+)x(\d+)_/);
+                } else if (name.startsWith('blank_')) {
+                    const match = name.match(/^blank_(\d+)x(\d+)_/);
                     if (match) {
                         const w = parseInt(match[1], 10);
                         const h = parseInt(match[2], 10);
@@ -2418,29 +2662,26 @@ ${spineStr}</spine>
                         ctx.fillRect(0, 0, w, h);
                         const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
                         
-                        const dummyFile = new File([blob], line, { type: 'image/jpeg' });
-                        
-                        const uniqueStr = line.replace('.jpg', '').split('_').pop();
-                        const correctId = `blank_${uniqueStr}`;
+                        const dummyFile = new File([blob], name, { type: 'image/jpeg' });
+                        const uniqueStr = name.replace('.jpg', '').split('_').pop();
                         
                         newItems.push({
-                            id: correctId,
-                            name: line,
+                            id: `blank_${uniqueStr}`,
+                            name: name,
                             handle: { getFile: async () => dummyFile },
                             objectUrl: URL.createObjectURL(dummyFile),
-                            tocName: null
+                            tocName: tocName
                         });
                     }
                 }
             }
-            
             newItems.push(...remainingItems);
             
             this.fileItems = newItems;
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
             this.setProcessingState(false);
-            this.ui.showToast('テキストファイルから並び順と白ページを復元しました。');
+            this.ui.showToast('テキストファイルから並び順と目次を復元しました。');
         }
 
         saveHistory() {
@@ -2578,12 +2819,9 @@ ${spineStr}</spine>
                 this.ui.showToast('白紙を挿入する基準となる画像を選択してください。', true);
                 return;
             }
-
             this.setProcessingState(true);
-            
             try {
                 this.saveHistory();
-                
                 for (let i = selectedEls.length - 1; i >= 0; i--) {
                     const id = selectedEls[i].dataset.id;
                     const index = this.fileItems.findIndex(item => item.id === id);
@@ -2614,10 +2852,8 @@ ${spineStr}</spine>
                         objectUrl: URL.createObjectURL(dummyFile),
                         tocName: null
                     };
-                    
                     this.fileItems.splice(index + 1, 0, newItem);
                 }
-                
                 this.ui.renderItems(this.fileItems);
                 this.sortManager.init();
             } catch (e) {
@@ -2634,12 +2870,10 @@ ${spineStr}</spine>
 
             this.saveHistory();
             const idsToRemove = selectedEls.map(el => el.dataset.id);
-            
             this.fileItems = this.fileItems.filter(item => !idsToRemove.includes(item.id));
             
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
-            
             this.ui.setButtonsState(false, this.fileItems.length > 0);
         }
 
@@ -2658,16 +2892,12 @@ ${spineStr}</spine>
 
             try {
                 const newItems = [];
-                
                 if (this.hasFSApi && itemsOrFiles.length > 0 && typeof itemsOrFiles[0].getAsFileSystemHandle === 'function') {
                     const handlePromises = [];
                     for (let i = 0; i < itemsOrFiles.length; i++) {
                         const item = itemsOrFiles[i];
-                        if (item.kind === 'file') {
-                            handlePromises.push(item.getAsFileSystemHandle());
-                        }
+                        if (item.kind === 'file') handlePromises.push(item.getAsFileSystemHandle());
                     }
-                    
                     const handles = await Promise.all(handlePromises);
                     for (const handle of handles) {
                         if (handle && handle.kind === 'file') {
@@ -2719,10 +2949,8 @@ ${spineStr}</spine>
 
         async handleAddFilesToTail(filesOrHandles, isHandles) {
             this.setProcessingState(true);
-            
             try {
                 if (this.fileItems.length > 0) this.saveHistory();
-                
                 const newItems = [];
                 for (let i = 0; i < filesOrHandles.length; i++) {
                     const f = filesOrHandles[i];
@@ -2740,7 +2968,6 @@ ${spineStr}</spine>
                         });
                     }
                 }
-                
                 if (newItems.length > 0) {
                     this.fileItems.push(...newItems);
                     this.ui.renderItems(this.fileItems);
@@ -2791,11 +3018,7 @@ ${spineStr}</spine>
             });
 
             const padding = 20;
-            return {
-                items,
-                totalWidth: maxX + padding,
-                totalHeight: maxY + padding
-            };
+            return { items, totalWidth: maxX + padding, totalHeight: maxY + padding };
         }
 
         getSpreadPairs() {
@@ -2805,23 +3028,14 @@ ${spineStr}</spine>
                 this.fileItems.forEach(item => pairs.push([item]));
                 return pairs;
             }
-            
-            if (this.fileItems.length > 0) {
-                pairs.push([this.fileItems[0]]);
-            }
-            
+            if (this.fileItems.length > 0) pairs.push([this.fileItems[0]]);
             for (let i = 1; i < this.fileItems.length; i += 2) {
                 const item1 = this.fileItems[i];
                 const item2 = this.fileItems[i + 1];
-                
-                if (!item2) {
-                    pairs.push([item1]);
-                } else {
-                    if (viewMode === 'spread-rtl') {
-                        pairs.push([item2, item1]);
-                    } else {
-                        pairs.push([item1, item2]);
-                    }
+                if (!item2) pairs.push([item1]);
+                else {
+                    if (viewMode === 'spread-rtl') pairs.push([item2, item1]);
+                    else pairs.push([item1, item2]);
                 }
             }
             return pairs;
@@ -2838,7 +3052,7 @@ ${spineStr}</spine>
             const prefix = this.ui.outputFilename.value.trim();
             const baseName = prefix || this.sourceFolderName;
             
-            const orderText = this.fileItems.map(item => item.name).join('\n');
+            const orderText = this.fileItems.map(item => item.tocName ? `${item.name}\t${item.tocName}` : item.name).join('\n');
             const blob = new Blob([orderText], { type: 'text/plain' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -2855,6 +3069,25 @@ ${spineStr}</spine>
             const prefix = this.ui.outputFilename.value.trim();
             const baseName = prefix || this.sourceFolderName;
 
+            const resizeModeVal = this.ui.resizeModeSelect.value;
+            const resizeBaseVal = this.ui.resizeBaseSelect.value;
+            let resizeOpts = { mode: resizeModeVal, baseType: resizeBaseVal, baseW: 0, baseH: 0 };
+            
+            if (resizeModeVal !== 'none') {
+                this.setProcessingState(true);
+                this.ui.updateProgress(100, '画像サイズを計算中...');
+                try {
+                    const dims = await this.fs.calculateBaseDimensions(this.fileItems, resizeBaseVal);
+                    resizeOpts.baseW = dims.baseW;
+                    resizeOpts.baseH = dims.baseH;
+                } catch(e) {
+                    console.error(e);
+                    this.ui.showToast('サイズ計算中にエラーが発生しました。', true);
+                    this.setProcessingState(false);
+                    return;
+                }
+            }
+
             if (saveFormat === 'epub') {
                 let metadata;
                 try {
@@ -2869,7 +3102,7 @@ ${spineStr}</spine>
                         const percent = (current / total) * 100;
                         const text = USER_SETTINGS.msgSavingEpub.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                         this.ui.updateProgress(percent, text);
-                    }, baseName);
+                    }, baseName, resizeOpts);
                     if (success) this.ui.showToast(`EPUBを保存しました。`);
                 } catch (e) {
                     console.error(e);
@@ -2889,27 +3122,23 @@ ${spineStr}</spine>
                     if (this.hasFSApi) {
                         let targetDirHandle;
                         try {
-                            targetDirHandle = await window.showDirectoryPicker({ 
-                                mode: 'readwrite', 
-                                id: 'save-folder',
-                                startIn: 'downloads'
-                            });
+                            targetDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'save-folder', startIn: 'downloads' });
                         } catch (e) {
                             if (e.name === 'AbortError') return; 
-                            throw new Error('フォルダ選択がキャンセルされたか、ブロックされました。');
+                            throw new Error('フォルダ選択がキャンセルされました。');
                         }
                         await this.fs.saveRenamedFiles(targetDirHandle, this.fileItems, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        }, prefix);
+                        }, prefix, resizeOpts);
                         this.ui.showToast(`選択したフォルダ内に画像を保存しました。`);
                     } else {
                         await this.fs.saveRenamedFilesFallback(this.fileItems, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName, prefix);
+                        }, baseName, prefix, resizeOpts);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'merge-rename') {
@@ -2917,27 +3146,23 @@ ${spineStr}</spine>
                     if (this.hasFSApi) {
                         let targetDirHandle;
                         try {
-                            targetDirHandle = await window.showDirectoryPicker({ 
-                                mode: 'readwrite', 
-                                id: 'save-folder',
-                                startIn: 'downloads'
-                            });
+                            targetDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'save-folder', startIn: 'downloads' });
                         } catch (e) {
                             if (e.name === 'AbortError') return; 
-                            throw new Error('フォルダ選択がキャンセルされたか、ブロックされました。');
+                            throw new Error('フォルダ選択がキャンセルされました。');
                         }
                         await this.fs.saveMergedRenamedFiles(targetDirHandle, pairs, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        }, prefix);
+                        }, prefix, resizeOpts);
                         this.ui.showToast(`選択したフォルダ内に結合画像を保存しました。`);
                     } else {
                         await this.fs.saveMergedRenamedFilesFallback(pairs, (current, total, newName) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName, prefix);
+                        }, baseName, prefix, resizeOpts);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
                 } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
@@ -2949,7 +3174,7 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName);
+                        }, baseName, resizeOpts);
                     } else if (saveFormat === 'pdf-sheet') {
                         const layoutData = this.getGridLayoutData();
                         const sheetBaseName = baseName ? `${baseName}_thumbnail` : 'thumbnail_sheet';
@@ -2964,9 +3189,8 @@ ${spineStr}</spine>
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName);
+                        }, baseName, resizeOpts);
                     }
-                    
                     if (success) this.ui.showToast(`PDFを保存しました。`);
                 }
             } catch (e) {
@@ -2985,7 +3209,6 @@ ${spineStr}</spine>
                 ...this.historyUndo.flat(),
                 ...this.historyRedo.flat()
             ]);
-            
             allItems.forEach(item => {
                 if (item.objectUrl) {
                     URL.revokeObjectURL(item.objectUrl);
@@ -2996,13 +3219,9 @@ ${spineStr}</spine>
 
         reset() {
             if (this.isProcessing) return;
-            
             if (this.fileItems.length > 0) {
-                if (!confirm(USER_SETTINGS.msgConfirmReset)) {
-                    return;
-                }
+                if (!confirm(USER_SETTINGS.msgConfirmReset)) return;
             }
-            
             this.resetMemory();
             this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
             this.fileItems = [];
