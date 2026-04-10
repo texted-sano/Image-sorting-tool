@@ -1602,6 +1602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let count = 0;
             for await (const entry of dirHandle.values()) {
                 if (entry.kind === 'file') {
+                    if (entry.name.startsWith('.')) continue; // ★追加: 隠しファイルを除外
                     const ext = entry.name.split('.').pop().toLowerCase();
                     if (USER_SETTINGS.validExts.includes(ext)) {
                         items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null, tocName: null });
@@ -1620,6 +1621,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const items =[];
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
+                if (file.name.startsWith('.')) continue; // ★追加: 隠しファイルを除外
                 const ext = file.name.split('.').pop().toLowerCase();
                 if (USER_SETTINGS.validExts.includes(ext)) {
                     items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null, tocName: null });
@@ -2678,7 +2680,7 @@ ${spineStr}</spine>
                     }
                 } else {
                     for (let f of rawFiles) {
-                        if (!f.name) continue;
+                        if (!f.name || f.name.startsWith('.')) continue; // ★修正: 隠しファイルを除外
                         const ext = f.name.split('.').pop().toLowerCase();
                         if (USER_SETTINGS.validExts.includes(ext)) {
                             filesFallback.push(f);
@@ -2982,6 +2984,7 @@ ${spineStr}</spine>
                     const handles = await Promise.all(handlePromises);
                     for (const handle of handles) {
                         if (handle && handle.kind === 'file') {
+                            if (handle.name.startsWith('.')) continue; // ★追加: 隠しファイルを除外
                             const ext = handle.name.split('.').pop().toLowerCase();
                             if (USER_SETTINGS.validExts.includes(ext)) {
                                 newItems.push({ handle, name: handle.name });
@@ -2990,7 +2993,7 @@ ${spineStr}</spine>
                     }
                 } else {
                     for (let f of rawFiles) {
-                        if (!f || !f.name) continue;
+                        if (!f || !f.name || f.name.startsWith('.')) continue; // ★修正: 隠しファイルを除外
                         const ext = f.name.split('.').pop().toLowerCase();
                         if (USER_SETTINGS.validExts.includes(ext)) {
                             newItems.push({ handle: { getFile: async () => f }, name: f.name });
