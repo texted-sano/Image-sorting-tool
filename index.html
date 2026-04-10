@@ -638,11 +638,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // グループ別プルダウンの制御（モバイル・タッチデバイス用）
             const ribbonGroups = document.querySelectorAll('.ribbon-group');
             ribbonGroups.forEach(group => {
-                group.addEventListener('click', (e) => {
-                    // ドロップダウン内の入力欄やボタンをクリックした時は閉じない
-                    if (e.target.closest('.ribbon-items')) return;
-                    
-                    const isActive = group.classList.contains('active');
+
+                    group.addEventListener('click', (e) => {
+                        // ドロップダウン内の操作
+                        if (e.target.closest('.ribbon-items')) {
+                            // ボタンをクリックした時だけドロップダウンを閉じる
+                            // （selectやinputの操作中は閉じない）
+                            if (e.target.matches('button, button *')) {
+                                ribbonGroups.forEach(g => g.classList.remove('active'));
+                            }
+                            return;
+                        }
+
+                        const isActive = group.classList.contains('active');
+
                     ribbonGroups.forEach(g => g.classList.remove('active')); // 他のグループを閉じる
                     if (!isActive) group.classList.add('active');
                 });
@@ -703,12 +712,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 entries.forEach(entry => {
                     const img = entry.target;
                     if (entry.isIntersecting) {
+                        img.dataset.visible = 'true'; // 表示状態を記録
                         if (!img.src) {
                             this.onRequestImage(img.dataset.id).then(url => {
-                                if (url) img.src = url;
+                                // 取得完了時に、まだ画面内にいる場合のみsrcをセット
+                                if (url && img.dataset.visible === 'true') {
+                                    img.src = url;
+                                } else if (url && img.dataset.visible !== 'true') {
+                                    // すでに画面外に出ている場合は、生成したURLを即座に破棄してメモリリークを防ぐ
+                                    this.onReleaseImage(img.dataset.id);
+                                }
                             });
                         }
                     } else {
+                        img.dataset.visible = 'false'; // 非表示状態を記録
                         if (img.src) {
                             this.onReleaseImage(img.dataset.id);
                             img.removeAttribute('src');
@@ -716,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }, { root: this.mainArea, rootMargin: '200px' });
-        }
+        }   
 
         adjustGridWidth() {
             const mode = this.viewModeSelect.value;
@@ -1049,9 +1066,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const ids = allItems.map(i => i.dataset.id);
                     const start = ids.indexOf(this.lastSelectedId);
                     const end = ids.indexOf(id);
-                    const [min, max] =[Math.min(start, end), Math.max(start, end)];
-                    this.clearSelection();
-                    for (let i = min; i <= max; i++) this.selectById(ids[i], true);
+                    
+                    if (start !== -1 && end !== -1) {
+                        const [min, max] =[Math.min(start, end), Math.max(start, end)];
+                        this.clearSelection();
+                        for (let i = min; i <= max; i++) this.selectById(ids[i], true);
+                    } else {
+                        this.clearSelection();
+                        this.selectById(id, true);
+                        this.lastSelectedId = id;
+                    }
                 } else if (e.ctrlKey || e.metaKey) {
                     this.selectById(id, !isSelected);
                     this.lastSelectedId = id;
@@ -1084,13 +1108,17 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const handleAutoScroll = (e) => {
-                const rect = container.getBoundingClientRect();
+                // メイン領域の場合はスクロールバーを持つ親要素(mainArea)を対象にする
+                const scrollTarget = isMain ? this.ui.mainArea : container;
+                const rect = scrollTarget.getBoundingClientRect();
                 const threshold = 50;
                 const speed = 15;
-                if (e.clientY < rect.top + threshold) container.scrollTop -= speed;
-                else if (e.clientY > rect.bottom - threshold) container.scrollTop += speed;
-                if (e.clientX < rect.left + threshold) container.scrollLeft -= speed;
-                else if (e.clientX > rect.right - threshold) container.scrollLeft += speed;
+                
+                // scrollTarget に対してスクロール位置を操作する
+                if (e.clientY < rect.top + threshold) scrollTarget.scrollTop -= speed;
+                else if (e.clientY > rect.bottom - threshold) scrollTarget.scrollTop += speed;
+                if (e.clientX < rect.left + threshold) scrollTarget.scrollLeft -= speed;
+                else if (e.clientX > rect.right - threshold) scrollTarget.scrollLeft += speed;
             };
 
             const onDragOver = (e) => {
@@ -1160,20 +1188,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!isExternal) return;
                 }
 
+                let isInternalSort = false;
                 try {
-                    const idsJSON = e.dataTransfer.getData('text/plain');
-                    if (idsJSON) {
-                        const ids = JSON.parse(idsJSON);
-                        this.onOrderChanged(ids, refId, isLogicalBefore);
-                    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                        if (this.onExternalFilesDropped) {
-                            const items = e.dataTransfer.items;
-                            const files = e.dataTransfer.files;
-                            this.onExternalFilesDropped(items || files, refId, isLogicalBefore);
+                    const textData = e.dataTransfer.getData('text/plain');
+                    if (textData) {
+                        const ids = JSON.parse(textData);
+                        // 配列であればアプリ内の並べ替え処理として扱う
+                        if (Array.isArray(ids)) {
+                            this.onOrderChanged(ids, refId, isLogicalBefore);
+                            isInternalSort = true;
                         }
                     }
-                } catch (err) { console.error(err); }
-                this.removeMarker();
+                } catch (err) {
+                    // JSONパースに失敗した場合（外部からドロップされたテキスト等）はエラーを無視して次に進む
+                }
+
+// 内部の並べ替え処理が行われなかった場合のみ、外部ファイルのドロップとして処理する
+                if (!isInternalSort && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    if (this.onExternalFilesDropped) {
+                        const items = e.dataTransfer.items;
+                        const files = e.dataTransfer.files;
+                        this.onExternalFilesDropped(items || files, refId, isLogicalBefore);
+                    }
+                }
+
+            this.removeMarker();
             };
 
             const onDragLeave = (e) => {
@@ -1468,15 +1507,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     class FileSystemManager {
 
-        async calculateBaseDimensions(fileItems, baseType) {
+    async calculateBaseDimensions(fileItems, baseType, onProgress) {
             let widths = [];
             let heights = [];
-            for (let item of fileItems) {
-                const file = await item.handle.getFile();
+            // インデックスを使用する for ループに変更
+            for (let i = 0; i < fileItems.length; i++) {
+                const file = await fileItems[i].handle.getFile();
                 const bmp = await createImageBitmap(file);
                 widths.push(bmp.width);
                 heights.push(bmp.height);
                 bmp.close();
+                
+                // コールバックが渡されていれば進捗を通知する
+                if (onProgress) {
+                    onProgress(i + 1, fileItems.length);
+                }
             }
             
             let baseW = 0, baseH = 0;
@@ -1544,6 +1589,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.webkitdirectory = true;
                 input.multiple = true;
                 input.onchange = (e) => resolve(Array.from(e.target.files));
+                window.addEventListener('focus', function onFocus() {
+                    window.removeEventListener('focus', onFocus);
+                    setTimeout(() => resolve(Array.from(input.files || [])), 300);
+                }, { once: true });
                 input.click();
             });
         }
@@ -1588,16 +1637,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
-                const file = await item.handle.getFile();
-                const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+                let ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+                // リサイズされた場合は中身がJPEGに変換されているため、拡張子を合わせる
+                if (resizeOpts && resizeOpts.mode !== 'none') ext = 'jpg'; 
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
                 
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
                 const writable = await newFileHandle.createWritable();
                 
+                const file = await item.handle.getFile(); // ← この行を追加してファイルを取得
                 if (resizeOpts && resizeOpts.mode !== 'none') {
-                    const blob = await this.processImageResize(file, resizeOpts);
+                const blob = await this.processImageResize(file, resizeOpts);
                     await writable.write(blob);
                 } else {
                     await writable.write(file);
@@ -1611,8 +1662,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const zip = new ZipDocument();
             const padLength = Math.max(3, String(fileItems.length).length);
             for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i];
-                const ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+               const item = fileItems[i];
+               let ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
+                // リサイズされた場合は中身がJPEGに変換されているため、拡張子を合わせる
+                if (resizeOpts && resizeOpts.mode !== 'none') ext = 'jpg'; 
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
                 
@@ -2215,15 +2268,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 zip.addFile('item/image/', new Uint8Array(0));
             }
 
+
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const file = await item.handle.getFile();
                 let dataToWrite = file;
                 let w, h;
+                
+                // 出力用のファイル名をベースとして定義
+                let imgName = item.name; 
 
                 if (resizeOpts && resizeOpts.mode !== 'none') {
                     const blob = await this.fs.processImageResize(file, resizeOpts);
-                    dataToWrite = new File([blob], item.name, { type: 'image/jpeg' });
+                    // リサイズ時は中身がJPEGになるため、ZIPに格納するファイル名も.jpgに書き換える
+                    imgName = item.name.replace(/\.[^/.]+$/, "") + ".jpg"; 
+                    dataToWrite = new File([blob], imgName, { type: 'image/jpeg' });
                     const bmp = await createImageBitmap(dataToWrite);
                     w = bmp.width; h = bmp.height; bmp.close();
                 } else {
@@ -2231,12 +2290,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     w = bmp.width; h = bmp.height; bmp.close();
                 }
 
-                if (metadata.includeImages || item.name.startsWith('blank_')) {
+                // 古いitem.nameではなく、変換を考慮したimgNameを使用する
+                if (metadata.includeImages || imgName.startsWith('blank_')) {
                     const fileData = new Uint8Array(await dataToWrite.arrayBuffer());
-                    await zip.addFileAsync(`item/image/${item.name}`, new Blob([fileData]));
+                    // addFileAsync と Blob生成の二度手間を省き、直接バイナリを流し込む
+                    zip.addFile(`item/image/${imgName}`, fileData);
                 }
                 
-                const ext = item.name.split('.').pop().toLowerCase();
+                // 正しい拡張子に基づいてMIMEタイプを判定する
+                const ext = imgName.split('.').pop().toLowerCase();
                 let mime = 'image/jpeg';
                 if (ext === 'png') mime = 'image/png';
                 else if (ext === 'gif') mime = 'image/gif';
@@ -2248,7 +2310,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const numStr = String(index).padStart(padLength, '0');
                 
                 const imgId = isCover ? 'cover' : `img-${numStr}`;
-                const imgName = item.name; 
+                // (元の `const imgName = item.name;` は上で宣言済みのため削除し、そのまま変数を利用します)
+
+
                 const escapedImgName = this.fs._escapeXml(imgName);
                 const xhtmlId = isCover ? 'p-cover' : `p-${numStr}`;
                 const xhtmlName = isCover ? 'p-cover.xhtml' : `p-${numStr}.xhtml`;
@@ -2954,7 +3018,7 @@ ${spineStr}</spine>
                 const newItems = [];
                 for (let i = 0; i < filesOrHandles.length; i++) {
                     const f = filesOrHandles[i];
-                    const name = isHandles ? f.name : f.name;
+                    const name = f.name;
                     const ext = name.split('.').pop().toLowerCase();
                     
                     if (USER_SETTINGS.validExts.includes(ext)) {
@@ -3075,9 +3139,14 @@ ${spineStr}</spine>
             
             if (resizeModeVal !== 'none') {
                 this.setProcessingState(true);
-                this.ui.updateProgress(100, '画像サイズを計算中...');
+                // 初期状態は0%からスタートする
+                this.ui.updateProgress(0, '画像サイズを計算中...');
                 try {
-                    const dims = await this.fs.calculateBaseDimensions(this.fileItems, resizeBaseVal);
+                    // コールバック関数を渡し、計算ごとにプログレスバーを更新させる
+                    const dims = await this.fs.calculateBaseDimensions(this.fileItems, resizeBaseVal, (current, total) => {
+                        const percent = (current / total) * 100;
+                        this.ui.updateProgress(percent, `画像サイズを計算中... ${current} / ${total}`);
+                    });
                     resizeOpts.baseW = dims.baseW;
                     resizeOpts.baseH = dims.baseH;
                 } catch(e) {
@@ -3223,7 +3292,6 @@ ${spineStr}</spine>
                 if (!confirm(USER_SETTINGS.msgConfirmReset)) return;
             }
             this.resetMemory();
-            this.fileItems.forEach(item => URL.revokeObjectURL(item.objectUrl));
             this.fileItems = [];
             this.historyUndo = [];
             this.historyRedo = [];
