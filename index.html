@@ -63,15 +63,15 @@
         h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
         
         /* モダンな入力フォームスタイル */
-        select, input[type="text"], input[type="number"] {
+        select, input[type="text"], input[type="number"], textarea {
             padding: 8px 12px; border-radius: 6px; background: var(--input-bg);
             color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;
             font-size: 13px; transition: border-color 0.2s, box-shadow 0.2s;
         }
-        select:hover, input[type="text"]:hover, input[type="number"]:hover {
+        select:hover, input[type="text"]:hover, input[type="number"]:hover, textarea:hover {
             border-color: var(--primary-color);
         }
-        select:focus, input[type="text"]:focus, input[type="number"]:focus {
+        select:focus, input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
             outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
         }
 
@@ -82,7 +82,7 @@
             overflow-y: scroll; overflow-x: hidden;
         }
         .sidebar-area {
-            flex: 1; min-width: 125px; max-width: 175px;
+            flex: 1; min-width: 125px; max-width: 200px;
             background: var(--input-bg); border: 1px solid var(--border-color);
             border-radius: 4px; padding: 0;
             overflow: auto; display: flex; flex-direction: column;
@@ -173,7 +173,7 @@
         .selected { border-color: var(--primary-color) !important; background-color: rgba(74, 144, 226, 0.2) !important; }
         
         /* --- アクセシビリティと視認性の向上 --- */
-        button:focus-visible, select:focus-visible, input:focus-visible {
+        button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
             outline: 2px solid var(--primary-color);
             outline-offset: 2px;
         }
@@ -296,7 +296,7 @@
                 flex-wrap: wrap; /* 横スクロールではなく折り返してすべて表示する */
                 gap: 8px; 
                 padding: 6px 10px 10px 10px; 
-                overflow: visible !important; /* ★修正: はみ出し（ドロップダウン）を許可する */
+                overflow: visible !important; /* はみ出し（ドロップダウン）を許可する */
             }
             
             /* グループをプルダウンボタン化 */
@@ -375,6 +375,7 @@
                             <option value="merge-rename">➕ 見開きを結合して連番保存</option>
                             <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
                             <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
+                            <option value="pdf-both">🔗 連結PDF ＋ 📚 サムネイル一覧PDF</option>
                             <option value="epub">📘 EPUB形式で保存</option>
                         </select>
                     </div>
@@ -407,9 +408,10 @@
                     <div class="ribbon-col">
                         <select id="resize-mode" title="処理方法">
                             <option value="none" selected>調整なし</option>
-                            <option value="fit-width">幅を揃える</option>
-                            <option value="fit-height">高さを揃える</option>
-                            <option value="pad-white">余白を白埋め (中央配置)</option>
+                            <option value="fit-width">横に揃える</option>
+                            <option value="fit-height">縦に揃える</option>
+                            <option value="pad-white-h">横に揃えて余白を白埋め</option>
+                            <option value="pad-white-v">縦に揃えて余白を白埋め</option>
                         </select>
                         <select id="resize-base" title="基準とするサイズ" disabled>
                             <option value="max" selected>最大サイズに合わせる</option>
@@ -483,7 +485,7 @@
 
     <div class="app-layout">
         <div class="main-area">
-            <div class="area-title">サムネイル一覧</div>
+            <div class="area-title">サムネイル一覧 <span id="current-folder-name" style="font-weight:normal; font-size:11px; margin-left:8px;"></span></div>
             <!-- クリック可能な案内メッセージを追加 -->
             <div id="empty-message" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: calc(100% - 30px); color: var(--text-sub); cursor: pointer; user-select: none;">
                 <div style="font-size: 14px; font-weight: bold;">クリックしてフォルダを選択</div>
@@ -493,7 +495,12 @@
             <div id="main-grid" class="thumb-grid" style="display: none;"></div>
         </div>
         <div class="sidebar-area">
-            <div class="area-title">ファイル名一覧</div>
+            <div class="area-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>ファイル名一覧</span>
+                <button id="btn-auto-sort" class="ribbon-btn" style="min-height:20px; padding:2px 6px !important; min-width:auto; border:1px solid var(--border-color)!important;" title="自動並び替え">
+                    <span class="icon" style="font-size:12px; margin:0;">並び替え</span>
+                </button>
+            </div>
             <div id="sidebar-list" style="flex: 1;"></div>
         </div>
     </div>
@@ -527,8 +534,12 @@
                 EPUB内に画像ファイルを含める（オフの場合は空のimageフォルダを生成）
             </label>
             <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;">
-                <input type="checkbox" id="epub-export-order" checked style="width: auto; margin: 0; cursor: pointer;">
+                <input type="checkbox" id="epub-export-order" style="width: auto; margin: 0; cursor: pointer;">
                 画像の並び順を記録したテキストファイルを同時に出力する
+            </label>
+            <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;">
+                <input type="checkbox" id="epub-export-settings" checked style="width: auto; margin: 0; cursor: pointer;">
+                現在の設定（JSON）を同時に出力する
             </label>
         </div>
 
@@ -536,6 +547,28 @@
             <button id="epub-btn-reset" style="background: var(--border-color); margin-right: auto; color: var(--text-main);">リセット</button>
             <button id="epub-btn-close" style="background: #6c757d;">閉じる</button>
             <button id="epub-btn-start" style="background: var(--primary-color);">実行</button>
+        </div>
+    </div>
+</div>
+
+<!-- 自動並び替え用モーダル -->
+<div id="auto-sort-modal" class="modal-overlay">
+    <div class="modal-content" style="width: 400px;">
+        <h2>自動並び替え</h2>
+        <p style="font-size:12px; color:var(--text-sub);">指定した文字列（数字等）を含む順に画像をグループ化して並び替えます。改行やスペース、タブ区切りで入力してください。</p>
+        <textarea id="auto-sort-text" rows="10" style="width:100%; box-sizing:border-box; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); padding:8px; border-radius:4px; resize:vertical; font-family:monospace;"></textarea>
+        
+        <!-- ★追加: 表紙固定オプション -->
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; font-size: 13px; color: var(--text-main); cursor: pointer;">
+                <input type="checkbox" id="auto-sort-keep-first" checked style="width: auto; margin: 0; cursor: pointer;">
+                1枚目の画像（表紙）を先頭に固定する
+            </label>
+        </div>
+
+        <div class="modal-actions">
+            <button id="auto-sort-btn-close" style="background: #6c757d;">キャンセル</button>
+            <button id="auto-sort-btn-start" style="background: var(--primary-color);">実行</button>
         </div>
     </div>
 </div>
@@ -559,13 +592,14 @@
                 <li><b>複数選択:</b> <code>Shift</code>キーで範囲選択、<code>Ctrl</code>(Macは<code>Cmd</code>)キーで個別選択が可能です。</li>
                 <li><b>外部からの追加:</b> PCのフォルダから直接特定の場所に画像をドロップして割り込ませることも可能です。</li>
                 <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます（目次情報も復元されます）。</li>
-                <li><b>設定の復元:</b> 出力した「現在の設定（.json）」を画面にドロップすると、保存した設定を自動で復元できます。</li>
+                <li><b>設定の復元:</b> 出力した「現在の設定（.json）」を画面（画像上含む）のどこにドロップしても設定が復元されます。</li>
+                <li><b>🔃 自動並び替え:</b> ファイル名一覧の右上ボタンから、改行やスペース、タブ区切りで数字や文字列を入力すると、その文字が含まれる順序にグループ化して一括で並び替えます。</li>
             </ul>
             
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集機能の仕組み</h3>
             <ul style="padding-left: 20px; margin-top: 5px;">
                 <li><b>💾 並び順保存:</b> 現在のファイル名の並び順と目次情報を <code>.txt</code> で出力します。次回作業時にドロップして復元するためのバックアップ用です。</li>
-                <li><b>⚙️ 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。画面にドロップすると設定が復元されます。</li>
+                <li><b>⚙️ 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。</li>
                 <li><b>📑 目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
                 <li><b>📄 白紙挿入:</b> 選択した画像と「全く同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
                 <li><b>🗑 削除:</b> サムネイル一覧とファイル名リストから除外します。なお、PC上の元の画像ファイルが削除されることはありません。</li>
@@ -578,8 +612,10 @@
                 <li><b>連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
                 <li><b>見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
                 <li><b>サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
-                <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定は <code>standard.opf</code> のページ進行方向としてメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
+                <li><b>連結PDF ＋ サムネイル一覧PDF:</b> 1ページずつのPDFと、俯瞰できるサムネイル一覧PDFを同時に出力します。</li>
+                <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定はメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
             </ul>
+
         </div>
         <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
             <button id="manual-btn-close" style="background: var(--primary-color); padding: 10px 30px;">閉じる</button>
@@ -620,6 +656,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.btnAddBlank = document.getElementById('btn-add-blank');
             this.btnDelete = document.getElementById('btn-delete');
             
+            this.currentFolderName = document.getElementById('current-folder-name');
+            
             this.btnExportOrder = document.getElementById('btn-export-order');
             this.btnExportSettings = document.getElementById('btn-export-settings');
             
@@ -638,26 +676,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // グループ別プルダウンの制御（モバイル・タッチデバイス用）
             const ribbonGroups = document.querySelectorAll('.ribbon-group');
             ribbonGroups.forEach(group => {
-
-                    group.addEventListener('click', (e) => {
-                        // ドロップダウン内の操作
-                        if (e.target.closest('.ribbon-items')) {
-                            // ボタンをクリックした時だけドロップダウンを閉じる
-                            // （selectやinputの操作中は閉じない）
-                            if (e.target.matches('button, button *')) {
-                                ribbonGroups.forEach(g => g.classList.remove('active'));
-                            }
-                            return;
+                group.addEventListener('click', (e) => {
+                    if (e.target.closest('.ribbon-items')) {
+                        if (e.target.matches('button, button *')) {
+                            ribbonGroups.forEach(g => g.classList.remove('active'));
                         }
-
-                        const isActive = group.classList.contains('active');
-
-                    ribbonGroups.forEach(g => g.classList.remove('active')); // 他のグループを閉じる
+                        return;
+                    }
+                    const isActive = group.classList.contains('active');
+                    ribbonGroups.forEach(g => g.classList.remove('active'));
                     if (!isActive) group.classList.add('active');
                 });
             });
 
-            // リボン外の領域をクリックしたらすべてのプルダウンを閉じる
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.ribbon-group')) {
                     ribbonGroups.forEach(g => g.classList.remove('active'));
@@ -666,12 +697,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.saveFormatSelect.addEventListener('change', (e) => {
                 const val = e.target.value;
-                const isPdf = val === 'pdf' || val === 'pdf-sheet' || val === 'merge-pdf';
-                this.pdfOptions.style.display = isPdf ? 'flex' : 'none';
-                
+                const isPdf = val.includes('pdf');
+
                 if (val === 'pdf-sheet') {
+                    this.pdfOptions.style.display = 'none';
                     this.pdfQuality.value = 100;
                 } else {
+                    this.pdfOptions.style.display = isPdf ? 'flex' : 'none';
                     if (isPdf && this.pdfQuality.value === '100') {
                         this.pdfQuality.value = 30;
                     }
@@ -690,9 +722,16 @@ document.addEventListener('DOMContentLoaded', () => {
             this.manualModal = document.getElementById('manual-modal');
             this.manualBtnClose = document.getElementById('manual-btn-close');
 
+            // ★起動時のサムネイルサイズ自動計算（見開き5組＝10枚分）
+            const containerWidth = this.mainArea.clientWidth || window.innerWidth * 0.75;
+            let initialThumbSize = Math.floor((containerWidth - 35) / 10);
+            if (initialThumbSize < 80) initialThumbSize = 80;
+            if (initialThumbSize > 300) initialThumbSize = 300;
+            this.sizeSlider.value = initialThumbSize;
+            document.documentElement.style.setProperty('--thumb-size', `${initialThumbSize}px`);
+
             this.btnManual.addEventListener('click', () => this.manualModal.style.display = 'flex');
             this.manualBtnClose.addEventListener('click', () => this.manualModal.style.display = 'none');
-
             this.manualModal.addEventListener('click', (e) => {
                 if (e.target === this.manualModal) this.manualModal.style.display = 'none';
             });
@@ -712,20 +751,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 entries.forEach(entry => {
                     const img = entry.target;
                     if (entry.isIntersecting) {
-                        img.dataset.visible = 'true'; // 表示状態を記録
+                        img.dataset.visible = 'true';
                         if (!img.src) {
                             this.onRequestImage(img.dataset.id).then(url => {
-                                // 取得完了時に、まだ画面内にいる場合のみsrcをセット
                                 if (url && img.dataset.visible === 'true') {
                                     img.src = url;
                                 } else if (url && img.dataset.visible !== 'true') {
-                                    // すでに画面外に出ている場合は、生成したURLを即座に破棄してメモリリークを防ぐ
                                     this.onReleaseImage(img.dataset.id);
                                 }
                             });
                         }
                     } else {
-                        img.dataset.visible = 'false'; // 非表示状態を記録
+                        img.dataset.visible = 'false';
                         if (img.src) {
                             this.onReleaseImage(img.dataset.id);
                             img.removeAttribute('src');
@@ -865,6 +902,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateProgress(0, '');
             this.setButtonsState(false, false);
             
+            if (this.currentFolderName) this.currentFolderName.textContent = '';
+            
             this.emptyMessage.style.display = 'flex';
             this.mainGrid.style.display = 'none';
         }
@@ -915,10 +954,11 @@ document.addEventListener('DOMContentLoaded', () => {
             this.inModified = document.getElementById('epub-modified');
             this.chkIncludeImages = document.getElementById('epub-include-images');
             this.chkExportOrder = document.getElementById('epub-export-order');
+            this.chkExportSettings = document.getElementById('epub-export-settings');
             this.btnClose = document.getElementById('epub-btn-close');
             this.btnStart = document.getElementById('epub-btn-start');
             
-            this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: true };
+            this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: true };
 
             const focusOrder = [
                 this.inTitle, this.inTitleRuby, this.inAuthor, this.inAuthorRuby,
@@ -944,8 +984,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.inAuthor.value = ''; this.inAuthorRuby.value = '';
                 this.inPublisher.value = ''; this.inPublisherRuby.value = '';
                 this.inBookId.value = ''; this.inModified.value = '';
-                this.chkIncludeImages.checked = true; this.chkExportOrder.checked = true;
-                this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: true };
+                this.chkIncludeImages.checked = true; this.chkExportOrder.checked = false; this.chkExportSettings.checked = true;
+                this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: true };
             });
 
             this.btnClose.addEventListener('click', () => {
@@ -965,7 +1005,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     bookId: this.inBookId.value.trim() || 'urn:uuid:' + this._generateUUID(),
                     modified: this.inModified.value,
                     includeImages: this.chkIncludeImages.checked,
-                    exportOrder: this.chkExportOrder.checked
+                    exportOrder: this.chkExportOrder.checked,
+                    exportSettings: this.chkExportSettings.checked
                 };
                 this.hide();
                 if (this.resolveFunc) this.resolveFunc(this.savedData);
@@ -991,6 +1032,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.inModified.value = this.savedData.modified;
             this.chkIncludeImages.checked = this.savedData.includeImages;
             this.chkExportOrder.checked = this.savedData.exportOrder;
+            this.chkExportSettings.checked = this.savedData.exportSettings !== false;
             
             this.overlay.style.display = 'flex';
             
@@ -1015,7 +1057,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 bookId: this.inBookId.value.trim(),
                 modified: this.inModified.value,
                 includeImages: this.chkIncludeImages.checked,
-                exportOrder: this.chkExportOrder.checked
+                exportOrder: this.chkExportOrder.checked,
+                exportSettings: this.chkExportSettings.checked
             };
         }
 
@@ -1030,7 +1073,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.inBookId.value = this.savedData.bookId || '';
             this.inModified.value = this.savedData.modified || '';
             this.chkIncludeImages.checked = this.savedData.includeImages !== false;
-            this.chkExportOrder.checked = this.savedData.exportOrder !== false;
+            this.chkExportOrder.checked = this.savedData.exportOrder === true;
+            this.chkExportSettings.checked = this.savedData.exportSettings !== false;
         }
     }
 
@@ -1108,13 +1152,11 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const handleAutoScroll = (e) => {
-                // メイン領域の場合はスクロールバーを持つ親要素(mainArea)を対象にする
-                const scrollTarget = isMain ? this.ui.mainArea : container;
+                const scrollTarget = isMain ? this.ui.mainArea : container.parentElement;
                 const rect = scrollTarget.getBoundingClientRect();
                 const threshold = 50;
                 const speed = 15;
                 
-                // scrollTarget に対してスクロール位置を操作する
                 if (e.clientY < rect.top + threshold) scrollTarget.scrollTop -= speed;
                 else if (e.clientY > rect.bottom - threshold) scrollTarget.scrollTop += speed;
                 if (e.clientX < rect.left + threshold) scrollTarget.scrollLeft -= speed;
@@ -1193,17 +1235,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const textData = e.dataTransfer.getData('text/plain');
                     if (textData) {
                         const ids = JSON.parse(textData);
-                        // 配列であればアプリ内の並べ替え処理として扱う
                         if (Array.isArray(ids)) {
                             this.onOrderChanged(ids, refId, isLogicalBefore);
                             isInternalSort = true;
                         }
                     }
-                } catch (err) {
-                    // JSONパースに失敗した場合（外部からドロップされたテキスト等）はエラーを無視して次に進む
-                }
+                } catch (err) {}
 
-// 内部の並べ替え処理が行われなかった場合のみ、外部ファイルのドロップとして処理する
                 if (!isInternalSort && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     if (this.onExternalFilesDropped) {
                         const items = e.dataTransfer.items;
@@ -1211,8 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         this.onExternalFilesDropped(items || files, refId, isLogicalBefore);
                     }
                 }
-
-            this.removeMarker();
+                this.removeMarker();
             };
 
             const onDragLeave = (e) => {
@@ -1507,23 +1544,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     class FileSystemManager {
 
-    async calculateBaseDimensions(fileItems, baseType, onProgress) {
+        async calculateBaseDimensions(fileItems, baseType, onProgress) {
             let widths = [];
             let heights = [];
-            // インデックスを使用する for ループに変更
             for (let i = 0; i < fileItems.length; i++) {
                 const file = await fileItems[i].handle.getFile();
                 const bmp = await createImageBitmap(file);
                 widths.push(bmp.width);
                 heights.push(bmp.height);
                 bmp.close();
-                
-                // コールバックが渡されていれば進捗を通知する
-                if (onProgress) {
-                    onProgress(i + 1, fileItems.length);
-                }
+                if (onProgress) onProgress(i + 1, fileItems.length);
             }
-            
             let baseW = 0, baseH = 0;
             if (baseType === 'max') {
                 baseW = Math.max(...widths);
@@ -1556,14 +1587,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetW = Math.max(1, Math.round(bmp.width * scale));
                 targetH = opts.baseH;
                 drawW = targetW; drawH = targetH;
-            } else if (opts.mode === 'pad-white') {
-                targetW = opts.baseW;
-                targetH = opts.baseH;
-                const fitScale = Math.min(opts.baseW / bmp.width, opts.baseH / bmp.height);
-                drawW = Math.max(1, Math.round(bmp.width * fitScale));
-                drawH = Math.max(1, Math.round(bmp.height * fitScale));
-                dx = (opts.baseW - drawW) / 2;
-                dy = (opts.baseH - drawH) / 2;
+            } else if (opts.mode === 'pad-white-v') {
+                targetW = opts.baseW; targetH = opts.baseH;
+                const fitScale = opts.baseH / bmp.height;
+                drawW = Math.max(1, Math.round(bmp.width * fitScale)); drawH = opts.baseH;
+                dx = (opts.baseW - drawW) / 2; dy = 0;
+            } else if (opts.mode === 'pad-white-h') {
+                targetW = opts.baseW; targetH = opts.baseH;
+                const fitScale = opts.baseW / bmp.width;
+                drawW = opts.baseW; drawH = Math.max(1, Math.round(bmp.height * fitScale));
+                dx = 0; dy = (opts.baseH - drawH) / 2;
             }
             
             const canvas = new OffscreenCanvas(targetW, targetH);
@@ -1602,15 +1635,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let count = 0;
             for await (const entry of dirHandle.values()) {
                 if (entry.kind === 'file') {
-                    if (entry.name.startsWith('.')) continue; // ★追加: 隠しファイルを除外
+                    if (entry.name.startsWith('.')) continue; 
                     const ext = entry.name.split('.').pop().toLowerCase();
                     if (USER_SETTINGS.validExts.includes(ext)) {
                         items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null, tocName: null });
                     }
                 }
-                if (++count % 100 === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
+                if (++count % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
             }
             await new Promise(resolve => setTimeout(resolve, 0));
             items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
@@ -1621,14 +1652,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const items =[];
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                if (file.name.startsWith('.')) continue; // ★追加: 隠しファイルを除外
+                if (file.name.startsWith('.')) continue;
                 const ext = file.name.split('.').pop().toLowerCase();
                 if (USER_SETTINGS.validExts.includes(ext)) {
                     items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null, tocName: null });
                 }
-                if (i % 100 === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
+                if (i % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
             }
             await new Promise(resolve => setTimeout(resolve, 0));
             items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
@@ -1640,17 +1669,15 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 let ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                // リサイズされた場合は中身がJPEGに変換されているため、拡張子を合わせる
                 if (resizeOpts && resizeOpts.mode !== 'none') ext = 'jpg'; 
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
                 
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
                 const writable = await newFileHandle.createWritable();
-                
-                const file = await item.handle.getFile(); // ← この行を追加してファイルを取得
+                const file = await item.handle.getFile();
                 if (resizeOpts && resizeOpts.mode !== 'none') {
-                const blob = await this.processImageResize(file, resizeOpts);
+                    const blob = await this.processImageResize(file, resizeOpts);
                     await writable.write(blob);
                 } else {
                     await writable.write(file);
@@ -1666,11 +1693,9 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < fileItems.length; i++) {
                const item = fileItems[i];
                let ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                // リサイズされた場合は中身がJPEGに変換されているため、拡張子を合わせる
                 if (resizeOpts && resizeOpts.mode !== 'none') ext = 'jpg'; 
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
-                
                 const file = await item.handle.getFile();
                 if (resizeOpts && resizeOpts.mode !== 'none') {
                     const blob = await this.processImageResize(file, resizeOpts);
@@ -1678,7 +1703,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     await zip.addFileAsync(newName, file);
                 }
-                
                 onProgress(i + 1, fileItems.length, newName);
                 await new Promise(resolve => setTimeout(resolve, 0)); 
             }
@@ -1705,9 +1729,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw e;
                 }
             }
-
             const blob = await this._runPdfWorker(fileItems, quality, onProgress, resizeOpts);
-
             if (handle) {
                 const writable = await handle.createWritable();
                 await writable.write(blob);
@@ -1728,7 +1750,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let i = 0; i < fileItems.length; i++) {
                     filesData.push({ file: await fileItems[i].handle.getFile() });
                 }
-
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
@@ -1748,12 +1769,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const s = resizeOpts.baseH / bitmap.height;
                                     targetW = Math.max(1, Math.round(bitmap.width * s)); targetH = resizeOpts.baseH;
                                     drawW = targetW; drawH = targetH;
-                                } else if (resizeOpts && resizeOpts.mode === 'pad-white') {
+                                } else if (resizeOpts && resizeOpts.mode === 'pad-white-v') {
                                     targetW = resizeOpts.baseW; targetH = resizeOpts.baseH;
-                                    const fitScale = Math.min(resizeOpts.baseW / bitmap.width, resizeOpts.baseH / bitmap.height);
-                                    drawW = Math.max(1, Math.round(bitmap.width * fitScale));
-                                    drawH = Math.max(1, Math.round(bitmap.height * fitScale));
-                                    dx = (targetW - drawW) / 2; dy = (targetH - drawH) / 2;
+                                    const fitScale = resizeOpts.baseH / bitmap.height;
+                                    drawW = Math.max(1, Math.round(bitmap.width * fitScale)); drawH = resizeOpts.baseH;
+                                    dx = (targetW - drawW) / 2; dy = 0;
+                                } else if (resizeOpts && resizeOpts.mode === 'pad-white-h') {
+                                    targetW = resizeOpts.baseW; targetH = resizeOpts.baseH;
+                                    const fitScale = resizeOpts.baseW / bitmap.width;
+                                    drawW = resizeOpts.baseW; drawH = Math.max(1, Math.round(bitmap.height * fitScale));
+                                    dx = 0; dy = (targetH - drawH) / 2;
                                 }
 
                                 const scale = quality / 100;
@@ -1781,20 +1806,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = new Blob([workerCode], { type: 'text/javascript' });
                 const workerUrl = URL.createObjectURL(blob);
                 const worker = new Worker(workerUrl);
-
                 worker.onmessage = (e) => {
                     const msg = e.data;
-                    if (msg.type === 'progress') {
-                        onProgress(msg.current, msg.total, msg.info);
-                    } else if (msg.type === 'done') {
-                        URL.revokeObjectURL(workerUrl);
-                        worker.terminate();
-                        resolve(msg.blob);
-                    } else if (msg.type === 'error') {
-                        URL.revokeObjectURL(workerUrl);
-                        worker.terminate();
-                        reject(new Error(msg.error));
-                    }
+                    if (msg.type === 'progress') onProgress(msg.current, msg.total, msg.info);
+                    else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
+                    else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
                 };
                 worker.postMessage({ files: filesData, quality, resizeOpts });
             });
@@ -1815,9 +1831,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw e;
                 }
             }
-
             const blob = await this._runThumbnailPdfWorker(layoutInfo, quality, onProgress);
-
             if (handle) {
                 const writable = await handle.createWritable();
                 await writable.write(blob);
@@ -1843,7 +1857,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         alignX: item.alignX, index: item.index
                     });
                 }
-
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
@@ -1851,7 +1864,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const pdf = new PDFDocument();
                             const processedData =[];
-                            
                             const maxPdfSize = 14400;
                             const scale = Math.min(1, maxPdfSize / totalWidth, maxPdfSize / totalHeight);
                             const pdfTotalWidth = totalWidth * scale;
@@ -1860,19 +1872,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             for (let i = 0; i < filesData.length; i++) {
                                 const item = filesData[i];
                                 const bitmap = await createImageBitmap(item.file);
-                                
-                                const imgW = bitmap.width;
-                                const imgH = bitmap.height;
+                                const imgW = bitmap.width, imgH = bitmap.height;
                                 const fitScale = Math.min(item.w / imgW, item.h / imgH);
-                                const drawW = imgW * fitScale;
-                                const drawH = imgH * fitScale;
+                                const drawW = imgW * fitScale, drawH = imgH * fitScale;
                                 
                                 let offsetX = (item.w - drawW) / 2;
                                 if (item.alignX === 'left') offsetX = 0;
                                 else if (item.alignX === 'right') offsetX = item.w - drawW;
-                                
                                 const offsetY = (item.h - drawH) / 2;
-                                
                                 const textHeight = 20;
                                 const totalDrawH = drawH + textHeight;
                                 
@@ -1881,16 +1888,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const pdfDrawW = drawW * scale;
                                 const pdfDrawH = totalDrawH * scale;
 
-                                const resScale = quality / 100;
+                                const resScale = 1; 
                                 const canvasW = Math.max(1, Math.floor(drawW * resScale));
                                 const canvasH = Math.max(1, Math.floor(totalDrawH * resScale));
 
                                 const canvas = new OffscreenCanvas(canvasW, canvasH);
                                 const ctx = canvas.getContext('2d');
-                                ctx.fillStyle = '#ffffff';
-                                ctx.fillRect(0, 0, canvasW, canvasH);
-                                ctx.imageSmoothingEnabled = true;
-                                ctx.imageSmoothingQuality = 'high';
+                                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH);
+                                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
                                 
                                 const imgCanvasH = Math.floor(drawH * resScale);
                                 ctx.drawImage(bitmap, 0, 0, canvasW, imgCanvasH);
@@ -1899,20 +1904,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const seqNum = String(item.index + 1).padStart(3, '0');
                                 ctx.fillStyle = '#000000';
                                 ctx.font = \`\${Math.floor(14 * resScale)}px sans-serif\`;
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'top';
+                                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
                                 ctx.fillText(seqNum, canvasW / 2, imgCanvasH + (2 * resScale));
 
                                 const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
-                                
-                                processedData.push({
-                                    blob: blob, pdfX: pdfX, pdfY: pdfY, pdfW: pdfDrawW, pdfH: pdfDrawH,
-                                    canvasW: canvasW, canvasH: canvasH
-                                });
-                                
+                                processedData.push({ blob: blob, pdfX: pdfX, pdfY: pdfY, pdfW: pdfDrawW, pdfH: pdfDrawH, canvasW: canvasW, canvasH: canvasH });
                                 self.postMessage({ type: 'progress', current: i + 1, total: filesData.length, info: '画像処理 ' + (i + 1) });
                             }
-                            
                             await pdf.addThumbnailPage(processedData, pdfTotalWidth, pdfTotalHeight);
                             self.postMessage({ type: 'done', blob: pdf.finish() });
                         } catch(err) {
@@ -1923,20 +1921,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = new Blob([workerCode], { type: 'text/javascript' });
                 const workerUrl = URL.createObjectURL(blob);
                 const worker = new Worker(workerUrl);
-
                 worker.onmessage = (e) => {
                     const msg = e.data;
-                    if (msg.type === 'progress') {
-                        onProgress(msg.current, msg.total, msg.info);
-                    } else if (msg.type === 'done') {
-                        URL.revokeObjectURL(workerUrl);
-                        worker.terminate();
-                        resolve(msg.blob);
-                    } else if (msg.type === 'error') {
-                        URL.revokeObjectURL(workerUrl);
-                        worker.terminate();
-                        reject(new Error(msg.error));
-                    }
+                    if (msg.type === 'progress') onProgress(msg.current, msg.total, msg.info);
+                    else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
+                    else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
                 };
                 worker.postMessage({ filesData, totalWidth: layoutInfo.totalWidth, totalHeight: layoutInfo.totalHeight, quality });
             });
@@ -1951,24 +1940,37 @@ document.addEventListener('DOMContentLoaded', () => {
             const fileR = await pair[1].handle.getFile();
             const bmpL = await createImageBitmap(fileL);
             const bmpR = await createImageBitmap(fileR);
-            
             let canvasW, canvasH;
             
-            if (resizeOpts && resizeOpts.mode === 'pad-white') {
-                canvasH = resizeOpts.baseH;
-                canvasW = resizeOpts.baseW * 2; 
+            if (resizeOpts && (resizeOpts.mode === 'pad-white-v' || resizeOpts.mode === 'pad-white-h')) {
+                canvasH = resizeOpts.baseH; canvasW = resizeOpts.baseW * 2; 
                 const canvas = new OffscreenCanvas(canvasW, canvasH);
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH);
                 
-                const fitL = Math.min(resizeOpts.baseW / bmpL.width, resizeOpts.baseH / bmpL.height);
-                const dWL = Math.round(bmpL.width * fitL), dHL = Math.round(bmpL.height * fitL);
-                ctx.drawImage(bmpL, (resizeOpts.baseW - dWL) / 2, (canvasH - dHL) / 2, dWL, dHL);
+                let dxL, dyL, dWL, dHL, fitL;
+                if (resizeOpts.mode === 'pad-white-v') {
+                    fitL = resizeOpts.baseH / bmpL.height;
+                    dWL = Math.round(bmpL.width * fitL); dHL = resizeOpts.baseH;
+                    dxL = (resizeOpts.baseW - dWL) / 2; dyL = 0;
+                } else {
+                    fitL = resizeOpts.baseW / bmpL.width;
+                    dWL = resizeOpts.baseW; dHL = Math.round(bmpL.height * fitL);
+                    dxL = 0; dyL = (resizeOpts.baseH - dHL) / 2;
+                }
+                ctx.drawImage(bmpL, dxL, dyL, dWL, dHL);
                 
-                const fitR = Math.min(resizeOpts.baseW / bmpR.width, resizeOpts.baseH / bmpR.height);
-                const dWR = Math.round(bmpR.width * fitR), dHR = Math.round(bmpR.height * fitR);
-                ctx.drawImage(bmpR, resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2, (canvasH - dHR) / 2, dWR, dHR);
-                
+                let dxR, dyR, dWR, dHR, fitR;
+                if (resizeOpts.mode === 'pad-white-v') {
+                    fitR = resizeOpts.baseH / bmpR.height;
+                    dWR = Math.round(bmpR.width * fitR); dHR = resizeOpts.baseH;
+                    dxR = resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2; dyR = 0;
+                } else {
+                    fitR = resizeOpts.baseW / bmpR.width;
+                    dWR = resizeOpts.baseW; dHR = Math.round(bmpR.height * fitR);
+                    dxR = resizeOpts.baseW; dyR = (resizeOpts.baseH - dHR) / 2;
+                }
+                ctx.drawImage(bmpR, dxR, dyR, dWR, dHR);
                 bmpL.close(); bmpR.close();
                 return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
             } else {
@@ -1976,7 +1978,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 let scaleL1 = tempHeight / bmpL.height, scaleR1 = tempHeight / bmpR.height;
                 let tempWL = bmpL.width * scaleL1, tempWR = bmpR.width * scaleR1;
                 let tempTotalW = tempWL + tempWR;
-                
                 let finalScale = 1;
                 if (resizeOpts && resizeOpts.mode === 'fit-height') finalScale = resizeOpts.baseH / tempHeight;
                 else if (resizeOpts && resizeOpts.mode === 'fit-width') finalScale = (resizeOpts.baseW * 2) / tempTotalW;
@@ -1989,7 +1990,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const canvas = new OffscreenCanvas(canvasW, canvasH);
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH);
-                
                 ctx.drawImage(bmpL, 0, 0, drawWL, canvasH);
                 ctx.drawImage(bmpR, drawWL, 0, drawWR, canvasH);
                 
@@ -2004,12 +2004,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = await this._mergeImagePair(pairs[i], resizeOpts);
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
-                
                 const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
                 const writable = await newFileHandle.createWritable();
                 await writable.write(blob);
                 await writable.close();
-                
                 onProgress(i + 1, pairs.length, newName);
             }
         }
@@ -2021,9 +2019,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = await this._mergeImagePair(pairs[i], resizeOpts);
                 const numStr = String(i + 1).padStart(padLength, '0');
                 const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
-                
                 await zip.addFileAsync(newName, blob);
-                
                 onProgress(i + 1, pairs.length, newName);
                 await new Promise(resolve => setTimeout(resolve, 0)); 
             }
@@ -2050,9 +2046,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw e;
                 }
             }
-
             const blob = await this._runMergedPdfWorker(pairs, quality, onProgress, resizeOpts);
-
             if (handle) {
                 const writable = await handle.createWritable();
                 await writable.write(blob);
@@ -2072,16 +2066,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pairsData =[];
                 for (let i = 0; i < pairs.length; i++) {
                     const pair = pairs[i];
-                    if (pair.length === 1) {
-                        pairsData.push([ { file: await pair[0].handle.getFile() } ]);
-                    } else {
-                        pairsData.push([
-                            { file: await pair[0].handle.getFile() },
-                            { file: await pair[1].handle.getFile() }
-                        ]);
-                    }
+                    if (pair.length === 1) pairsData.push([ { file: await pair[0].handle.getFile() } ]);
+                    else pairsData.push([ { file: await pair[0].handle.getFile() }, { file: await pair[1].handle.getFile() } ]);
                 }
-
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
@@ -2099,68 +2086,68 @@ document.addEventListener('DOMContentLoaded', () => {
                                         tW = resizeOpts.baseW; tH = Math.max(1, Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width)));
                                     } else if (resizeOpts && resizeOpts.mode === 'fit-height') {
                                         tW = Math.max(1, Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height))); tH = resizeOpts.baseH;
-                                    } else if (resizeOpts && resizeOpts.mode === 'pad-white') {
+                                    } else if (resizeOpts && resizeOpts.mode === 'pad-white-v') {
                                         tW = resizeOpts.baseW; tH = resizeOpts.baseH;
-                                        dx = (tW - bitmap.width) / 2; dy = (tH - bitmap.height) / 2;
+                                        dx = (tW - Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height))) / 2; dy = 0;
+                                    } else if (resizeOpts && resizeOpts.mode === 'pad-white-h') {
+                                        tW = resizeOpts.baseW; tH = resizeOpts.baseH;
+                                        dx = 0; dy = (tH - Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width))) / 2;
                                     }
                                     const scale = quality / 100;
                                     width = Math.max(1, Math.floor(tW * scale)); height = Math.max(1, Math.floor(tH * scale));
                                     canvas = new OffscreenCanvas(width, height);
                                     const ctx = canvas.getContext('2d');
                                     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                    if (resizeOpts && resizeOpts.mode === 'pad-white') ctx.drawImage(bitmap, dx * scale, dy * scale, bitmap.width * scale, bitmap.height * scale);
-                                    else ctx.drawImage(bitmap, 0, 0, width, height);
+                                    if (resizeOpts && (resizeOpts.mode === 'pad-white-v' || resizeOpts.mode === 'pad-white-h')) {
+                                        let fitW = (resizeOpts.mode === 'pad-white-v') ? Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height)) : resizeOpts.baseW;
+                                        let fitH = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH : Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width));
+                                        ctx.drawImage(bitmap, dx * scale, dy * scale, fitW * scale, fitH * scale);
+                                    } else ctx.drawImage(bitmap, 0, 0, width, height);
                                     bitmap.close();
                                 } else {
                                     const bmpL = await createImageBitmap(pair[0].file);
                                     const bmpR = await createImageBitmap(pair[1].file);
                                     const scale = quality / 100;
                                     
-                                    if (resizeOpts && resizeOpts.mode === 'pad-white') {
-                                        const origH = resizeOpts.baseH;
-                                        const origW = resizeOpts.baseW * 2;
-                                        width = Math.max(1, Math.floor(origW * scale));
-                                        height = Math.max(1, Math.floor(origH * scale));
+                                    if (resizeOpts && (resizeOpts.mode === 'pad-white-v' || resizeOpts.mode === 'pad-white-h')) {
+                                        const origH = resizeOpts.baseH; const origW = resizeOpts.baseW * 2;
+                                        width = Math.max(1, Math.floor(origW * scale)); height = Math.max(1, Math.floor(origH * scale));
                                         canvas = new OffscreenCanvas(width, height);
                                         const ctx = canvas.getContext('2d');
                                         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
                                         
-                                        const fitL = Math.min(resizeOpts.baseW / bmpL.width, resizeOpts.baseH / bmpL.height);
-                                        const dWL = Math.round(bmpL.width * fitL), dHL = Math.round(bmpL.height * fitL);
-                                        const dxL = (resizeOpts.baseW - dWL) / 2; const dyL = (origH - dHL) / 2;
+                                        let fitL = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH / bmpL.height : resizeOpts.baseW / bmpL.width;
+                                        let dWL = (resizeOpts.mode === 'pad-white-v') ? Math.round(bmpL.width * fitL) : resizeOpts.baseW;
+                                        let dHL = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH : Math.round(bmpL.height * fitL);
+                                        let dxL = (resizeOpts.mode === 'pad-white-v') ? (resizeOpts.baseW - dWL) / 2 : 0;
+                                        let dyL = (resizeOpts.mode === 'pad-white-v') ? 0 : (resizeOpts.baseH - dHL) / 2;
                                         ctx.drawImage(bmpL, dxL * scale, dyL * scale, dWL * scale, dHL * scale);
                                         
-                                        const fitR = Math.min(resizeOpts.baseW / bmpR.width, resizeOpts.baseH / bmpR.height);
-                                        const dWR = Math.round(bmpR.width * fitR), dHR = Math.round(bmpR.height * fitR);
-                                        const dxR = resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2; const dyR = (origH - dHR) / 2;
+                                        let fitR = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH / bmpR.height : resizeOpts.baseW / bmpR.width;
+                                        let dWR = (resizeOpts.mode === 'pad-white-v') ? Math.round(bmpR.width * fitR) : resizeOpts.baseW;
+                                        let dHR = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH : Math.round(bmpR.height * fitR);
+                                        let dxR = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2 : resizeOpts.baseW;
+                                        let dyR = (resizeOpts.mode === 'pad-white-v') ? 0 : (resizeOpts.baseH - dHR) / 2;
                                         ctx.drawImage(bmpR, dxR * scale, dyR * scale, dWR * scale, dHR * scale);
                                     } else {
                                         let tempHeight = Math.max(bmpL.height, bmpR.height);
                                         let scaleL1 = tempHeight / bmpL.height, scaleR1 = tempHeight / bmpR.height;
                                         let tempWL = bmpL.width * scaleL1, tempWR = bmpR.width * scaleR1;
                                         let tempTotalW = tempWL + tempWR;
-                                        
                                         let finalScale = 1;
                                         if (resizeOpts && resizeOpts.mode === 'fit-height') finalScale = resizeOpts.baseH / tempHeight;
                                         else if (resizeOpts && resizeOpts.mode === 'fit-width') finalScale = (resizeOpts.baseW * 2) / tempTotalW;
-                                        
-                                        width = Math.max(1, Math.floor(tempTotalW * finalScale * scale));
-                                        height = Math.max(1, Math.floor(tempHeight * finalScale * scale));
-                                        const drawWL = Math.max(1, Math.floor(tempWL * finalScale * scale));
-                                        const drawWR = width - drawWL;
-                                        
+                                        width = Math.max(1, Math.floor(tempTotalW * finalScale * scale)); height = Math.max(1, Math.floor(tempHeight * finalScale * scale));
+                                        const drawWL = Math.max(1, Math.floor(tempWL * finalScale * scale)); const drawWR = width - drawWL;
                                         canvas = new OffscreenCanvas(width, height);
                                         const ctx = canvas.getContext('2d');
                                         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                        ctx.drawImage(bmpL, 0, 0, drawWL, height);
-                                        ctx.drawImage(bmpR, drawWL, 0, drawWR, height);
+                                        ctx.drawImage(bmpL, 0, 0, drawWL, height); ctx.drawImage(bmpR, drawWL, 0, drawWR, height);
                                     }
                                     bmpL.close(); bmpR.close();
                                 }
-
                                 const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
                                 await pdf.addImagePage(blob, width, height);
-                                
                                 self.postMessage({ type: 'progress', current: i + 1, total: pairs.length, info: 'ページ ' + (i + 1) });
                             }
                             self.postMessage({ type: 'done', blob: pdf.finish() });
@@ -2172,20 +2159,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = new Blob([workerCode], { type: 'text/javascript' });
                 const workerUrl = URL.createObjectURL(blob);
                 const worker = new Worker(workerUrl);
-
                 worker.onmessage = (e) => {
                     const msg = e.data;
-                    if (msg.type === 'progress') {
-                        onProgress(msg.current, msg.total, msg.info);
-                    } else if (msg.type === 'done') {
-                        URL.revokeObjectURL(workerUrl);
-                        worker.terminate();
-                        resolve(msg.blob);
-                    } else if (msg.type === 'error') {
-                        URL.revokeObjectURL(workerUrl);
-                        worker.terminate();
-                        reject(new Error(msg.error));
-                    }
+                    if (msg.type === 'progress') onProgress(msg.current, msg.total, msg.info);
+                    else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
+                    else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
                 };
                 worker.postMessage({ pairs: pairsData, quality, resizeOpts });
             });
@@ -2219,7 +2197,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async generate(fileItems, metadata, viewMode, onProgress, baseName, resizeOpts = null) {
             let handle = null;
-            const suggestedName = baseName ? `${baseName}.epub` : (metadata.title || 'book') + '.epub';
+            // 禁則文字をアンダースコアに変換して安全なファイル名を生成
+            let sanitizedTitle = (metadata.title || '').replace(/[\\/:*?"<>|]/g, '_');
+            const suggestedName = sanitizedTitle ? `${sanitizedTitle}.epub` : (baseName ? `${baseName}.epub` : 'book.epub');
+            
             if ('showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
@@ -2247,11 +2228,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let navList = '';
             let navPoints = ''; 
             let playOrder = 1;  
-            
             let manifestImage = '';
             let manifestXhtml = '';
             let spineStr = '';
-            
             const padLength = Math.max(3, String(fileItems.length).length);
             
             const title = this.fs._escapeXml(metadata.title || 'Untitled');
@@ -2261,28 +2240,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const publisher = this.fs._escapeXml(metadata.publisher || '');
             const publisherRuby = this.fs._escapeXml(metadata.publisherRuby || metadata.publisher || '');
             const bookId = this.fs._escapeXml(metadata.bookId || 'urn:uuid:' + this.fs._generateUUID());
-            
             let modifiedDate = metadata.modified ? metadata.modified + 'T00:00:00Z' : new Date().toISOString().split('.')[0] + 'Z';
-
             let coverW = 0, coverH = 0; 
 
             if (!metadata.includeImages) {
                 zip.addFile('item/image/', new Uint8Array(0));
             }
 
-
             for (let i = 0; i < fileItems.length; i++) {
                 const item = fileItems[i];
                 const file = await item.handle.getFile();
                 let dataToWrite = file;
                 let w, h;
-                
-                // 出力用のファイル名をベースとして定義
                 let imgName = item.name; 
 
                 if (resizeOpts && resizeOpts.mode !== 'none') {
                     const blob = await this.fs.processImageResize(file, resizeOpts);
-                    // リサイズ時は中身がJPEGになるため、ZIPに格納するファイル名も.jpgに書き換える
                     imgName = item.name.replace(/\.[^/.]+$/, "") + ".jpg"; 
                     dataToWrite = new File([blob], imgName, { type: 'image/jpeg' });
                     const bmp = await createImageBitmap(dataToWrite);
@@ -2292,14 +2265,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     w = bmp.width; h = bmp.height; bmp.close();
                 }
 
-                // 古いitem.nameではなく、変換を考慮したimgNameを使用する
                 if (metadata.includeImages || imgName.startsWith('blank_')) {
                     const fileData = new Uint8Array(await dataToWrite.arrayBuffer());
-                    // addFileAsync と Blob生成の二度手間を省き、直接バイナリを流し込む
                     zip.addFile(`item/image/${imgName}`, fileData);
                 }
                 
-                // 正しい拡張子に基づいてMIMEタイプを判定する
                 const ext = imgName.split('.').pop().toLowerCase();
                 let mime = 'image/jpeg';
                 if (ext === 'png') mime = 'image/png';
@@ -2309,27 +2279,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const index = i + 1;
                 const isCover = (index === 1);
                 if (isCover) { coverW = w; coverH = h; }
-                const numStr = String(index).padStart(padLength, '0');
                 
+                const numStr = String(index).padStart(padLength, '0');
                 const imgId = isCover ? 'cover' : `img-${numStr}`;
-                // (元の `const imgName = item.name;` は上で宣言済みのため削除し、そのまま変数を利用します)
-
-
-                const escapedImgName = this.fs._escapeXml(imgName);
+                
+                // 日本語名等の画像をEPUBリーダーで表示させるためのURLエンコード
+                const encodedImgName = encodeURI(imgName);
+                const escapedHref = this.fs._escapeXml(encodedImgName);
+                
                 const xhtmlId = isCover ? 'p-cover' : `p-${numStr}`;
                 const xhtmlName = isCover ? 'p-cover.xhtml' : `p-${numStr}.xhtml`;
                 
-                const xhtml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n<link rel="stylesheet" type="text/css" href="../style/fixed-layout-jp.css"/>\n<meta name="viewport" content="width=${w}, height=${h}"/>\n</head>\n<body>\n<div class="main">\n\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n xmlns:xlink="http://www.w3.org/1999/xlink"\n width="100%" height="100%" viewBox="0 0 ${w} ${h}">\n<image width="${w}" height="${h}" xlink:href="../image/${escapedImgName}"/>\n</svg>\n\n</div>\n</body>\n</html>`;
+                // ${escapedImgName} を ${escapedHref} に書き換え
+                const xhtml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html\n xmlns="http://www.w3.org/1999/xhtml"\n xmlns:epub="http://www.idpf.org/2007/ops"\n xml:lang="ja"\n>\n<head>\n<meta charset="UTF-8"/>\n<title>${title}</title>\n<link rel="stylesheet" type="text/css" href="../style/fixed-layout-jp.css"/>\n<meta name="viewport" content="width=${w}, height=${h}"/>\n</head>\n<body>\n<div class="main">\n\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n xmlns:xlink="http://www.w3.org/1999/xlink"\n width="100%" height="100%" viewBox="0 0 ${w} ${h}">\n<image width="${w}" height="${h}" xlink:href="../image/${escapedHref}"/>\n</svg>\n\n</div>\n</body>\n</html>`;
 
                 zip.addFile(`item/xhtml/${xhtmlName}`, encoder.encode(xhtml));
-                
-                manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${escapedImgName}"${isCover ? ' properties="cover-image"' : ''}/>\n`;
+                // ${escapedImgName} を ${escapedHref} に書き換え
+                manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${escapedHref}"${isCover ? ' properties="cover-image"' : ''}/>\n`;
                 manifestXhtml += `<item media-type="application/xhtml+xml" id="${xhtmlId}" href="xhtml/${xhtmlName}" properties="svg" fallback="${imgId}"/>\n`;
                 
                 if (isCover || item.tocName) {
                     const tocLabel = isCover ? title : this.fs._escapeXml(item.tocName);
                     const navId = isCover ? 'cover' : `navPoint-${playOrder}`;
-                    
                     navList += `<li><a href="xhtml/${xhtmlName}">${tocLabel}</a></li>\n`;
                     navPoints += `<navPoint id="${navId}" playOrder="${playOrder}">\n<navLabel>\n<text>${tocLabel}</text>\n</navLabel>\n<content src="xhtml/${xhtmlName}"/>\n</navPoint>\n`;
                     playOrder++;
@@ -2364,9 +2335,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <text>${title}</text>
 </docTitle>
 <navMap>
-
 ${navPoints}</navMap>
-
 </ncx>`;
             zip.addFile('item/toc.ncx', encoder.encode(ncxXml));
 
@@ -2383,7 +2352,6 @@ ${navPoints}</navMap>
  prefix="rendition: http://www.idpf.org/vocab/rendition/#
          ebpaj: http://www.ebpaj.jp/"
 >
-
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms">
 
 <!-- 作品名 -->
@@ -2440,11 +2408,9 @@ ${manifestXhtml}
 
 <spine toc="ncx" page-progression-direction="${direction}">
 ${spineStr}</spine>
-
 </package>`;
 
             zip.addFile('item/standard.opf', encoder.encode(opf));
-
             const blob = zip.finish();
 
             if (metadata.exportOrder) {
@@ -2468,7 +2434,7 @@ ${spineStr}</spine>
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 1000);
             }
-            return true;
+            return { success: true, filename: suggestedName };
         }
     }
 
@@ -2605,6 +2571,18 @@ ${spineStr}</spine>
             this.ui.btnExportOrder.addEventListener('click', () => this.handleExportOrder());
             this.ui.btnExportSettings.addEventListener('click', () => this.handleExportSettings());
 
+            const btnAutoSort = document.getElementById('btn-auto-sort');
+            const modalAutoSort = document.getElementById('auto-sort-modal');
+            const txtAutoSort = document.getElementById('auto-sort-text');
+            const chkKeepFirst = document.getElementById('auto-sort-keep-first'); // ★追加
+
+            btnAutoSort.addEventListener('click', () => modalAutoSort.style.display = 'flex');
+            document.getElementById('auto-sort-btn-close').addEventListener('click', () => modalAutoSort.style.display = 'none');
+            document.getElementById('auto-sort-btn-start').addEventListener('click', () => {
+                modalAutoSort.style.display = 'none';
+                this.handleAutoSort(txtAutoSort.value, chkKeepFirst.checked); // ★変更: チェック状態を渡す
+            });
+
             window.addEventListener('beforeunload', (e) => {
                 if (this.isProcessing || this.fileItems.length > 0) {
                     e.preventDefault();
@@ -2680,7 +2658,7 @@ ${spineStr}</spine>
                     }
                 } else {
                     for (let f of rawFiles) {
-                        if (!f.name || f.name.startsWith('.')) continue; // ★修正: 隠しファイルを除外
+                        if (!f.name || f.name.startsWith('.')) continue;
                         const ext = f.name.split('.').pop().toLowerCase();
                         if (USER_SETTINGS.validExts.includes(ext)) {
                             filesFallback.push(f);
@@ -2738,16 +2716,13 @@ ${spineStr}</spine>
                     if (match) {
                         const w = parseInt(match[1], 10);
                         const h = parseInt(match[2], 10);
-                        
                         const canvas = new OffscreenCanvas(w, h);
                         const ctx = canvas.getContext('2d');
                         ctx.fillStyle = '#ffffff';
                         ctx.fillRect(0, 0, w, h);
                         const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-                        
                         const dummyFile = new File([blob], name, { type: 'image/jpeg' });
                         const uniqueStr = name.replace('.jpg', '').split('_').pop();
-                        
                         newItems.push({
                             id: `blank_${uniqueStr}`,
                             name: name,
@@ -2775,8 +2750,10 @@ ${spineStr}</spine>
 
         undo() {
             if (this.historyUndo.length === 0 || this.isProcessing) return;
+            // 現在のURLを破棄してから復元する
+            this.fileItems.forEach(item => this.releaseImageUrl(item.id));
             this.historyRedo.push(this.fileItems.map(item => ({...item})));
-            this.fileItems = this.historyUndo.pop();
+            this.fileItems = this.historyUndo.pop().map(item => { item.objectUrl = null; return item; });
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
             this.updateHistoryButtons();
@@ -2785,8 +2762,10 @@ ${spineStr}</spine>
 
         redo() {
             if (this.historyRedo.length === 0 || this.isProcessing) return;
+            // 現在のURLを破棄してから復元する
+            this.fileItems.forEach(item => this.releaseImageUrl(item.id));
             this.historyUndo.push(this.fileItems.map(item => ({...item})));
-            this.fileItems = this.historyRedo.pop();
+            this.fileItems = this.historyRedo.pop().map(item => { item.objectUrl = null; return item; });
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
             this.updateHistoryButtons();
@@ -2838,6 +2817,12 @@ ${spineStr}</spine>
                 return;
             }
             this.ui.renderItems(this.fileItems);
+            
+            // 読み込み完了時にフォルダ名をUIに表示する
+            if (this.ui.currentFolderName) {
+                this.ui.currentFolderName.textContent = this.sourceFolderName ? `[ ${this.sourceFolderName} ]` : '';
+            }
+
             this.sortManager.init();
             this.historyUndo =[];
             this.historyRedo =[];
@@ -2847,21 +2832,16 @@ ${spineStr}</spine>
 
         reorderFiles(draggedIds, targetId, isLogicalBefore) {
             this.saveHistory();
-            
             const draggedItems = this.fileItems.filter(item => draggedIds.includes(item.id));
             let newItems = this.fileItems.filter(item => !draggedIds.includes(item.id));
-            
             let targetIndex = newItems.findIndex(item => item.id === targetId);
             if (targetIndex === -1) targetIndex = newItems.length;
-            
             const insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1;
             newItems.splice(insertIndex, 0, ...draggedItems);
             
             this.fileItems = newItems;
-            
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
-            
             draggedIds.forEach(id => this.sortManager.selectById(id, true));
             this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
         }
@@ -2872,27 +2852,21 @@ ${spineStr}</spine>
                 this.ui.showToast('目次を設定する画像を選択してください。', true);
                 return;
             }
-
             const firstId = selectedEls[0].dataset.id;
             const firstItem = this.fileItems.find(item => item.id === firstId);
             const currentToc = firstItem ? (firstItem.tocName || '') : '';
-
             const newToc = prompt('目次名（チャプター名）を入力してください。\n空欄にすると目次設定を解除します。', currentToc);
             if (newToc === null) return; 
 
             this.saveHistory();
-            
             selectedEls.forEach(el => {
                 const id = el.dataset.id;
                 const item = this.fileItems.find(i => i.id === id);
-                if (item) {
-                    item.tocName = newToc.trim() === '' ? null : newToc.trim();
-                }
+                if (item) item.tocName = newToc.trim() === '' ? null : newToc.trim();
             });
 
             this.ui.renderItems(this.fileItems);
             this.sortManager.init();
-            
             selectedEls.forEach(el => this.sortManager.selectById(el.dataset.id, true));
         }
 
@@ -2962,8 +2936,14 @@ ${spineStr}</spine>
 
         async handleExternalDropToItem(itemsOrFiles, targetId, isLogicalBefore) {
             if (this.isProcessing) return;
-
             const rawFiles = itemsOrFiles instanceof FileList ? Array.from(itemsOrFiles) : Array.from(itemsOrFiles).map(i => i.getAsFile && i.getAsFile() || i);
+            
+            const settingsFile = rawFiles.find(f => f && f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.js')));
+            if (settingsFile) {
+                await this.processLoadSettings(settingsFile);
+                return;
+            }
+
             const txtFile = rawFiles.find(f => f && f.name && f.name.toLowerCase().endsWith('.txt'));
             if (txtFile) {
                 const text = await txtFile.text();
@@ -2984,7 +2964,7 @@ ${spineStr}</spine>
                     const handles = await Promise.all(handlePromises);
                     for (const handle of handles) {
                         if (handle && handle.kind === 'file') {
-                            if (handle.name.startsWith('.')) continue; // ★追加: 隠しファイルを除外
+                            if (handle.name.startsWith('.')) continue; 
                             const ext = handle.name.split('.').pop().toLowerCase();
                             if (USER_SETTINGS.validExts.includes(ext)) {
                                 newItems.push({ handle, name: handle.name });
@@ -2993,7 +2973,7 @@ ${spineStr}</spine>
                     }
                 } else {
                     for (let f of rawFiles) {
-                        if (!f || !f.name || f.name.startsWith('.')) continue; // ★修正: 隠しファイルを除外
+                        if (!f || !f.name || f.name.startsWith('.')) continue; 
                         const ext = f.name.split('.').pop().toLowerCase();
                         if (USER_SETTINGS.validExts.includes(ext)) {
                             newItems.push({ handle: { getFile: async () => f }, name: f.name });
@@ -3014,12 +2994,16 @@ ${spineStr}</spine>
                         };
                     });
 
-                    let targetIndex = this.fileItems.findIndex(item => item.id === targetId);
-                    if (targetIndex === -1) targetIndex = this.fileItems.length;
-                    const insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1;
+                    let insertIndex;
+                    if (!targetId) {
+                        insertIndex = this.fileItems.length;
+                    } else {
+                        let targetIndex = this.fileItems.findIndex(item => item.id === targetId);
+                        if (targetIndex === -1) targetIndex = this.fileItems.length;
+                        insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1;
+                    }
                     
                     this.fileItems.splice(insertIndex, 0, ...addedItems);
-                    
                     this.ui.renderItems(this.fileItems);
                     this.sortManager.init();
                 }
@@ -3041,6 +3025,7 @@ ${spineStr}</spine>
                     const name = f.name;
                     const ext = name.split('.').pop().toLowerCase();
                     
+
                     if (USER_SETTINGS.validExts.includes(ext)) {
                         const id = `added_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${name}`;
                         newItems.push({
@@ -3052,6 +3037,9 @@ ${spineStr}</spine>
                         });
                     }
                 }
+
+                newItems.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
                 if (newItems.length > 0) {
                     this.fileItems.push(...newItems);
                     this.ui.renderItems(this.fileItems);
@@ -3070,7 +3058,6 @@ ${spineStr}</spine>
             const items =[];
             const thumbEls = this.ui.mainGrid.querySelectorAll('.thumb-item');
             const viewMode = this.ui.viewModeSelect.value;
-            
             let maxX = 0;
             let maxY = 0;
 
@@ -3078,7 +3065,6 @@ ${spineStr}</spine>
                 const id = el.dataset.id;
                 const fileItem = this.fileItems.find(i => i.id === id);
                 if (!fileItem) return;
-
                 const img = el.querySelector('img');
                 if (!img) return;
                 const rect = img.getBoundingClientRect();
@@ -3135,7 +3121,6 @@ ${spineStr}</spine>
             if (this.fileItems.length === 0) return;
             const prefix = this.ui.outputFilename.value.trim();
             const baseName = prefix || this.sourceFolderName;
-            
             const orderText = this.fileItems.map(item => item.tocName ? `${item.name}\t${item.tocName}` : item.name).join('\n');
             const blob = new Blob([orderText], { type: 'text/plain' });
             const a = document.createElement('a');
@@ -3146,12 +3131,58 @@ ${spineStr}</spine>
             this.ui.showToast(`並び順テキストを保存しました。`);
         }
 
+        handleAutoSort(text, keepFirst = true) { // ★引数追加
+            if (!text || this.fileItems.length === 0) return;
+            
+            const rawQueries = text.split(/\s+/).map(q => q.trim()).filter(q => q);
+            if (rawQueries.length === 0) return;
+            const queries = [...new Set(rawQueries)];
+
+            const grouped = {};
+            queries.forEach(q => grouped[q] = []);
+            const unmatched = [];
+
+            // ★追加: 1枚目を固定する場合、ソート対象から除外して保存しておく
+            let itemsToSort = this.fileItems;
+            let firstItem = null;
+            if (keepFirst && this.fileItems.length > 0) {
+                firstItem = this.fileItems[0];
+                itemsToSort = this.fileItems.slice(1);
+            }
+
+            // ★変更: this.fileItems ではなく itemsToSort をループさせる
+            itemsToSort.forEach(item => {
+                let matched = false;
+                for (const q of queries) {
+                    if (item.name.includes(q)) {
+                        grouped[q].push(item);
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) unmatched.push(item);
+            });
+
+            const newItems = [];
+            if (firstItem) newItems.push(firstItem); // ★追加: 1枚目を除外していた場合、一番最初に戻す
+            queries.forEach(q => newItems.push(...grouped[q]));
+            newItems.push(...unmatched);
+
+            this.saveHistory();
+            this.fileItems = newItems;
+            this.ui.renderItems(this.fileItems);
+            this.sortManager.init();
+            this.ui.showToast('自動並び替えを完了しました。');
+        }
+
         async handleExecute() {
             if (this.fileItems.length === 0) return;
 
             const saveFormat = this.ui.saveFormatSelect.value;
-            const prefix = this.ui.outputFilename.value.trim();
-            const baseName = prefix || this.sourceFolderName;
+            const rawPrefix = this.ui.outputFilename.value.trim();
+            const prefix = rawPrefix.replace(/[\\/:*?"<>|]/g, '_');
+            const safeFolderName = this.sourceFolderName ? this.sourceFolderName.replace(/[\\/:*?"<>|]/g, '_') : '';
+            const baseName = prefix || safeFolderName;
 
             const resizeModeVal = this.ui.resizeModeSelect.value;
             const resizeBaseVal = this.ui.resizeBaseSelect.value;
@@ -3159,10 +3190,8 @@ ${spineStr}</spine>
             
             if (resizeModeVal !== 'none') {
                 this.setProcessingState(true);
-                // 初期状態は0%からスタートする
                 this.ui.updateProgress(0, '画像サイズを計算中...');
                 try {
-                    // コールバック関数を渡し、計算ごとにプログレスバーを更新させる
                     const dims = await this.fs.calculateBaseDimensions(this.fileItems, resizeBaseVal, (current, total) => {
                         const percent = (current / total) * 100;
                         this.ui.updateProgress(percent, `画像サイズを計算中... ${current} / ${total}`);
@@ -3185,14 +3214,20 @@ ${spineStr}</spine>
                     return; 
                 }
                 this.setProcessingState(true);
-                
                 try {
-                    const success = await this.epubGen.generate(this.fileItems, metadata, this.ui.viewModeSelect.value, (current, total, info) => {
+                    const result = await this.epubGen.generate(this.fileItems, metadata, this.ui.viewModeSelect.value, (current, total, info) => {
                         const percent = (current / total) * 100;
                         const text = USER_SETTINGS.msgSavingEpub.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                         this.ui.updateProgress(percent, text);
                     }, baseName, resizeOpts);
-                    if (success) this.ui.showToast(`EPUBを保存しました。`);
+                    
+                    if (result && result.success) {
+                        this.ui.showToast(`EPUBを保存しました。`);
+                        if (metadata.exportSettings) {
+                            // Epubファイル名からサニタイズ済みのベース名を抽出してJSON名に使う
+                            this.saveSettings(result.filename.replace(/\.epub$/i, ''));
+                        }
+                    }
                 } catch (e) {
                     console.error(e);
                     if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true);
@@ -3254,33 +3289,43 @@ ${spineStr}</spine>
                         }, baseName, prefix, resizeOpts);
                         this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
                     }
-                } else if (saveFormat === 'pdf' || saveFormat === 'pdf-sheet' || saveFormat === 'merge-pdf') {
+                } else if (saveFormat.includes('pdf')) {
+                    // 入力欄の縮小率（1～100の範囲）
                     const quality = Math.max(1, Math.min(100, parseInt(this.ui.pdfQuality.value, 10) || 30));
-                    let success = false;
+                    let success1 = false, success2 = false;
                     
-                    if (saveFormat === 'pdf') {
-                        success = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
+                    // 1. 連結PDFの生成
+                    if (saveFormat === 'pdf' || saveFormat === 'pdf-both') {
+                        success1 = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
                         }, baseName, resizeOpts);
-                    } else if (saveFormat === 'pdf-sheet') {
+                    } 
+                    
+                    // 2. サムネイル一覧PDFの生成
+                    if (saveFormat === 'pdf-sheet' || saveFormat === 'pdf-both') {
                         const layoutData = this.getGridLayoutData();
                         const sheetBaseName = baseName ? `${baseName}_thumbnail` : 'thumbnail_sheet';
-                        success = await this.fs.saveAsThumbnailPDF(layoutData, quality, (current, total, info) => {
+                        
+                        success2 = await this.fs.saveAsThumbnailPDF(layoutData, 100, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
                         }, sheetBaseName);
-                    } else if (saveFormat === 'merge-pdf') {
+                    } 
+                    
+                    // 3. 見開き結合PDFの生成
+                    if (saveFormat === 'merge-pdf') {
                         const pairs = this.getSpreadPairs();
-                        success = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => {
+                        success1 = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
                         }, baseName, resizeOpts);
                     }
-                    if (success) this.ui.showToast(`PDFを保存しました。`);
+                    
+                    if (success1 || success2) this.ui.showToast(`PDFを保存しました。`);
                 }
             } catch (e) {
                 console.error(e);
