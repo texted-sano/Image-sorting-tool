@@ -1307,11 +1307,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. 軽量PDF生成クラス
     // ==========================================
     class PDFDocument {
-        constructor() {
+        // ★ 変更: direction引数を追加
+        constructor(direction = 'L2R') {
             this.parts =[];
             this.objects = [];
             this.offsets =[];
             this.offset = 0;
+            this.direction = direction; // ★ 追加
             
             this.addPart("%PDF-1.3\n%\xBE\xE2\xAE\xCE\n");
             this.catalogId = this.allocObj();
@@ -1410,7 +1412,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         finish() {
             this.startObj(this.catalogId);
-            this.addPart(`<< /Type /Catalog /Pages ${this.pagesId} 0 R >>`);
+            // ★ 変更: ViewerPreferences (綴じ方向) をCatalog辞書に追加
+            const dirPref = this.direction === 'R2L' ? '/R2L' : '/L2R';
+            this.addPart(`<< /Type /Catalog /Pages ${this.pagesId} 0 R /ViewerPreferences << /Direction ${dirPref} >> >>`);
             this.endObj();
             
             this.startObj(this.pagesId);
@@ -1714,7 +1718,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveAsPDF(fileItems, quality, onProgress, baseName, resizeOpts = null) {
+        // ★ 変更: 引数に viewMode を追加
+        async saveAsPDF(fileItems, quality, onProgress, baseName, resizeOpts = null, viewMode = 'spread-ltr') {
             const defaultName = baseName ? `${baseName}.pdf` : 'output.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
@@ -1729,7 +1734,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw e;
                 }
             }
-            const blob = await this._runPdfWorker(fileItems, quality, onProgress, resizeOpts);
+            // ★ 変更: _runPdfWorker に viewMode を渡す
+            const blob = await this._runPdfWorker(fileItems, quality, onProgress, resizeOpts, viewMode);
             if (handle) {
                 const writable = await handle.createWritable();
                 await writable.write(blob);
@@ -1744,7 +1750,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
-        async _runPdfWorker(fileItems, quality, onProgress, resizeOpts) {
+        // ★ 変更: 引数に viewMode を追加
+        async _runPdfWorker(fileItems, quality, onProgress, resizeOpts, viewMode) {
             return new Promise(async (resolve, reject) => {
                 const filesData =[];
                 for (let i = 0; i < fileItems.length; i++) {
@@ -1753,9 +1760,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
-                        const { files, quality, resizeOpts } = e.data;
+                        // ★ 変更: viewMode を受け取る
+                        const { files, quality, resizeOpts, viewMode } = e.data;
                         try {
-                            const pdf = new PDFDocument();
+                            // ★ 変更: viewMode から方向を判定して PDFDocument に渡す
+                            const direction = viewMode === 'spread-rtl' ? 'R2L' : 'L2R';
+                            const pdf = new PDFDocument(direction);
                             for (let i = 0; i < files.length; i++) {
                                 const bitmap = await createImageBitmap(files[i].file);
                                 let targetW = bitmap.width, targetH = bitmap.height;
@@ -1812,7 +1822,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
                     else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
                 };
-                worker.postMessage({ files: filesData, quality, resizeOpts });
+                // ★ 変更: postMessage に viewMode を追加
+                worker.postMessage({ files: filesData, quality, resizeOpts, viewMode });
             });
         }
 
@@ -2031,7 +2042,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        async saveMergedAsPDF(pairs, quality, onProgress, baseName, resizeOpts = null) {
+        // ★ 変更: 引数に viewMode を追加
+        async saveMergedAsPDF(pairs, quality, onProgress, baseName, resizeOpts = null, viewMode = 'spread-ltr') {
             const defaultName = baseName ? `${baseName}.pdf` : 'merged_output.pdf';
             let handle = null;
             if ('showSaveFilePicker' in window) {
@@ -2046,7 +2058,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw e;
                 }
             }
-            const blob = await this._runMergedPdfWorker(pairs, quality, onProgress, resizeOpts);
+            // ★ 変更: _runMergedPdfWorker に viewMode を渡す
+            const blob = await this._runMergedPdfWorker(pairs, quality, onProgress, resizeOpts, viewMode);
             if (handle) {
                 const writable = await handle.createWritable();
                 await writable.write(blob);
@@ -2061,7 +2074,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
-        async _runMergedPdfWorker(pairs, quality, onProgress, resizeOpts) {
+        // ★ 変更: 引数に viewMode を追加
+        async _runMergedPdfWorker(pairs, quality, onProgress, resizeOpts, viewMode) {
             return new Promise(async (resolve, reject) => {
                 const pairsData =[];
                 for (let i = 0; i < pairs.length; i++) {
@@ -2072,9 +2086,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const workerCode = `
                     ${PDFDocument.toString()}
                     self.onmessage = async function(e) {
-                        const { pairs, quality, resizeOpts } = e.data;
+                        // ★ 変更: viewMode を受け取る
+                        const { pairs, quality, resizeOpts, viewMode } = e.data;
                         try {
-                            const pdf = new PDFDocument();
+                            // ★ 変更: viewMode から方向を判定して PDFDocument に渡す
+                            const direction = viewMode === 'spread-rtl' ? 'R2L' : 'L2R';
+                            const pdf = new PDFDocument(direction);
                             for (let i = 0; i < pairs.length; i++) {
                                 const pair = pairs[i];
                                 let canvas, width, height;
@@ -2165,7 +2182,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
                     else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
                 };
-                worker.postMessage({ pairs: pairsData, quality, resizeOpts });
+                // ★ 変更: postMessage に viewMode を追加
+                worker.postMessage({ pairs: pairsData, quality, resizeOpts, viewMode });
             });
         }
 
@@ -3292,15 +3310,18 @@ ${spineStr}</spine>
                 } else if (saveFormat.includes('pdf')) {
                     // 入力欄の縮小率（1～100の範囲）
                     const quality = Math.max(1, Math.min(100, parseInt(this.ui.pdfQuality.value, 10) || 30));
+                    // ★ 追加: 現在の表示モードを取得
+                    const viewMode = this.ui.viewModeSelect.value;
                     let success1 = false, success2 = false;
                     
                     // 1. 連結PDFの生成
                     if (saveFormat === 'pdf' || saveFormat === 'pdf-both') {
+                        // ★ 変更: 末尾に viewMode を追加
                         success1 = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName, resizeOpts);
+                        }, baseName, resizeOpts, viewMode);
                     } 
                     
                     // 2. サムネイル一覧PDFの生成
@@ -3318,11 +3339,12 @@ ${spineStr}</spine>
                     // 3. 見開き結合PDFの生成
                     if (saveFormat === 'merge-pdf') {
                         const pairs = this.getSpreadPairs();
+                        // ★ 変更: 末尾に viewMode を追加
                         success1 = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => {
                             const percent = (current / total) * 100;
                             const text = USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`;
                             this.ui.updateProgress(percent, text);
-                        }, baseName, resizeOpts);
+                        }, baseName, resizeOpts, viewMode);
                     }
                     
                     if (success1 || success2) this.ui.showToast(`PDFを保存しました。`);
