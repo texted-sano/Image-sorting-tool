@@ -538,7 +538,8 @@
                 画像の並び順を記録したテキストファイルを同時に出力する
             </label>
             <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;">
-                <input type="checkbox" id="epub-export-settings" checked style="width: auto; margin: 0; cursor: pointer;">
+                <!-- 初期状態でチェックを外すために checked 属性を削除 -->
+                <input type="checkbox" id="epub-export-settings" style="width: auto; margin: 0; cursor: pointer;">
                 現在の設定（JSON）を同時に出力する
             </label>
         </div>
@@ -746,28 +747,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             this.resizeObserver = new ResizeObserver(() => this.adjustGridWidth());
             this.resizeObserver.observe(this.mainArea);
-
-            this.imageObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const img = entry.target;
-                    if (entry.isIntersecting) {
-                        img.dataset.visible = 'true';
-                        if (!img.src) {
-                            this.onRequestImage(img.dataset.id).then(url => {
-                                if (url) {
-                                    img.decoding = "async";
-                                    img.src = url;
-                                    //
-                                }
-                            });
-                        }
-                    } else {
-                        img.dataset.visible = 'false';
-                        //
-                    }
-                });
-            }, { root: this.mainArea, rootMargin: '200px' });
         }   
+
+        // 先頭から順にすべてのサムネイルを生成・読み込む新設メソッド
+        async loadAllThumbnails(fileItems) {
+            this.currentLoadSession = Date.now();
+            const session = this.currentLoadSession;
+
+            for (const item of fileItems) {
+                if (session !== this.currentLoadSession) break; // 他の読み込みが開始されたら中断
+                
+                // すでにサムネイルURLが生成済みの場合は再生成をスキップ (order.txt 適用時などに有効)
+                if (!item.objectUrl) {
+                    const url = await this.onRequestImage(item.id);
+                    if (session !== this.currentLoadSession) break;
+                    
+                    if (url) {
+                        const img = this.mainGrid.querySelector(`img[data-id="${item.id}"]`);
+                        if (img) img.src = url;
+                    }
+                }
+            }
+        }
 
         adjustGridWidth() {
             const mode = this.viewModeSelect.value;
@@ -819,7 +820,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderItems(fileItems) {
             this.mainGrid.innerHTML = '';
             this.sidebarList.innerHTML = '';
-            this.imageObserver.disconnect();
             
             this.emptyMessage.style.display = fileItems.length > 0 ? 'none' : 'flex';
             this.mainGrid.style.display = fileItems.length > 0 ? '' : 'none';
@@ -855,8 +855,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 thumbDiv.appendChild(nameDiv);
                 fragmentMain.appendChild(thumbDiv);
                 
-                this.imageObserver.observe(img); 
-                
                 const listDiv = document.createElement('div');
                 listDiv.className = 'list-item';
                 listDiv.dataset.id = item.id;
@@ -867,6 +865,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.mainGrid.appendChild(fragmentMain);
             this.sidebarList.appendChild(fragmentSidebar);
             this.adjustGridWidth();
+
+            // レンダリング直後に一括でサムネイル読み込み処理を開始
+            this.loadAllThumbnails(fileItems);
         }
 
         setButtonsState(isProcessing, hasFiles) {
@@ -898,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clear() {
             this.mainGrid.innerHTML = '';
             this.sidebarList.innerHTML = '';
-            this.imageObserver.disconnect();
+            this.currentLoadSession = null; // 読み込み処理をキャンセル
             this.updateProgress(0, '');
             this.setButtonsState(false, false);
             
@@ -958,34 +959,19 @@ document.addEventListener('DOMContentLoaded', () => {
             this.btnClose = document.getElementById('epub-btn-close');
             this.btnStart = document.getElementById('epub-btn-start');
             
-            this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: true };
+            // exportSettings の初期値を false に変更
+            this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: false };
 
-            const focusOrder = [
-                this.inTitle, this.inTitleRuby, this.inAuthor, this.inAuthorRuby,
-                this.inPublisher, this.inPublisherRuby, this.inBookId, this.inModified, this.btnStart
-            ];
-
-            this.overlay.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    const currentIndex = focusOrder.indexOf(document.activeElement);
-                    if (currentIndex !== -1) {
-                        e.preventDefault();
-                        if (currentIndex < focusOrder.length - 1) {
-                            focusOrder[currentIndex + 1].focus();
-                        } else {
-                            this.btnStart.click();
-                        }
-                    }
-                }
-            });
+            // エンターキーによるフォーカス移動処理を削除（ブラウザ標準のTabキーによる移動をそのまま利用）
 
             document.getElementById('epub-btn-reset').addEventListener('click', () => {
                 this.inTitle.value = ''; this.inTitleRuby.value = '';
                 this.inAuthor.value = ''; this.inAuthorRuby.value = '';
                 this.inPublisher.value = ''; this.inPublisherRuby.value = '';
                 this.inBookId.value = ''; this.inModified.value = '';
-                this.chkIncludeImages.checked = true; this.chkExportOrder.checked = false; this.chkExportSettings.checked = true;
-                this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: true };
+                // chkExportSettings と savedData.exportSettings を false にリセット
+                this.chkIncludeImages.checked = true; this.chkExportOrder.checked = false; this.chkExportSettings.checked = false;
+                this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: false };
             });
 
             this.btnClose.addEventListener('click', () => {
@@ -1032,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.inModified.value = this.savedData.modified;
             this.chkIncludeImages.checked = this.savedData.includeImages;
             this.chkExportOrder.checked = this.savedData.exportOrder;
-            this.chkExportSettings.checked = this.savedData.exportSettings !== false;
+            this.chkExportSettings.checked = this.savedData.exportSettings === true;
             
             this.overlay.style.display = 'flex';
             
@@ -1074,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.inModified.value = this.savedData.modified || '';
             this.chkIncludeImages.checked = this.savedData.includeImages !== false;
             this.chkExportOrder.checked = this.savedData.exportOrder === true;
-            this.chkExportSettings.checked = this.savedData.exportSettings !== false;
+            this.chkExportSettings.checked = this.savedData.exportSettings === true;
         }
     }
 
