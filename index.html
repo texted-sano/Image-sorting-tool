@@ -375,7 +375,7 @@
                             <option value="merge-rename">➕ 見開きを結合して連番保存</option>
                             <option value="merge-pdf">➕ 見開きを結合してPDF保存</option>
                             <option value="pdf-sheet">📚 サムネイル一覧をPDF保存</option>
-                            <option value="pdf-both">🔗 連結PDF ＋ 📚 サムネイル一覧PDF</option>
+                            <option value="pdf-both">🔗 並び替え案の一括出力</option>
                             <option value="epub">📘 EPUB形式で保存</option>
                         </select>
                     </div>
@@ -613,7 +613,7 @@
                 <li><b>連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。元ファイルは上書きされず、コピーが作成されます。</li>
                 <li><b>見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
                 <li><b>サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
-                <li><b>連結PDF ＋ サムネイル一覧PDF:</b> 1ページずつのPDFと、俯瞰できるサムネイル一覧PDFを同時に出力します。</li>
+                <li><b>並び替え案の一括出力:</b> 1ページずつのPDF、俯瞰できるサムネイル一覧PDF、現在の並び順テキストの3種類を同時に出力します。</li>
                 <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定はメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
             </ul>
 
@@ -1703,11 +1703,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        // 引数に usePicker = true を追加
         async saveAsPDF(fileItems, quality, onProgress, baseName, resizeOpts = null, viewMode = 'spread-ltr', usePicker = true) {
             const defaultName = baseName ? `${baseName}.pdf` : 'output.pdf';
             let handle = null;
-            // usePicker が true の場合のみピッカーを起動する
             if (usePicker && 'showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
@@ -1808,11 +1806,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // 引数に usePicker = true を追加
         async saveAsThumbnailPDF(layoutInfo, quality, onProgress, baseName, usePicker = true) {
             const defaultName = baseName ? `${baseName}.pdf` : 'thumbnail_sheet.pdf';
             let handle = null;
-            // usePicker が true の場合のみピッカーを起動する
             if (usePicker && 'showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
@@ -2025,11 +2021,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
 
-        // 引数に usePicker = true を追加
         async saveMergedAsPDF(pairs, quality, onProgress, baseName, resizeOpts = null, viewMode = 'spread-ltr', usePicker = true) {
             const defaultName = baseName ? `${baseName}.pdf` : 'merged_output.pdf';
             let handle = null;
-            // usePicker が true の場合のみピッカーを起動する
             if (usePicker && 'showSaveFilePicker' in window) {
                 try {
                     handle = await window.showSaveFilePicker({
@@ -2597,7 +2591,11 @@ ${spineStr}</spine>
             const txtAutoSort = document.getElementById('auto-sort-text');
             const chkKeepFirst = document.getElementById('auto-sort-keep-first');
 
-            btnAutoSort.addEventListener('click', () => modalAutoSort.style.display = 'flex');
+            // モーダルを開くたびにテキストエリアを空にする
+            btnAutoSort.addEventListener('click', () => {
+                txtAutoSort.value = '';
+                modalAutoSort.style.display = 'flex';
+            });
             document.getElementById('auto-sort-btn-close').addEventListener('click', () => modalAutoSort.style.display = 'none');
             document.getElementById('auto-sort-btn-start').addEventListener('click', () => {
                 modalAutoSort.style.display = 'none';
@@ -3138,7 +3136,8 @@ ${spineStr}</spine>
             this.saveSettings(baseName);
         }
 
-        handleExportOrder() {
+        // 通知を抑制できるように silent フラグを追加
+        handleExportOrder(silent = false) {
             if (this.fileItems.length === 0) return;
             const prefix = this.ui.outputFilename.value.trim();
             const baseName = prefix || this.sourceFolderName;
@@ -3149,7 +3148,7 @@ ${spineStr}</spine>
             a.download = baseName ? `${baseName}_order.txt` : 'image_order.txt';
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-            this.ui.showToast(`並び順テキストを保存しました。`);
+            if (!silent) this.ui.showToast(`並び順テキストを保存しました。`);
         }
 
         handleAutoSort(text, keepFirst = true) {
@@ -3351,7 +3350,15 @@ ${spineStr}</spine>
                         }, baseName, resizeOpts, viewMode, usePicker); // 引数を追加
                     }
                     
-                    if (success1 || success2) this.ui.showToast(`PDFを保存しました。`);
+                    if (success1 || success2) {
+                        // 一括出力の場合はテキストも出力し、専用の完了メッセージを出す
+                        if (saveFormat === 'pdf-both') {
+                            this.handleExportOrder(true); // silent=true で個別の通知を抑制
+                            this.ui.showToast(`一括出力（PDF2種 ＋ 並び順テキスト）を完了しました。`);
+                        } else {
+                            this.ui.showToast(`PDFを保存しました。`);
+                        }
+                    }
                 }
             } catch (e) {
                 console.error(e);
