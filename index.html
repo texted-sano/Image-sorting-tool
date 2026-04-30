@@ -529,7 +529,7 @@
         </div>
 
         <label>ファイルID (空欄で自動生成)</label><input type="text" id="epub-bookid" placeholder="">
-        <label>更新日 (空欄で現在日時)</label><input type="date" id="epub-modified" style="width: 100%; box-sizing: border-box; padding: 8px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+        <label>更新日時 (空欄で現在日時)</label><input type="datetime-local" id="epub-modified" step="1" style="width: 100%; box-sizing: border-box; padding: 8px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
         
         <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px;">
             <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;">
@@ -2264,8 +2264,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const publisher = this.fs._escapeXml(metadata.publisher || '');
             const publisherRuby = this.fs._escapeXml(metadata.publisherRuby || metadata.publisher || '');
             const bookId = this.fs._escapeXml(metadata.bookId || 'urn:uuid:' + this.fs._generateUUID());
-            let modifiedDate = metadata.modified ? metadata.modified + 'T00:00:00Z' : new Date().toISOString().split('.')[0] + 'Z';
-            let coverW = 0, coverH = 0; 
+            
+            let modifiedDate;
+            if (metadata.modified) {
+                let mod = metadata.modified;
+                if (mod.length === 16) mod += ':00';
+                modifiedDate = mod + 'Z';
+            } else {
+                modifiedDate = new Date().toISOString().split('.')[0] + 'Z';
+            }
+            let coverW = 0, coverH = 0;
 
             if (!metadata.includeImages) {
                 zip.addFile('item/image/', new Uint8Array(0));
