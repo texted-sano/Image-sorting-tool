@@ -654,6 +654,7 @@
             <select id="restore-sort-mode" style="font-size: 12px; padding: 4px 8px; margin: 0; height: auto; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;">
                 <option value="name" selected>名前順</option>
                 <option value="date">変更日時が新しい順</option>
+                <option value="date-asc">変更日時が古い順</option>
             </select>
         </div>
         <div id="restore-list" style="flex: 1; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); padding: 0; box-sizing: border-box;">
@@ -3504,7 +3505,7 @@ renderCacheList() {
                 } else {
                     const timeA = a.timestamp || parseInt(a.id, 10) || 0;
                     const timeB = b.timestamp || parseInt(b.id, 10) || 0;
-                    return timeB - timeA;
+                    return sortMode === 'date-asc' ? (timeA - timeB) : (timeB - timeA);
                 }
             });
             
