@@ -228,6 +228,22 @@
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.error { background: var(--danger-color); }
 
+        /* ライトボックス（画像拡大表示用） --- */
+        .lightbox-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            z-index: 20000; display: none; justify-content: center; align-items: center;
+        }
+        .lightbox-img {
+            max-width: 90%; max-height: 90%; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            object-fit: contain; background: transparent;
+        }
+        .lightbox-close {
+            position: absolute; top: 20px; right: 30px; font-size: 40px; color: #fff;
+            cursor: pointer; user-select: none; z-index: 20001; line-height: 1; transition: color 0.2s;
+        }
+        .lightbox-close:hover { color: var(--danger-color); }
+
         /* --- リボンUI（Word風）スタイル --- */
         .ribbon {
             display: flex; background: var(--ribbon-bg); border-bottom: 1px solid var(--ribbon-border);
@@ -649,6 +665,11 @@
     </div>
 </div>
 
+<div id="lightbox-overlay" class="lightbox-overlay">
+    <div class="lightbox-close" title="閉じる">×</div>
+    <img id="lightbox-img" class="lightbox-img" src="" alt="拡大画像">
+</div>
+
 <script src="epub-templates.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -697,6 +718,16 @@ document.addEventListener('DOMContentLoaded', () => {
             this.restoreSortMode = document.getElementById('restore-sort-mode');
 
             this.restoreBtnClose.addEventListener('click', () => this.restoreModal.style.display = 'none');
+            
+            this.lightboxOverlay = document.getElementById('lightbox-overlay');
+            this.lightboxImg = document.getElementById('lightbox-img');
+            this.lightboxClose = document.querySelector('.lightbox-overlay .lightbox-close');
+            this.currentLightboxUrl = null;
+
+            this.lightboxClose.addEventListener('click', () => this.hideLightbox());
+            this.lightboxOverlay.addEventListener('click', (e) => {
+                if (e.target === this.lightboxOverlay) this.hideLightbox();
+            });
             
             this.outputFilename = document.getElementById('output-filename');
             this.saveFormatSelect = document.getElementById('save-format');
@@ -944,6 +975,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
             this.emptyMessage.style.display = 'flex';
             this.mainGrid.style.display = 'none';
+        }
+
+        showLightbox(url) {
+            this.currentLightboxUrl = url;
+            this.lightboxImg.src = url;
+            this.lightboxOverlay.style.display = 'flex';
+        }
+
+        hideLightbox() {
+            this.lightboxOverlay.style.display = 'none';
+            this.lightboxImg.src = '';
+            if (this.currentLightboxUrl) {
+                URL.revokeObjectURL(this.currentLightboxUrl);
+                this.currentLightboxUrl = null;
+            }
         }
 
         showToast(message, isError = false) {
@@ -2577,6 +2623,24 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('auto-sort-btn-start').addEventListener('click', () => {
                 modalAutoSort.style.display = 'none';
                 this.handleAutoSort(txtAutoSort.value, chkKeepFirst.checked);
+            });
+
+            this.ui.mainGrid.addEventListener('dblclick', async (e) => {
+                if (this.isProcessing) return;
+                const item = e.target.closest('.thumb-item');
+                if (!item) return;
+                const id = item.dataset.id;
+                const fileItem = this.fileItems.find(i => i.id === id);
+                if (fileItem) {
+                    try {
+                        const file = await fileItem.handle.getFile();
+                        const url = URL.createObjectURL(file);
+                        this.ui.showLightbox(url);
+                    } catch(err) {
+                        console.error("画像の拡大表示に失敗しました:", err);
+                        this.ui.showToast('画像の拡大表示に失敗しました。', true);
+                    }
+                }
             });
 
             window.addEventListener('beforeunload', (e) => {
