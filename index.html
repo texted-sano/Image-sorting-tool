@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image sorting</title>
-    
-    <style>
+
+<style>
         /* --- 共通カラー＆テーマ設定 --- */
         :root {
             --bg-color: #1a1a1a;
@@ -59,9 +59,7 @@
             position: relative;
         }
         
-        h1 { text-align: left; font-size: 20px; margin: 0 0 15px 0; font-weight: normal; }
-        
-        select, input[type="text"], input[type="number"], textarea {
+        select, input[type="text"], input[type="number"], input[type="datetime-local"], textarea {
             padding: 8px 12px; border-radius: 6px; background: var(--input-bg);
             color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;
             font-size: 13px; transition: border-color 0.2s, box-shadow 0.2s;
@@ -69,7 +67,7 @@
         select:hover, input[type="text"]:hover, input[type="number"]:hover, textarea:hover {
             border-color: var(--primary-color);
         }
-        select:focus, input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+        select:focus, input:focus, textarea:focus {
             outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
         }
 
@@ -159,15 +157,12 @@
 
         .list-item {
             padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 13px;
-            color: var(--text-main); cursor: grab; user-select: none; transition: background 0.1s;
+            color: var(--text-main); cursor: grab; user-select: none; transition: 0.1s;
             white-space: nowrap; position: relative;
         }
-        .list-item:last-child { border-bottom: none; }
         .list-item:hover { background: rgba(128, 128, 128, 0.1); }
-        
         .selected { border-color: var(--primary-color) !important; background-color: rgba(74, 144, 226, 0.2) !important; }
         
-        button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
         .dragging { opacity: 0.4; outline: 2px dashed var(--primary-color); outline-offset: -2px; }
 
         #progress-area { margin-bottom: 10px; display: none; flex-shrink: 0; }
@@ -175,6 +170,7 @@
         .progress-track { background: var(--border-color); height: 4px; border-radius: 2px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.2s; }
 
+        /* --- モーダル共通スタイル --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 10000;
@@ -182,20 +178,14 @@
         }
         .modal-content {
             background: var(--container-bg); padding: 20px; border-radius: 8px;
-            width: 500px; max-width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            color: var(--text-main);
+            width: 500px; max-width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); color: var(--text-main);
         }
         .modal-content h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
         .modal-content label { margin-top: 10px; display: block; font-size: 13px; font-weight: bold; }
-        .modal-content input {
-            width: 100%; box-sizing: border-box; margin-bottom: 5px; padding: 8px;
-            background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);
-            border-radius: 4px;
-        }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .modal-actions button {
             padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600;
-            font-size: 13px; cursor: pointer; color: var(--btn-text); transition: all 0.2s ease;
+            font-size: 13px; cursor: pointer; color: var(--btn-text); transition: 0.2s;
         }
 
         #toast-container {
@@ -203,109 +193,70 @@
             z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
         }
         .toast {
-            background: var(--primary-color); color: #ffffff; padding: 12px 24px;
-            border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            font-size: 14px; font-weight: bold; opacity: 0;
-            transition: opacity 0.3s, transform 0.3s; transform: translateY(20px);
-            pointer-events: auto; cursor: pointer; text-align: center;
+            background: var(--primary-color); color: #fff; padding: 12px 24px;
+            border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 14px; font-weight: bold;
+            opacity: 0; transition: 0.3s; transform: translateY(20px); pointer-events: auto; text-align: center;
         }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.error { background: var(--danger-color); }
 
-        /* --- 画像エディタ（ライトボックス）用スタイル --- */
-        .lightbox-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
-            z-index: 20000; display: none; flex-direction: column;
-        }
-        .editor-toolbar {
-            background: var(--container-bg); padding: 10px; display: flex; gap: 8px; align-items: center;
-            border-bottom: 1px solid var(--border-color); flex-wrap: wrap;
-        }
-        .editor-toolbar button {
-            padding: 6px 12px; font-size: 13px; background: var(--input-bg); color: var(--text-main);
-            border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; transition: 0.2s;
-        }
-        .editor-toolbar button:hover { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
-        .editor-toolbar button.active { background: var(--danger-color); color: #fff; border-color: var(--danger-color); }
-        .editor-toolbar input[type="number"] { width: 65px; text-align: center; padding: 4px; margin: 0 4px; }
-        
-        .editor-canvas-container {
-            flex: 1; display: flex; justify-content: center; align-items: center; 
-            overflow: hidden; padding: 20px; position: relative; user-select: none;
-        }
-        .editor-canvas-wrapper { position: relative; display: inline-block; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        #editor-canvas {
-            max-width: calc(100vw - 40px); max-height: calc(100vh - 150px); 
-            display: block; background: #fff; border-radius: 2px;
-        }
-        #editor-crop-box {
-            position: absolute; border: 2px dashed #ff3b30; background: rgba(255, 59, 48, 0.2);
-            pointer-events: none; display: none; z-index: 10;
-        }
-
-        /* --- リボンUI（Word風）スタイル --- */
+        /* --- リボンUIスタイル --- */
         .ribbon {
             display: flex; background: var(--ribbon-bg); border-bottom: 1px solid var(--ribbon-border);
             padding: 0; user-select: none; margin: -5px -5px 5px -5px; flex-direction: row;
         }
         .ribbon-brand {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 6px 15px; font-weight: 600; font-size: 15px; 
-            border-right: 1px solid var(--ribbon-border); color: var(--text-main); letter-spacing: 0.5px;
-            min-width: 80px;
+            display: flex; align-items: center; justify-content: space-between; padding: 6px 15px;
+            font-weight: 600; font-size: 15px; border-right: 1px solid var(--ribbon-border);
+            color: var(--text-main); letter-spacing: 0.5px; min-width: 80px;
         }
-        .ribbon-content {
-            display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; gap: 15px; padding: 6px 10px 4px 10px;
-        }
+        .ribbon-content { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; gap: 15px; padding: 6px 10px 4px 10px; }
         .ribbon-content::-webkit-scrollbar { height: 6px; }
         .ribbon-content::-webkit-scrollbar-track { background: transparent; }
         .ribbon-content::-webkit-scrollbar-thumb { background: var(--ribbon-border); border-radius: 3px; }
-        .ribbon-group {
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            border-right: 1px solid var(--ribbon-border); padding-right: 15px;
-        }
+        .ribbon-group { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; border-right: 1px solid var(--ribbon-border); padding-right: 15px; }
         .ribbon-items { display: flex; align-items: stretch; gap: 4px; margin-bottom: auto; }
         .ribbon-group-title { font-size: 11px; color: var(--text-sub); margin-top: 8px; text-align: center; line-height: 1; }
         .ribbon-col { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 4px; }
         .ribbon-col input, .ribbon-col select { font-size: 11px; padding: 3px 6px; height: 24px; border-radius: 3px; box-sizing: border-box; margin: 0; }
         .ribbon-btn {
-            background: transparent !important; border: 1px solid transparent !important;
-            color: var(--text-main) !important; display: flex !important; flex-direction: column !important;
-            align-items: center !important; justify-content: center !important;
-            padding: 4px 8px !important; min-width: 52px; border-radius: 4px !important;
-            cursor: pointer; transition: background 0.1s !important; font-size: 11px !important;
-            font-weight: normal !important; box-shadow: none !important; gap: 2px !important;
-            min-height: 52px; transform: none !important;
+            background: transparent !important; border: 1px solid transparent !important; color: var(--text-main) !important;
+            display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+            padding: 4px 8px !important; min-width: 52px; border-radius: 4px !important; cursor: pointer; transition: 0.1s !important;
+            font-size: 11px !important; font-weight: normal !important; box-shadow: none !important; gap: 2px !important; min-height: 52px; transform: none !important;
         }
         .ribbon-btn .icon { font-size: 20px; line-height: 1; margin-bottom: 2px; }
         .ribbon-btn:hover:not(:disabled) { background: var(--ribbon-hover) !important; border-color: var(--border-color) !important; }
-        .ribbon-btn:active:not(:disabled) { background: var(--ribbon-active) !important; }
         .ribbon-btn:disabled { opacity: 0.3 !important; cursor: not-allowed; }
-        .ribbon-btn.primary .icon { color: var(--primary-color); }
-        .ribbon-btn.danger .icon { color: var(--danger-color); }
-        .ribbon-btn.success .icon { color: #28a745; }
-        .ribbon-btn.info .icon { color: #17a2b8; }
+        .ribbon-btn.primary .icon{color:var(--primary-color);} .ribbon-btn.danger .icon{color:var(--danger-color);} .ribbon-btn.success .icon{color:#28a745;} .ribbon-btn.info .icon{color:#17a2b8;}
         .ribbon-divider { width: 1px; background: var(--ribbon-border); margin: 4px; }
+        
+        /* --- 画像エディタ（非破壊編集・グリッド）用スタイル --- */
+        .lightbox-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 20000; display: none; }
+        .ed-tool-btn { background: #333; border: 1px solid #444; color: #fff; font-size: 18px; width: 40px; height: 40px; border-radius: 4px; cursor: pointer; transition: 0.2s;}
+        .ed-tool-btn:hover { background: #444; }
+        .ed-ratio-btn { background: #333; border: 1px solid #444; color: #ccc; font-size: 11px; padding: 6px 2px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+        .ed-ratio-btn.active { border-color: var(--primary-color); color: var(--primary-color); }
+        .editor-canvas-container { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 20px; position: relative; user-select: none; }
+        .editor-canvas-wrapper { position: relative; display: inline-block; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        #editor-canvas { display: block; background: transparent; }
+        #editor-crop-box { position: absolute; border: 2px solid rgba(255,255,255,0.8); background: transparent; cursor: move; display: none; z-index: 10; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); }
+        .crop-grid-h { position: absolute; top: 33.33%; left: 0; width: 100%; height: 33.33%; border-top: 1px dashed rgba(255,255,255,0.5); border-bottom: 1px dashed rgba(255,255,255,0.5); pointer-events: none; }
+        .crop-grid-v { position: absolute; top: 0; left: 33.33%; width: 33.33%; height: 100%; border-left: 1px dashed rgba(255,255,255,0.5); border-right: 1px dashed rgba(255,255,255,0.5); pointer-events: none; }
+        .crop-handle { position: absolute; width: 12px; height: 12px; background: #fff; border: 2px solid rgba(0,0,0,0.5); border-radius: 50%; box-sizing: border-box; }
+        .crop-handle.nw { top: -6px; left: -6px; cursor: nwse-resize; } .crop-handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+        .crop-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; } .crop-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+        .crop-handle.n { top: -6px; left: calc(50% - 6px); cursor: ns-resize; } .crop-handle.s { bottom: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+        .crop-handle.e { top: calc(50% - 6px); right: -6px; cursor: ew-resize; } .crop-handle.w { top: calc(50% - 6px); left: -6px; cursor: ew-resize; }
 
         @media (max-width: 950px) {
             .ribbon-brand { display: none; }
             .ribbon-content { display: flex !important; flex-wrap: wrap; gap: 8px; padding: 6px 10px 10px 10px; overflow: visible !important; }
-            .ribbon-group {
-                border: 1px solid var(--border-color); border-radius: 4px;
-                padding: 8px 12px; background: var(--input-bg);
-                justify-content: center; align-items: center; cursor: pointer; position: relative; flex: 0 0 auto;
-            }
-            .ribbon-group:hover { border-color: var(--primary-color); }
+            .ribbon-group { border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 12px; background: var(--input-bg); justify-content: center; align-items: center; cursor: pointer; position: relative; flex: 0 0 auto; }
             .ribbon-group.active { z-index: 1000; }
             .ribbon-group-title { margin: 0; font-size: 13px; font-weight: bold; color: var(--text-main); pointer-events: none; }
             .ribbon-group-title::after { content: ' ▼'; font-size: 10px; color: var(--text-sub); margin-left: 4px; }
-            .ribbon-items {
-                display: none; position: absolute; top: calc(100% + 4px); left: 0;
-                background: var(--container-bg); border: 1px solid var(--border-color);
-                border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
-                padding: 8px; z-index: 1000; flex-direction: column; width: max-content; min-width: 180px; gap: 6px; margin: 0;
-            }
+            .ribbon-items { display: none; position: absolute; top: calc(100% + 4px); left: 0; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.5); padding: 8px; z-index: 1000; flex-direction: column; width: max-content; min-width: 180px; gap: 6px; margin: 0; }
             .ribbon-group:nth-last-child(1) .ribbon-items, .ribbon-group:nth-last-child(2) .ribbon-items { left: auto; right: 0; }
             .ribbon-group.active .ribbon-items { display: flex; }
             .ribbon-btn { flex-direction: row !important; justify-content: flex-start !important; min-height: 36px; width: 100%; padding: 6px 12px !important; }
@@ -314,13 +265,14 @@
             .ribbon-col { align-items: stretch; gap: 8px; }
         }
     </style>
+
 </head>
 <body>
-
 <div class="container" id="app-container">
     <div class="ribbon">
         <div class="ribbon-brand"><span class="brand-text">Image<br>Sorting</span></div>
         <div class="ribbon-content" id="ribbon-content">
+            <!-- グループ1: 出力・保存 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
                     <div class="ribbon-col" style="width: 200px;">
@@ -344,13 +296,20 @@
                         <span class="icon">🔴</span><span class="label">実行</span>
                     </button>
                     <div class="ribbon-divider"></div>
-                    <button id="btn-export-order" class="ribbon-btn" disabled title="現在の並び順と目次情報を保存します"><span class="icon">💾</span><span class="label">並び保存</span></button>
-                    <button id="btn-restore-order" class="ribbon-btn" disabled title="保存された並び順を復元します"><span class="icon">💾</span><span class="label">並び復元</span></button>
-                    <button id="btn-export-settings" class="ribbon-btn" title="現在の設定をJSONで保存します"><span class="icon">⚙️</span><span class="label">設定保存</span></button>
+                    <button id="btn-export-order" class="ribbon-btn" disabled title="現在の並び順と目次情報を保存します">
+                        <span class="icon">💾</span><span class="label">並び保存</span>
+                    </button>
+                    <button id="btn-restore-order" class="ribbon-btn" disabled title="保存された並び順を復元します">
+                        <span class="icon">💾</span><span class="label">並び復元</span>
+                    </button>
+                    <button id="btn-export-settings" class="ribbon-btn" title="現在の設定をJSONで保存します">
+                        <span class="icon">⚙️</span><span class="label">設定保存</span>
+                    </button>
                 </div>
                 <div class="ribbon-group-title">出力・保存</div>
             </div>
 
+            <!-- グループ2: 画像サイズ調整 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
                     <div class="ribbon-col">
@@ -371,20 +330,37 @@
                 <div class="ribbon-group-title">画像サイズ調整</div>
             </div>
 
+            <!-- グループ3: 編集 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
-                    <button id="btn-undo" class="ribbon-btn" disabled title="元に戻す"><span class="icon">↩</span><span class="label">戻る</span></button>
-                    <button id="btn-redo" class="ribbon-btn" disabled title="やり直す"><span class="icon">↪</span><span class="label">進む</span></button>
+                    <button id="btn-undo" class="ribbon-btn" disabled title="元に戻す">
+                        <span class="icon">↩</span><span class="label">戻る</span>
+                    </button>
+                    <button id="btn-redo" class="ribbon-btn" disabled title="やり直す">
+                        <span class="icon">↪</span><span class="label">進む</span>
+                    </button>
                     <div class="ribbon-divider"></div>
-                    <button id="btn-set-toc" class="ribbon-btn info" disabled title="選択した画像を目次として登録します"><span class="icon">📑</span><span class="label">目次設定</span></button>
-                    <button id="btn-add-blank" class="ribbon-btn success" disabled title="選択した画像の直後に白紙を挿入します"><span class="icon">📄</span><span class="label">白紙挿入</span></button>
+                    <button id="btn-set-toc" class="ribbon-btn info" disabled title="選択した画像を目次として登録します">
+                        <span class="icon">📑</span><span class="label">目次設定</span>
+                    </button>
+                    <button id="btn-add-blank" class="ribbon-btn success" disabled title="選択した画像の直後に白紙を挿入します">
+                        <span class="icon">📄</span><span class="label">白紙挿入</span>
+                    </button>
                     <div class="ribbon-divider"></div>
-                    <button id="btn-delete" class="ribbon-btn danger" disabled title="選択した画像を削除します"><span class="icon">🗑</span><span class="label">削除</span></button>
-                    <button id="btn-reset" class="ribbon-btn danger" title="すべてリセット"><span class="icon">✖</span><span class="label">リセット</span></button>
+                    <button id="btn-delete" class="ribbon-btn danger" disabled title="選択した画像を削除します">
+                        <span class="icon">🗑</span><span class="label">削除</span>
+                    </button>
+                    <button id="btn-batch-crop" class="ribbon-btn info" disabled title="選択した画像を一括でトリミングします">
+                        <span class="icon">✂</span><span class="label">一括トリミング</span>
+                    </button>
+                    <button id="btn-reset" class="ribbon-btn danger" title="すべてリセット">
+                        <span class="icon">✖</span><span class="label">リセット</span>
+                    </button>
                 </div>
                 <div class="ribbon-group-title">編集</div>
             </div>
 
+            <!-- グループ4: 表示 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
                     <div class="ribbon-col">
@@ -394,19 +370,24 @@
                             <option value="spread-ltr">見開き(左開き)</option>
                         </select>
                         <div class="slider-wrap" style="background:transparent; border:none; padding:0; gap:4px; margin-top:2px; display: flex; align-items: center;">
-                            <span style="font-size: 10px; color:var(--text-sub);">サイズ</span>
+                            <span style="font-size:10px; color:var(--text-sub);">サイズ</span>
                             <input type="range" id="size-slider" min="80" max="300" value="150" style="width: 70px; padding:0; height:auto; cursor: pointer;">
                         </div>
                     </div>
                     <div class="ribbon-divider"></div>
-                    <button id="theme-toggle" class="ribbon-btn"><span class="icon">☀</span><span class="label">テーマ</span></button>
-                    <button id="btn-manual" class="ribbon-btn"><span class="icon">📖</span><span class="label">使い方</span></button>
+                    <button id="theme-toggle" class="ribbon-btn">
+                        <span class="icon">☀</span><span class="label">テーマ</span>
+                    </button>
+                    <button id="btn-manual" class="ribbon-btn">
+                        <span class="icon">📖</span><span class="label">使い方</span>
+                    </button>
                 </div>
                 <div class="ribbon-group-title">表示</div>
             </div>
         </div>
     </div>
 
+    <!-- メインエリア（サムネイル一覧とサイドバー） -->
     <div class="app-layout">
         <div class="main-area">
             <div class="area-title">サムネイル一覧 <span id="current-folder-name" style="font-weight:normal; font-size:11px; margin-left:8px;"></span></div>
@@ -419,35 +400,45 @@
         <div class="sidebar-area">
             <div class="area-title" style="display:flex; justify-content:space-between; align-items:center;">
                 <span>ファイル名一覧</span>
-                <button id="btn-auto-sort" class="ribbon-btn" style="min-height:20px; padding:2px 6px !important; min-width:auto; border:1px solid var(--border-color)!important;" title="自動並び替え"><span class="icon" style="font-size:12px; margin:0;">並び替え</span></button>
+                <button id="btn-auto-sort" class="ribbon-btn" style="min-height:20px; padding:2px 6px !important; min-width:auto; border:1px solid var(--border-color)!important;" title="自動並び替え">
+                    <span class="icon" style="font-size:12px; margin:0;">並び替え</span>
+                </button>
             </div>
             <div id="sidebar-list" style="flex: 1;"></div>
         </div>
     </div>
-
     <div id="progress-area">
         <div id="progress-text">待機中</div>
         <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
     </div>
 </div>
 
+<!-- ================= モーダル各種 ================= -->
+
+<!-- EPUB出力用設定モーダル -->
 <div id="epub-modal" class="modal-overlay">
     <div class="modal-content">
         <h2>EPUB 出力設定</h2>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 15px;">
-            <div><label>作品名</label><input type="text" id="epub-title" placeholder=""></div>
-            <div><label>作品名 (読み)</label><input type="text" id="epub-title-ruby" placeholder=""></div>
-            <div><label>著者名</label><input type="text" id="epub-author" placeholder=""></div>
-            <div><label>著者名 (読み)</label><input type="text" id="epub-author-ruby" placeholder=""></div>
-            <div><label>出版社</label><input type="text" id="epub-publisher" placeholder=""></div>
-            <div><label>出版社 (読み)</label><input type="text" id="epub-publisher-ruby" placeholder=""></div>
+            <div><label>作品名</label><input type="text" id="epub-title"></div>
+            <div><label>作品名 (読み)</label><input type="text" id="epub-title-ruby"></div>
+            <div><label>著者名</label><input type="text" id="epub-author"></div>
+            <div><label>著者名 (読み)</label><input type="text" id="epub-author-ruby"></div>
+            <div><label>出版社</label><input type="text" id="epub-publisher"></div>
+            <div><label>出版社 (読み)</label><input type="text" id="epub-publisher-ruby"></div>
         </div>
-        <label>ファイルID (空欄で自動生成)</label><input type="text" id="epub-bookid" placeholder="">
-        <label>更新日時 (空欄で現在日時)</label><input type="datetime-local" id="epub-modified" step="1" style="width: 100%; box-sizing: border-box; padding: 8px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+        <label>ファイルID (空欄で自動生成)</label><input type="text" id="epub-bookid">
+        <label>更新日時 (空欄で現在日時)</label><input type="datetime-local" id="epub-modified" step="1" style="width: 100%; box-sizing: border-box;">
         <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px;">
-            <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;"><input type="checkbox" id="epub-include-images" checked style="width: auto; margin: 0; cursor: pointer;">EPUB内に画像ファイルを含める（オフの場合は空のimageフォルダを生成）</label>
-            <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;"><input type="checkbox" id="epub-export-order" style="width: auto; margin: 0; cursor: pointer;">画像の並び順を記録したテキストファイルを同時に出力する</label>
-            <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; margin: 0; text-align: left;"><input type="checkbox" id="epub-export-settings" style="width: auto; margin: 0; cursor: pointer;">現在の設定（JSON）を同時に出力する</label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin: 0;">
+                <input type="checkbox" id="epub-include-images" checked style="width: auto; margin: 0;">EPUB内に画像を含める
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin: 0;">
+                <input type="checkbox" id="epub-export-order" style="width: auto; margin: 0;">並び順テキストを同時出力
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin: 0;">
+                <input type="checkbox" id="epub-export-settings" style="width: auto; margin: 0;">現在の設定(JSON)を同時出力
+            </label>
         </div>
         <div class="modal-actions">
             <button id="epub-btn-reset" style="background: var(--border-color); margin-right: auto; color: var(--text-main);">リセット</button>
@@ -457,13 +448,16 @@
     </div>
 </div>
 
+<!-- 自動並び替え用モーダル -->
 <div id="auto-sort-modal" class="modal-overlay">
     <div class="modal-content" style="width: 400px;">
         <h2>自動並び替え</h2>
-        <p style="font-size:12px; color:var(--text-sub);">指定した文字列（数字等）を含む順に画像をグループ化して並び替えます。改行やスペース、タブ区切りで入力してください。</p>
-        <textarea id="auto-sort-text" rows="10" style="width:100%; box-sizing:border-box; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); padding:8px; border-radius:4px; resize:vertical; font-family:monospace;"></textarea>
+        <p style="font-size:12px; color:var(--text-sub);">改行やスペース区切りで指定した文字列順にグループ化します。</p>
+        <textarea id="auto-sort-text" rows="10" style="width:100%; box-sizing:border-box; font-family:monospace;"></textarea>
         <div style="margin-top: 10px; margin-bottom: 10px;">
-            <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: normal; font-size: 13px; color: var(--text-main); cursor: pointer;"><input type="checkbox" id="auto-sort-keep-first" checked style="width: auto; margin: 0; cursor: pointer;">1枚目の画像（表紙）を先頭に固定する</label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; font-size: 13px; color: var(--text-main);">
+                <input type="checkbox" id="auto-sort-keep-first" checked style="width: auto; margin: 0;">1枚目の画像（表紙）を先頭に固定
+            </label>
         </div>
         <div class="modal-actions">
             <button id="auto-sort-btn-close" style="background: #6c757d;">キャンセル</button>
@@ -472,45 +466,78 @@
     </div>
 </div>
 
+<!-- 一括トリミング用モーダル -->
+<div id="batch-crop-modal" class="modal-overlay">
+    <div class="modal-content" style="width: 400px;">
+        <h2>一括トリミング</h2>
+        <p style="font-size:12px; color:var(--text-sub);">選択した画像に対し、指定サイズの中央トリミングを適用します。</p>
+        <div style="margin-bottom: 15px;">
+            <label>プリセット</label>
+            <select id="batch-crop-preset" style="width:100%; margin-bottom:10px;">
+                <option value="custom">カスタムサイズ</option>
+                <option value="a4-v">A4 縦 (2894 x 4093 px) 350dpi相当</option>
+                <option value="a4-h">A4 横 (4093 x 2894 px) 350dpi相当</option>
+                <option value="b5-v">B5 縦 (2508 x 3541 px) 350dpi相当</option>
+                <option value="b5-h">B5 横 (3541 x 2508 px) 350dpi相当</option>
+            </select>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1;"><label>幅 (W) px</label><input type="number" id="batch-crop-w" value="1000"></div>
+                <div style="flex:1;"><label>高さ (H) px</label><input type="number" id="batch-crop-h" value="1000"></div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button id="batch-crop-btn-close" style="background: #6c757d;">キャンセル</button>
+            <button id="batch-crop-btn-start" style="background: var(--primary-color);">適用</button>
+        </div>
+    </div>
+</div>
+
+<!-- マニュアル用モーダル -->
 <div id="manual-modal" class="modal-overlay">
     <div class="modal-content" style="width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column;">
         <h2>使い方と仕様マニュアル</h2>
         <div style="overflow-y: auto; padding-right: 15px; font-size: 14px; line-height: 1.7; flex: 1;">
+            
             <h3 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">1. 画像の読み込み仕様</h3>
             <p>画面中央をクリック、またはファイル/フォルダをドラッグ＆ドロップして画像を読み込みます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
                 <li><b>対応フォーマット:</b> JPG, PNG, GIF, WEBP</li>
                 <li><b>ブラウザによる挙動の違い:</b> ChromeやEdge等の「File System API」対応ブラウザでは、フォルダを直接読み書きできます。FirefoxやSafari等の非対応ブラウザでは、標準のファイル選択ダイアログが開き、保存時はZIPファイルにまとめられます。</li>
             </ul>
+            
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">2. 並び替えとリスト操作</h3>
             <p>サムネイル一覧（左側）またはファイル名リスト（右側）をドラッグ＆ドロップして並び替えます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
                 <li><b>複数選択:</b> <code>Shift</code>キーで範囲選択、<code>Ctrl</code>(Macは<code>Cmd</code>)キーで個別選択が可能です。</li>
                 <li><b>外部からの追加:</b> PCのフォルダから直接特定の場所に画像をドロップして割り込ませることも可能です。</li>
-                <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます。</li>
+                <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます（目次情報も復元されます）。</li>
                 <li><b>設定の復元:</b> 出力した「現在の設定（.json）」を画面（画像上含む）のどこにドロップしても設定が復元されます。</li>
-                <li><b>並び替え:</b> ファイル名一覧の右上ボタンから、文字列を指定して一括で並び替えます。</li>
-                <li><b>画像エディタ:</b> サムネイルをダブルクリックすると、個別の画像の回転・反転・トリミング・リサイズなどが可能です。</li>
+                <li><b>並び替え:</b> ファイル名一覧の右上ボタンから、改行やスペース、タブ区切りで数字や文字列を入力すると、画像ファイル名を上から読み、指定の数字や文字列が含まれる画像をブロック毎に一括で並び替えます。</li>
             </ul>
-            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集機能の仕組み</h3>
+            
+            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">3. 編集・エディット機能の仕組み</h3>
             <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><b>画像エディタ:</b> サムネイルをダブルクリックし、画像編集をクリックすると画像エディタが開きます。</li>
+                <li><b>一括トリミング:</b> 一覧から複数の画像を選択し、「一括トリミング」ボタンを押すことで、指定したサイズの中央トリミングをすべての画像に一括で適用できます。</li>
                 <li><b>💾 並び順保存:</b> 現在のファイル名の並び順と目次情報を <code>.txt</code> で出力し、同時にキャッシュにも保存します。復元ボタンからいつでも呼び出せます。</li>
-                <li><b>⚙️ 設定保存:</b> UIの状態やEPUBのメタデータを <code>.json</code> で保存します。</li>
-                <li><b>📑 目次設定:</b> 選択した画像にチャプター名（目次）を付与します。</li>
-                <li><b>📄 白紙挿入:</b> 選択した画像と同じピクセルサイズの白紙画像を挿入します。</li>
-                <li><b>🗑 削除:</b> リストから除外します（元の画像ファイルは削除されません）。</li>
+                <li><b>⚙️ 設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。</li>
+                <li><b>📑 目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
+                <li><b>📄 白紙挿入:</b> 選択した画像と「同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
+                <li><b>🗑 削除:</b> サムネイル一覧とファイル名リストから除外します。なお、PC上の元の画像ファイルが削除されることはありません。</li>
             </ul>
+
             <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">4. 保存・出力の仕様</h3>
             <p>「出力ファイル名」に入力した文字が、各出力ファイルのベース名として使用されます。「画像サイズ調整」オプションで、出力前にサイズを揃えることができます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
-                <li><b>連結してPDF保存:</b> 画像を1ページずつPDF化します。縮小率を下げることで軽量化できます。</li>
-                <li><b>複製を保存:</b> 元のファイル名を維持したまま、エディタでの編集（リサイズやトリミング等）を適用して保存します。</li>
-                <li><b>連番リネームで複製:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。</li>
+                <li><b>連結してPDF保存:</b> 画像を1ページずつPDF化します。ブラウザのバックグラウンドで処理されるため、大容量でもフリーズしにくくなっています。「画像縮小率」を下げることでPDFのファイルサイズを軽量化できます。</li>
+                <li><b>複製を保存:</b> 元のファイル名を維持したまま、エディタでの編集（トリミングや回転等）を適用して複製を保存します。</li>
+                <li><b>連番リネームで保存:</b> <code>出力ファイル名_001.jpg</code> のように連番を振って保存します。</li>
                 <li><b>見開きを結合して連番保存:</b> 現在の「表示モード（右開き/左開き）」に従い、隣り合う2枚の画像を1枚の横長画像に結合してから出力します。</li>
-                <li><b>サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドレイアウトをそのままPDFとして出力します。</li>
-                <li><b>並び替え案の一括出力:</b> PDF2種と現在の並び順テキストの3種類を同時に出力します。</li>
-                <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。</li>
+                <li><b>サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
+                <li><b>PDFの一括出力:</b> 1ページずつのPDF、俯瞰できるサムネイル一覧PDF、現在の並び順テキストの3種類を同時に出力します。</li>
+                <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定はメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。</li>
             </ul>
+
         </div>
         <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
             <button id="manual-btn-close" style="background: var(--primary-color); padding: 10px 30px;">閉じる</button>
@@ -518,18 +545,21 @@
     </div>
 </div>
 
+<!-- キャッシュ復元用モーダル -->
 <div id="restore-modal" class="modal-overlay">
     <div class="modal-content" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
         <h2>保存された並び順の復元</h2>
         <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-main);"><input type="checkbox" id="restore-check-all" style="width: auto; margin: 0; cursor: pointer;"> 全て選択</label>
-            <select id="restore-sort-mode" style="font-size: 12px; padding: 4px 8px; margin: 0; height: auto; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;">
+            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-main);">
+                <input type="checkbox" id="restore-check-all" style="width: auto; margin: 0;"> 全て選択
+            </label>
+            <select id="restore-sort-mode" style="font-size: 12px; padding: 4px 8px; margin: 0; height: auto; border-radius: 4px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);">
                 <option value="name" selected>名前順</option>
                 <option value="date-desc">変更日時が新しい順</option>
                 <option value="date-asc">変更日時が古い順</option>
             </select>
         </div>
-        <div id="restore-list" style="flex: 1; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); padding: 0; box-sizing: border-box;"></div>
+        <div id="restore-list" style="flex: 1; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); padding: 0;"></div>
         <div class="modal-actions" style="margin-top: 15px;">
             <button id="restore-btn-close" style="background: #6c757d;">閉じる</button>
             <button id="btn-delete-selected-cache" style="background: var(--danger-color); color: #fff;" disabled>選択をクリア</button>
@@ -537,1986 +567,80 @@
     </div>
 </div>
 
-<!-- 画像エディタ用モーダル -->
+<!-- 画像エディタ（プレビュー＆トリミング） -->
 <div id="lightbox-overlay" class="lightbox-overlay">
-    <div class="editor-toolbar">
-        <button id="ed-rot-l" title="左へ90度回転">↺ 左回転</button>
-        <button id="ed-rot-r" title="右へ90度回転">↻ 右回転</button>
-        <button id="ed-flip-h" title="左右反転">↔ 左右反転</button>
-        <button id="ed-flip-v" title="上下反転">↕ 上下反転</button>
-        <div style="width:1px; height:20px; background:var(--border-color); margin:0 5px;"></div>
-        <button id="ed-crop" title="マウスドラッグでトリミング範囲を選択">✂ トリミング枠選択</button>
-        <div style="flex:1;"></div>
-        <button id="ed-reset" style="background:var(--border-color);">リセット</button>
-        <button id="ed-save" style="background:var(--primary-color); color:#fff; font-weight:bold;">保存して適用</button>
-        <button id="ed-close">キャンセル</button>
-    </div>
-    <div class="editor-toolbar" style="border-top:none; padding-top:0; gap:20px; font-size:12px; border-bottom: 1px solid var(--border-color);">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <span style="color:var(--text-sub);">トリミング枠(px):</span>
-            W <input type="number" id="ed-crop-w">
-            H <input type="number" id="ed-crop-h">
-            <label style="cursor:pointer; display:flex; align-items:center;"><input type="checkbox" id="ed-crop-keep" checked style="margin:0 4px 0 0;">比率維持</label>
-            <button id="ed-crop-apply" style="padding:4px 8px; font-size:11px; margin-left:5px;">中央に適用</button>
-            <button id="ed-crop-clear" style="padding:4px 8px; font-size:11px;">全画面</button>
+    
+    <!-- プレビューモード -->
+    <div id="preview-mode" style="width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;">
+        <div style="position: absolute; top: 15px; left: 15px; z-index: 20010;">
+            <button id="btn-to-editor" style="padding: 10px 20px; font-weight: bold; background: var(--primary-color); color: #fff; border: none; border-radius: 4px; cursor: pointer;">画像編集</button>
         </div>
-        <div style="width:1px; height:20px; background:var(--border-color);"></div>
-        <div style="display:flex; align-items:center; gap:5px;">
-            <span style="color:var(--text-sub);">出力サイズ(px):</span>
-            W <input type="number" id="ed-out-w">
-            H <input type="number" id="ed-out-h">
-            <label style="cursor:pointer; display:flex; align-items:center;"><input type="checkbox" id="ed-out-keep" checked style="margin:0 4px 0 0;">比率維持</label>
+        <div style="position: absolute; top: 15px; right: 15px; z-index: 20010;">
+            <button id="btn-close-preview" style="padding: 10px 20px; font-weight: bold; background: var(--danger-color); color: #fff; border: none; border-radius: 4px; cursor: pointer;">✖</button>
+        </div>
+        <div style="flex: 1; display: flex; justify-content: center; align-items: center; min-height: 0;">
+            <img id="preview-img" style="max-width: 90vw; max-height: 85vh; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        </div>
+        
+        <div id="preview-nav" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 20010; display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 30px; color: #fff;">
+            <button id="btn-prev-img" style="background: transparent; border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 0 10px; transition: 0.2s;">&lt;</button>
+            <span id="preview-counter" style="font-size: 14px; font-weight: bold; min-width: 60px; text-align: center;">- / -</span>
+            <button id="btn-next-img" style="background: transparent; border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 0 10px; transition: 0.2s;">&gt;</button>
         </div>
     </div>
-    <div class="editor-canvas-container">
-        <div class="editor-canvas-wrapper" id="ed-canvas-wrapper">
-            <canvas id="editor-canvas"></canvas>
-            <div id="editor-crop-box"></div>
+
+    <!-- 編集（トリミング）モード -->
+    <div id="editor-mode" style="width: 100%; height: 100%; display: none; flex-direction: row;">
+        <!-- キャンバスエリア -->
+        <div class="editor-canvas-container" style="background: #111;">
+            <div class="editor-canvas-wrapper" id="ed-canvas-wrapper">
+                <canvas id="editor-canvas"></canvas>
+                <div id="editor-crop-box">
+                    <div class="crop-grid-h"></div><div class="crop-grid-v"></div>
+                    <div class="crop-handle nw" data-dir="nw"></div><div class="crop-handle ne" data-dir="ne"></div>
+                    <div class="crop-handle sw" data-dir="sw"></div><div class="crop-handle se" data-dir="se"></div>
+                    <div class="crop-handle n" data-dir="n"></div><div class="crop-handle s" data-dir="s"></div>
+                    <div class="crop-handle e" data-dir="e"></div><div class="crop-handle w" data-dir="w"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右側ツールパネル -->
+        <div style="width: 280px; background: #222; border-left: 1px solid #333; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; flex-shrink: 0; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <button id="ed-cancel" style="background: #555; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">キャンセル</button>
+                <button id="ed-save" style="background: var(--primary-color); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">適用して保存</button>
+            </div>
+            
+            <div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
+                <button id="ed-rot-l" class="ed-tool-btn" title="左回転">↺</button>
+                <button id="ed-rot-r" class="ed-tool-btn" title="右回転">↻</button>
+                <button id="ed-flip-h" class="ed-tool-btn" title="水平反転">◧</button>
+                <button id="ed-flip-v" class="ed-tool-btn" title="垂直反転">⬒</button>
+            </div>
+            
+            <div style="margin-bottom: 10px; font-size: 12px; color: #aaa;">トリミング枠 (px)</div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex: 1;"><div style="font-size: 10px; color: #888;">幅</div><input type="number" id="ed-crop-w" style="width: 100%; background: #333; border: 1px solid #444; color: #fff;" readonly></div>
+                <div style="flex: 1;"><div style="font-size: 10px; color: #888;">高さ</div><input type="number" id="ed-crop-h" style="width: 100%; background: #333; border: 1px solid #444; color: #fff;" readonly></div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 20px;">
+                <button class="ed-ratio-btn active" data-ratio="free">フリー</button>
+                <button class="ed-ratio-btn" data-ratio="1">1:1</button>
+                <button class="ed-ratio-btn" data-ratio="0.8">4:5</button>
+                <button class="ed-ratio-btn" data-ratio="1.777">16:9</button>
+                <button class="ed-ratio-btn" data-ratio="0.7071">A4/B5 (縦)</button>
+                <button class="ed-ratio-btn" data-ratio="1.4142">A4/B5 (横)</button>
+            </div>
+            
+            <button id="ed-crop-clear" style="background: #444; color: #fff; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%;">全画面リセット</button>
         </div>
     </div>
 </div>
 
+<!-- 分離したJSファイルを読み込む -->
 <script src="epub-templates.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    
-    const USER_SETTINGS = {
-        msgSaving: '保存中... {current} / {total}',
-        msgSavingPDF: 'PDF生成中... {current} / {total}',
-        msgSavingEpub: 'EPUB生成中... {current} / {total}',
-        validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        msgFallbackLoad: 'File System API非対応ブラウザのため、標準のファイル選択を使用します。',
-        msgFallbackSave: 'File System API非対応ブラウザのため、ZIPファイルにまとめて保存します。',
-        msgConfirmReset: '本当にリセットしてもよろしいですか？\n編集中のデータはすべて失われます。'
-    };
-
-    class UIManager {
-        constructor(onRequestImage, onReleaseImage) {
-            this.onRequestImage = onRequestImage;
-            this.onReleaseImage = onReleaseImage;
-
-            this.emptyMessage = document.getElementById('empty-message');
-            this.btnExecute = document.getElementById('btn-execute');
-            this.btnUndo = document.getElementById('btn-undo');
-            this.btnRedo = document.getElementById('btn-redo');
-            this.btnReset = document.getElementById('btn-reset');
-            this.btnSetToc = document.getElementById('btn-set-toc');
-            this.btnAddBlank = document.getElementById('btn-add-blank');
-            this.btnDelete = document.getElementById('btn-delete');
-            
-            this.currentFolderName = document.getElementById('current-folder-name');
-            
-            this.btnExportOrder = document.getElementById('btn-export-order');
-            this.btnExportSettings = document.getElementById('btn-export-settings');
-            this.btnRestoreOrder = document.getElementById('btn-restore-order');
-            
-            this.restoreModal = document.getElementById('restore-modal');
-            this.restoreBtnClose = document.getElementById('restore-btn-close');
-            this.restoreList = document.getElementById('restore-list');
-            this.restoreCheckAll = document.getElementById('restore-check-all');
-            this.btnDeleteSelectedCache = document.getElementById('btn-delete-selected-cache');
-            this.restoreSortMode = document.getElementById('restore-sort-mode');
-
-            this.restoreBtnClose.addEventListener('click', () => this.restoreModal.style.display = 'none');
-            
-            this.outputFilename = document.getElementById('output-filename');
-            this.saveFormatSelect = document.getElementById('save-format');
-            this.pdfOptions = document.getElementById('pdf-options');
-            this.pdfQuality = document.getElementById('pdf-quality');
-            
-            this.resizeModeSelect = document.getElementById('resize-mode');
-            this.resizeBaseSelect = document.getElementById('resize-base');
-            
-            this.resizeModeSelect.addEventListener('change', (e) => {
-                this.resizeBaseSelect.disabled = e.target.value === 'none';
-            });
-
-            const ribbonGroups = document.querySelectorAll('.ribbon-group');
-            ribbonGroups.forEach(group => {
-                group.addEventListener('click', (e) => {
-                    if (e.target.closest('.ribbon-items')) {
-                        if (e.target.matches('button, button *')) {
-                            ribbonGroups.forEach(g => g.classList.remove('active'));
-                        }
-                        return;
-                    }
-                    const isActive = group.classList.contains('active');
-                    ribbonGroups.forEach(g => g.classList.remove('active'));
-                    if (!isActive) group.classList.add('active');
-                });
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.ribbon-group')) {
-                    ribbonGroups.forEach(g => g.classList.remove('active'));
-                }
-            });
-
-            this.saveFormatSelect.addEventListener('change', (e) => {
-                const val = e.target.value;
-                const isPdf = val.includes('pdf');
-                if (val === 'pdf-sheet') {
-                    this.pdfOptions.style.display = 'none';
-                    this.pdfQuality.value = 100;
-                } else {
-                    this.pdfOptions.style.display = isPdf ? 'flex' : 'none';
-                    if (isPdf && this.pdfQuality.value === '100') this.pdfQuality.value = 30;
-                }
-            });
-
-            this.viewModeSelect = document.getElementById('view-mode');
-            this.sizeSlider = document.getElementById('size-slider');
-            this.mainArea = document.querySelector('.main-area');
-            this.mainGrid = document.getElementById('main-grid');
-            this.sidebarList = document.getElementById('sidebar-list');
-            this.progressArea = document.getElementById('progress-area');
-            this.progressBar = document.getElementById('progress-bar');
-            this.progressText = document.getElementById('progress-text');
-            this.btnManual = document.getElementById('btn-manual');
-            this.manualModal = document.getElementById('manual-modal');
-            this.manualBtnClose = document.getElementById('manual-btn-close');
-
-            const containerWidth = this.mainArea.clientWidth || window.innerWidth * 0.75;
-            let initialThumbSize = Math.floor((containerWidth - 35) / 10);
-            if (initialThumbSize < 80) initialThumbSize = 80;
-            if (initialThumbSize > 300) initialThumbSize = 300;
-            this.sizeSlider.value = initialThumbSize;
-            document.documentElement.style.setProperty('--thumb-size', `${initialThumbSize}px`);
-
-            this.btnManual.addEventListener('click', () => this.manualModal.style.display = 'flex');
-            this.manualBtnClose.addEventListener('click', () => this.manualModal.style.display = 'none');
-            this.manualModal.addEventListener('click', (e) => {
-                if (e.target === this.manualModal) this.manualModal.style.display = 'none';
-            });
-
-            this.themeToggle = document.getElementById('theme-toggle');
-            this.themeToggle.addEventListener('click', () => this.toggleTheme());
-            this.viewModeSelect.addEventListener('change', (e) => this.changeViewMode(e.target.value));
-
-            this.sizeSlider.addEventListener('input', (e) => {
-                document.documentElement.style.setProperty('--thumb-size', `${e.target.value}px`);
-                this.adjustGridWidth();
-            });
-            this.resizeObserver = new ResizeObserver(() => this.adjustGridWidth());
-            this.resizeObserver.observe(this.mainArea);
-        }   
-
-        async loadAllThumbnails(fileItems) {
-            this.currentLoadSession = Date.now();
-            const session = this.currentLoadSession;
-            for (const item of fileItems) {
-                if (session !== this.currentLoadSession) break;
-                if (!item.objectUrl) {
-                    const url = await this.onRequestImage(item.id);
-                    if (session !== this.currentLoadSession) break;
-                    if (url) {
-                        const img = this.mainGrid.querySelector(`img[data-id="${item.id}"]`);
-                        if (img) img.src = url;
-                    }
-                }
-            }
-        }
-
-        adjustGridWidth() {
-            const mode = this.viewModeSelect.value;
-            if (mode === 'grid') {
-                this.mainGrid.style.width = 'auto';
-                this.mainGrid.style.maxWidth = 'none';
-                return;
-            }
-            const containerWidth = this.mainArea.clientWidth - 10;
-            const thumbSize = parseInt(this.sizeSlider.value, 10);
-            const gap = 5;
-            const pairWidth = (thumbSize * 2) + gap;
-            let pairsCount = Math.floor(containerWidth / pairWidth);
-            if (pairsCount < 1) pairsCount = 1;
-            const optimalWidth = (pairsCount * pairWidth) + 1;
-            this.mainGrid.style.width = `${optimalWidth}px`;
-            this.mainGrid.style.maxWidth = 'none';
-        }
-
-        toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            this.themeToggle.innerHTML = document.body.classList.contains('light-mode') 
-                ? '<span class="icon">🌙</span><span class="label">テーマ</span>' 
-                : '<span class="icon">☀</span><span class="label">テーマ</span>';
-        }
-
-        changeViewMode(mode) {
-            this.mainGrid.className = 'thumb-grid'; 
-            if (mode === 'spread-rtl') this.mainGrid.classList.add('mode-spread', 'mode-spread-rtl');
-            else if (mode === 'spread-ltr') this.mainGrid.classList.add('mode-spread', 'mode-spread-ltr');
-            this.adjustGridWidth();
-        }
-
-        updateProgress(percent, text) {
-            if (percent === 0 && text === '') {
-                this.progressArea.style.display = 'none';
-            } else {
-                this.progressArea.style.display = 'block';
-                this.progressBar.style.width = Math.floor(percent) + '%';
-                this.progressText.textContent = text;
-            }
-        }
-
-        renderItems(fileItems) {
-            this.mainGrid.innerHTML = '';
-            this.sidebarList.innerHTML = '';
-            this.emptyMessage.style.display = fileItems.length > 0 ? 'none' : 'flex';
-            this.mainGrid.style.display = fileItems.length > 0 ? '' : 'none';
-            const fragmentMain = document.createDocumentFragment();
-            const fragmentSidebar = document.createDocumentFragment();
-            
-            fileItems.forEach(item => {
-                const thumbDiv = document.createElement('div');
-                thumbDiv.className = 'thumb-item';
-                thumbDiv.dataset.id = item.id;
-                thumbDiv.draggable = true;
-                if (item.tocName) {
-                    const badge = document.createElement('div');
-                    badge.className = 'toc-badge';
-                    badge.textContent = item.tocName;
-                    thumbDiv.appendChild(badge);
-                }
-                const img = document.createElement('img');
-                img.dataset.id = item.id;
-                if (item.objectUrl) {
-                    img.decoding = "async";
-                    img.src = item.objectUrl;
-                }
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'name';
-                nameDiv.textContent = item.name;
-                thumbDiv.appendChild(img);
-                thumbDiv.appendChild(nameDiv);
-                fragmentMain.appendChild(thumbDiv);
-                
-                const listDiv = document.createElement('div');
-                listDiv.className = 'list-item';
-                listDiv.dataset.id = item.id;
-                listDiv.textContent = item.name;
-                listDiv.draggable = true;
-                fragmentSidebar.appendChild(listDiv);
-            });
-            this.mainGrid.appendChild(fragmentMain);
-            this.sidebarList.appendChild(fragmentSidebar);
-            this.adjustGridWidth();
-            this.loadAllThumbnails(fileItems);
-        }
-
-        setButtonsState(isProcessing, hasFiles) {
-            this.emptyMessage.style.pointerEvents = isProcessing ? 'none' : 'auto';
-            this.emptyMessage.style.opacity = isProcessing ? '0.5' : '1';
-            
-            this.btnExecute.disabled = isProcessing || !hasFiles;
-            this.btnReset.disabled = isProcessing;
-            this.viewModeSelect.disabled = isProcessing;
-            this.saveFormatSelect.disabled = isProcessing;
-            this.pdfQuality.disabled = isProcessing;
-            this.outputFilename.disabled = isProcessing;
-            this.resizeModeSelect.disabled = isProcessing;
-            this.resizeBaseSelect.disabled = isProcessing || this.resizeModeSelect.value === 'none';
-            this.btnSetToc.disabled = isProcessing || !hasFiles;
-            this.btnAddBlank.disabled = isProcessing || !hasFiles;
-            this.btnDelete.disabled = isProcessing || !hasFiles;
-            this.btnExportOrder.disabled = isProcessing || !hasFiles;
-            this.btnRestoreOrder.disabled = isProcessing || !hasFiles;
-            this.btnExportSettings.disabled = isProcessing;
-            if (isProcessing) {
-                this.btnUndo.disabled = true;
-                this.btnRedo.disabled = true;
-            }
-        }
-
-        clear() {
-            this.mainGrid.innerHTML = '';
-            this.sidebarList.innerHTML = '';
-            this.currentLoadSession = null;
-            this.updateProgress(0, '');
-            this.setButtonsState(false, false);
-            if (this.currentFolderName) this.currentFolderName.textContent = '';
-            this.emptyMessage.style.display = 'flex';
-            this.mainGrid.style.display = 'none';
-        }
-
-        showToast(message, isError = false) {
-            let container = document.getElementById('toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toast-container';
-                document.body.appendChild(container);
-            }
-            const toast = document.createElement('div');
-            toast.className = `toast ${isError ? 'error' : ''}`;
-            toast.textContent = message;
-            toast.addEventListener('click', () => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            });
-            container.appendChild(toast);
-            requestAnimationFrame(() => toast.classList.add('show'));
-            setTimeout(() => {
-                if (toast.parentElement) {
-                    toast.classList.remove('show');
-                    setTimeout(() => toast.remove(), 300);
-                }
-            }, 3000);
-        }
-    }
-
-    class EpubMetadataModal {
-        constructor() {
-            this.overlay = document.getElementById('epub-modal');
-            this.inTitle = document.getElementById('epub-title');
-            this.inTitleRuby = document.getElementById('epub-title-ruby');
-            this.inAuthor = document.getElementById('epub-author');
-            this.inAuthorRuby = document.getElementById('epub-author-ruby');
-            this.inPublisher = document.getElementById('epub-publisher');
-            this.inPublisherRuby = document.getElementById('epub-publisher-ruby');
-            this.inBookId = document.getElementById('epub-bookid');
-            this.inModified = document.getElementById('epub-modified');
-            this.chkIncludeImages = document.getElementById('epub-include-images');
-            this.chkExportOrder = document.getElementById('epub-export-order');
-            this.chkExportSettings = document.getElementById('epub-export-settings');
-            this.btnClose = document.getElementById('epub-btn-close');
-            this.btnStart = document.getElementById('epub-btn-start');
-            
-            this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: false };
-
-            document.getElementById('epub-btn-reset').addEventListener('click', () => {
-                this.inTitle.value = ''; this.inTitleRuby.value = '';
-                this.inAuthor.value = ''; this.inAuthorRuby.value = '';
-                this.inPublisher.value = ''; this.inPublisherRuby.value = '';
-                this.inBookId.value = ''; this.inModified.value = '';
-                this.chkIncludeImages.checked = true; this.chkExportOrder.checked = false; this.chkExportSettings.checked = false;
-                this.savedData = { title: '', titleRuby: '', author: '', authorRuby: '', publisher: '', publisherRuby: '', bookId: '', modified: '', includeImages: true, exportOrder: false, exportSettings: false };
-            });
-
-            this.btnClose.addEventListener('click', () => {
-                this.savedData = this.getCurrentData();
-                this.hide();
-                if (this.rejectFunc) this.rejectFunc(new Error('cancel'));
-            });
-
-            this.btnStart.addEventListener('click', () => {
-                this.savedData = {
-                    title: this.inTitle.value.trim(), titleRuby: this.inTitleRuby.value.trim(),
-                    author: this.inAuthor.value.trim(), authorRuby: this.inAuthorRuby.value.trim(),
-                    publisher: this.inPublisher.value.trim(), publisherRuby: this.inPublisherRuby.value.trim(),
-                    bookId: this.inBookId.value.trim() || 'urn:uuid:' + this._generateUUID(),
-                    modified: this.inModified.value, includeImages: this.chkIncludeImages.checked,
-                    exportOrder: this.chkExportOrder.checked, exportSettings: this.chkExportSettings.checked
-                };
-                this.hide();
-                if (this.resolveFunc) this.resolveFunc(this.savedData);
-            });
-        }
-        _generateUUID() {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16);
-            });
-        }
-        show(defaultTitle = '') {
-            this.inTitle.value = defaultTitle || this.savedData.title || '';
-            this.inTitleRuby.value = this.savedData.titleRuby;
-            this.inAuthor.value = this.savedData.author;
-            this.inAuthorRuby.value = this.savedData.authorRuby;
-            this.inPublisher.value = this.savedData.publisher;
-            this.inPublisherRuby.value = this.savedData.publisherRuby;
-            this.inBookId.value = this.savedData.bookId.startsWith('urn:uuid:') ? '' : this.savedData.bookId;
-            this.inModified.value = this.savedData.modified;
-            this.chkIncludeImages.checked = this.savedData.includeImages;
-            this.chkExportOrder.checked = this.savedData.exportOrder;
-            this.chkExportSettings.checked = this.savedData.exportSettings === true;
-            this.overlay.style.display = 'flex';
-            return new Promise((resolve, reject) => { this.resolveFunc = resolve; this.rejectFunc = reject; });
-        }
-        hide() { this.overlay.style.display = 'none'; }
-        getCurrentData() {
-            return {
-                title: this.inTitle.value.trim(), titleRuby: this.inTitleRuby.value.trim(),
-                author: this.inAuthor.value.trim(), authorRuby: this.inAuthorRuby.value.trim(),
-                publisher: this.inPublisher.value.trim(), publisherRuby: this.inPublisherRuby.value.trim(),
-                bookId: this.inBookId.value.trim(), modified: this.inModified.value,
-                includeImages: this.chkIncludeImages.checked, exportOrder: this.chkExportOrder.checked, exportSettings: this.chkExportSettings.checked
-            };
-        }
-        setSavedData(data) {
-            this.savedData = { ...this.savedData, ...data };
-            this.inTitle.value = this.savedData.title || '';
-            this.inTitleRuby.value = this.savedData.titleRuby || '';
-            this.inAuthor.value = this.savedData.author || '';
-            this.inAuthorRuby.value = this.savedData.authorRuby || '';
-            this.inPublisher.value = this.savedData.publisher || '';
-            this.inPublisherRuby.value = this.savedData.publisherRuby || '';
-            this.inBookId.value = this.savedData.bookId || '';
-            this.inModified.value = this.savedData.modified || '';
-            this.chkIncludeImages.checked = this.savedData.includeImages !== false;
-            this.chkExportOrder.checked = this.savedData.exportOrder === true;
-            this.chkExportSettings.checked = this.savedData.exportSettings === true;
-        }
-    }
-
-    class SortManager {
-        constructor(uiManager, onOrderChanged, onExternalFilesDropped) {
-            this.ui = uiManager;
-            this.onOrderChanged = onOrderChanged;
-            this.onExternalFilesDropped = onExternalFilesDropped;
-            this.lastSelectedId = null;
-            this.markerTarget = null;
-            this.boundEvents =[];
-            this.dragOverTicking = false;
-        }
-        init() {
-            this.destroy();
-            this.bindEvents(this.ui.mainGrid, true);
-            this.bindEvents(this.ui.sidebarList, false);
-        }
-        bindEvents(container, isMain) {
-            const onClick = (e) => {
-                const item = e.target.closest('.thumb-item, .list-item');
-                if (!item) return;
-                const id = item.dataset.id;
-                const isSelected = item.classList.contains('selected');
-                const allItems = Array.from(container.children).filter(el => el.dataset.id);
-                if (e.shiftKey && this.lastSelectedId) {
-                    const ids = allItems.map(i => i.dataset.id);
-                    const start = ids.indexOf(this.lastSelectedId);
-                    const end = ids.indexOf(id);
-                    if (start !== -1 && end !== -1) {
-                        const [min, max] =[Math.min(start, end), Math.max(start, end)];
-                        this.clearSelection();
-                        for (let i = min; i <= max; i++) this.selectById(ids[i], true);
-                    } else {
-                        this.clearSelection();
-                        this.selectById(id, true);
-                        this.lastSelectedId = id;
-                    }
-                } else if (e.ctrlKey || e.metaKey) {
-                    this.selectById(id, !isSelected);
-                    this.lastSelectedId = id;
-                } else {
-                    this.clearSelection();
-                    this.selectById(id, true);
-                    this.lastSelectedId = id;
-                }
-            };
-            const onDragStart = (e) => {
-                const item = e.target.closest('.thumb-item, .list-item');
-                if (!item) return;
-                if (!item.classList.contains('selected')) {
-                    this.clearSelection();
-                    this.selectById(item.dataset.id, true);
-                }
-                const selectedEls = Array.from(document.querySelectorAll('.selected'));
-                selectedEls.forEach(el => el.classList.add('dragging'));
-                const selectedIds =[...new Set(selectedEls.map(el => el.dataset.id))];
-                e.dataTransfer.setData('text/plain', JSON.stringify(selectedIds));
-                e.dataTransfer.effectAllowed = 'move';
-            };
-            const onDragEnd = (e) => {
-                document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-                this.removeMarker();
-            };
-            const handleAutoScroll = (e) => {
-                const scrollTarget = isMain ? this.ui.mainArea : container.parentElement;
-                const rect = scrollTarget.getBoundingClientRect();
-                const threshold = 50; const speed = 15;
-                if (e.clientY < rect.top + threshold) scrollTarget.scrollTop -= speed;
-                else if (e.clientY > rect.bottom - threshold) scrollTarget.scrollTop += speed;
-                if (e.clientX < rect.left + threshold) scrollTarget.scrollLeft -= speed;
-                else if (e.clientX > rect.right - threshold) scrollTarget.scrollLeft += speed;
-            };
-            const onDragOver = (e) => {
-                e.preventDefault();
-                const isExternal = e.dataTransfer.types && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'));
-                e.dataTransfer.dropEffect = isExternal ? 'copy' : 'move';
-                if (!this.dragOverTicking) {
-                    requestAnimationFrame(() => {
-                        handleAutoScroll(e);
-                        const target = e.target.closest('.thumb-item, .list-item');
-                        if (!target || (!isExternal && target.classList.contains('selected'))) {
-                            this.removeMarker();
-                            this.dragOverTicking = false;
-                            return;
-                        }
-                        this.removeMarker();
-                        const rect = target.getBoundingClientRect();
-                        if (isMain) {
-                            const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
-                            if (isLeftHalf) { target.classList.add('drop-left'); this.markerTarget = { el: target, visualPos: 'left' }; } 
-                            else { target.classList.add('drop-right'); this.markerTarget = { el: target, visualPos: 'right' }; }
-                        } else {
-                            const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
-                            if (isTopHalf) { target.classList.add('drop-top'); this.markerTarget = { el: target, visualPos: 'top' }; } 
-                            else { target.classList.add('drop-bottom'); this.markerTarget = { el: target, visualPos: 'bottom' }; }
-                        }
-                        this.dragOverTicking = false;
-                    });
-                    this.dragOverTicking = true;
-                }
-            };
-            const onDrop = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                let refId = null; let isLogicalBefore = false;
-                if (this.markerTarget) {
-                    const targetEl = this.markerTarget.el;
-                    const visualPos = this.markerTarget.visualPos;
-                    refId = targetEl.dataset.id;
-                    if (isMain) {
-                        const isRTL = container.classList.contains('mode-spread-rtl');
-                        isLogicalBefore = isRTL ? (visualPos === 'right') : (visualPos === 'left');
-                    } else { isLogicalBefore = (visualPos === 'top'); }
-                } else {
-                    const isExternal = e.dataTransfer.types && (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'));
-                    if (!isExternal) return;
-                }
-                let isInternalSort = false;
-                try {
-                    const textData = e.dataTransfer.getData('text/plain');
-                    if (textData) {
-                        const ids = JSON.parse(textData);
-                        if (Array.isArray(ids)) { this.onOrderChanged(ids, refId, isLogicalBefore); isInternalSort = true; }
-                    }
-                } catch (err) {}
-                if (!isInternalSort && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    if (this.onExternalFilesDropped) {
-                        const items = e.dataTransfer.items; const files = e.dataTransfer.files;
-                        this.onExternalFilesDropped(items || files, refId, isLogicalBefore);
-                    }
-                }
-                this.removeMarker();
-            };
-            const onDragLeave = (e) => { if (!container.contains(e.relatedTarget)) this.removeMarker(); };
-            container.addEventListener('click', onClick);
-            container.addEventListener('dragstart', onDragStart);
-            container.addEventListener('dragend', onDragEnd);
-            container.addEventListener('dragover', onDragOver);
-            container.addEventListener('drop', onDrop);
-            container.addEventListener('dragleave', onDragLeave);
-            this.boundEvents.push(
-                { el: container, type: 'click', fn: onClick }, { el: container, type: 'dragstart', fn: onDragStart },
-                { el: container, type: 'dragend', fn: onDragEnd }, { el: container, type: 'dragover', fn: onDragOver },
-                { el: container, type: 'drop', fn: onDrop }, { el: container, type: 'dragleave', fn: onDragLeave }
-            );
-        }
-        removeMarker() {
-            document.querySelectorAll('.drop-left, .drop-right, .drop-top, .drop-bottom').forEach(el => { el.classList.remove('drop-left', 'drop-right', 'drop-top', 'drop-bottom'); });
-            this.markerTarget = null;
-        }
-        selectById(id, isSelect) {
-            const m = this.ui.mainGrid.querySelector(`[data-id="${id}"]`); const l = this.ui.sidebarList.querySelector(`[data-id="${id}"]`);
-            if (isSelect) { if (m) m.classList.add('selected'); if (l) l.classList.add('selected'); } 
-            else { if (m) m.classList.remove('selected'); if (l) l.classList.remove('selected'); }
-        }
-        clearSelection() { document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected')); }
-        destroy() { this.removeMarker(); this.boundEvents.forEach(({ el, type, fn }) => el.removeEventListener(type, fn)); this.boundEvents =[]; }
-    }
-
-    class PDFDocument {
-        constructor(direction = 'L2R') {
-            this.parts =[]; this.objects = []; this.offsets =[]; this.offset = 0; this.direction = direction;
-            this.addPart("%PDF-1.3\n%\xBE\xE2\xAE\xCE\n");
-            this.catalogId = this.allocObj(); this.pagesId = this.allocObj(); this.pageIds =[];
-        }
-        allocObj() { this.objects.push(null); return this.objects.length; }
-        addPart(data) {
-            if (typeof data === 'string') { const bytes = new TextEncoder().encode(data); this.parts.push(bytes); this.offset += bytes.length; } 
-            else { this.parts.push(data); this.offset += data.length; }
-        }
-        startObj(id) { this.offsets[id] = this.offset; this.addPart(`${id} 0 obj\n`); }
-        endObj() { this.addPart("\nendobj\n"); }
-        async addImagePage(imgBlob, width, height) {
-            const pageId = this.allocObj(); const contentId = this.allocObj(); const imageId = this.allocObj();
-            this.pageIds.push(pageId);
-            this.startObj(pageId);
-            this.addPart(`<< /Type /Page /Parent ${this.pagesId} 0 R /MediaBox[0 0 ${width} ${height}] /Contents ${contentId} 0 R /Resources << /XObject << /I${imageId} ${imageId} 0 R >> >> >>`);
-            this.endObj();
-            const contentStr = `q ${width} 0 0 ${height} 0 0 cm /I${imageId} Do Q`;
-            this.startObj(contentId);
-            this.addPart(`<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream`);
-            this.endObj();
-            const imgBuffer = new Uint8Array(await imgBlob.arrayBuffer());
-            this.startObj(imageId);
-            this.addPart(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBuffer.length} >>\nstream\n`);
-            this.addPart(imgBuffer); this.addPart(`\nendstream`); this.endObj();
-        }
-        async addThumbnailPage(processedData, totalWidth, totalHeight) {
-            const pageId = this.allocObj(); const contentId = this.allocObj();
-            this.pageIds.push(pageId);
-            const imageIds =[]; let xobjDict = "<< ";
-            for (let i = 0; i < processedData.length; i++) { const imgId = this.allocObj(); imageIds.push(imgId); xobjDict += `/I${imgId} ${imgId} 0 R `; }
-            xobjDict += ">>";
-            this.startObj(pageId);
-            this.addPart(`<< /Type /Page /Parent ${this.pagesId} 0 R /MediaBox[0 0 ${totalWidth} ${totalHeight}] /Contents ${contentId} 0 R /Resources << /XObject ${xobjDict} >> >>`);
-            this.endObj();
-            let contentStr = `q 1 1 1 rg 0 0 ${totalWidth} ${totalHeight} re f Q\n`;
-            for (let i = 0; i < processedData.length; i++) {
-                const item = processedData[i];
-                contentStr += `q ${item.pdfW} 0 0 ${item.pdfH} ${item.pdfX} ${item.pdfY} cm /I${imageIds[i]} Do Q\n`;
-            }
-            this.startObj(contentId);
-            this.addPart(`<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream`);
-            this.endObj();
-            for (let i = 0; i < processedData.length; i++) {
-                const item = processedData[i];
-                const imgBuffer = new Uint8Array(await item.blob.arrayBuffer());
-                this.startObj(imageIds[i]);
-                this.addPart(`<< /Type /XObject /Subtype /Image /Width ${item.canvasW} /Height ${item.canvasH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBuffer.length} >>\nstream\n`);
-                this.addPart(imgBuffer); this.addPart(`\nendstream`); this.endObj();
-            }
-        }
-        finish() {
-            this.startObj(this.catalogId);
-            const dirPref = this.direction === 'R2L' ? '/R2L' : '/L2R';
-            this.addPart(`<< /Type /Catalog /Pages ${this.pagesId} 0 R /ViewerPreferences << /Direction ${dirPref} >> >>`);
-            this.endObj();
-            this.startObj(this.pagesId);
-            this.addPart(`<< /Type /Pages /Kids[${this.pageIds.map(id => id + ' 0 R').join(' ')}] /Count ${this.pageIds.length} >>`);
-            this.endObj();
-            const xrefOffset = this.offset;
-            this.addPart("xref\n"); this.addPart(`0 ${this.objects.length + 1}\n`); this.addPart("0000000000 65535 f \r\n");
-            for (let i = 1; i <= this.objects.length; i++) {
-                const off = this.offsets[i] || 0; this.addPart(String(off).padStart(10, '0') + " 00000 n \r\n");
-            }
-            this.addPart("trailer\n"); this.addPart(`<< /Size ${this.objects.length + 1} /Root ${this.catalogId} 0 R >>\n`);
-            this.addPart("startxref\n"); this.addPart(`${xrefOffset}\n`); this.addPart("%%EOF\n");
-            const totalLength = this.parts.reduce((sum, p) => sum + p.length, 0);
-            const result = new Uint8Array(totalLength);
-            let pos = 0; for (const p of this.parts) { result.set(p, pos); pos += p.length; }
-            return new Blob([result], { type: 'application/pdf' });
-        }
-    }
-
-    class ZipDocument {
-        constructor() {
-            this.parts =[]; this.centralDirs =[]; this.offset = 0; this.encoder = new TextEncoder();
-        }
-        getDosTime() {
-            const d = new Date();
-            const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
-            const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
-            return { time, date };
-        }
-        addFile(name, dataUint8) { this._addFileInternal(name, dataUint8, dataUint8.length, dataUint8); }
-        async addFileAsync(name, blob) {
-            const dataUint8 = new Uint8Array(await blob.arrayBuffer());
-            this._addFileInternal(name, dataUint8, blob.size, blob);
-        }
-        _addFileInternal(name, dataUint8, size, storeData) {
-            const nameBytes = this.encoder.encode(name);
-            const crc = this.crc32(dataUint8); const { time, date } = this.getDosTime();
-            const lfh = new Uint8Array(30 + nameBytes.length); const view = new DataView(lfh.buffer);
-            view.setUint32(0, 0x04034b50, true); view.setUint16(4, 10, true); view.setUint16(6, 0x0800, true);
-            view.setUint16(8, 0, true); view.setUint16(10, time, true); view.setUint16(12, date, true);
-            view.setUint32(14, crc, true); view.setUint32(18, size, true); view.setUint32(22, size, true);
-            view.setUint16(26, nameBytes.length, true); view.setUint16(28, 0, true); lfh.set(nameBytes, 30);
-            this.parts.push(lfh); this.parts.push(storeData);
-            const cd = new Uint8Array(46 + nameBytes.length); const cdView = new DataView(cd.buffer);
-            cdView.setUint32(0, 0x02014b50, true); cdView.setUint16(4, 10, true); cdView.setUint16(6, 10, true);
-            cdView.setUint16(8, 0x0800, true); cdView.setUint16(10, 0, true); cdView.setUint16(12, time, true);
-            cdView.setUint16(14, date, true); cdView.setUint32(16, crc, true); cdView.setUint32(20, size, true);
-            cdView.setUint32(24, size, true); cdView.setUint16(28, nameBytes.length, true); cdView.setUint32(42, this.offset, true);
-            cd.set(nameBytes, 46); this.centralDirs.push(cd); this.offset += lfh.length + size;
-        }
-        finish() {
-            let cdSize = 0; this.centralDirs.forEach(cd => cdSize += cd.length);
-            const eocd = new Uint8Array(22); const view = new DataView(eocd.buffer);
-            view.setUint32(0, 0x06054b50, true); view.setUint16(8, this.centralDirs.length, true);
-            view.setUint16(10, this.centralDirs.length, true); view.setUint32(12, cdSize, true); view.setUint32(16, this.offset, true);
-            return new Blob([...this.parts, ...this.centralDirs, eocd], { type: 'application/zip' });
-        }
-        crc32(data) {
-            let crc = 0 ^ (-1);
-            for (let i = 0; i < data.length; i++) {
-                crc ^= data[i];
-                for (let j = 0; j < 8; j++) crc = (crc & 1) ? (crc >>> 1) ^ 0xEDB88320 : (crc >>> 1);
-            }
-            return (crc ^ (-1)) >>> 0;
-        }
-    }
-
-    class FileSystemManager {
-        async calculateBaseDimensions(fileItems, baseType, onProgress) {
-            let widths = []; let heights = [];
-            for (let i = 0; i < fileItems.length; i++) {
-                const file = fileItems[i].editedBlob || await fileItems[i].handle.getFile();
-                const bmp = await createImageBitmap(file);
-                widths.push(bmp.width); heights.push(bmp.height); bmp.close();
-                if (onProgress) onProgress(i + 1, fileItems.length);
-            }
-            let baseW = 0, baseH = 0;
-            if (baseType === 'max') { baseW = Math.max(...widths); baseH = Math.max(...heights); } 
-            else if (baseType === 'min') { baseW = Math.min(...widths); baseH = Math.min(...heights); } 
-            else if (baseType === 'avg') { baseW = Math.round(widths.reduce((a,b)=>a+b, 0) / widths.length); baseH = Math.round(heights.reduce((a,b)=>a+b, 0) / heights.length); }
-            return { baseW, baseH };
-        }
-        async processImageResize(file, opts) {
-            const bmp = await createImageBitmap(file);
-            let targetW = bmp.width; let targetH = bmp.height; let dx = 0, dy = 0; let drawW = bmp.width; let drawH = bmp.height;
-            if (opts.mode === 'fit-width') {
-                const scale = opts.baseW / bmp.width; targetW = opts.baseW; targetH = Math.max(1, Math.round(bmp.height * scale));
-                drawW = targetW; drawH = targetH;
-            } else if (opts.mode === 'fit-height') {
-                const scale = opts.baseH / bmp.height; targetW = Math.max(1, Math.round(bmp.width * scale)); targetH = opts.baseH;
-                drawW = targetW; drawH = targetH;
-            } else if (opts.mode === 'pad-white-v') {
-                targetW = opts.baseW; targetH = opts.baseH; const fitScale = opts.baseH / bmp.height;
-                drawW = Math.max(1, Math.round(bmp.width * fitScale)); drawH = opts.baseH; dx = (opts.baseW - drawW) / 2; dy = 0;
-            } else if (opts.mode === 'pad-white-h') {
-                targetW = opts.baseW; targetH = opts.baseH; const fitScale = opts.baseW / bmp.width;
-                drawW = opts.baseW; drawH = Math.max(1, Math.round(bmp.height * fitScale)); dx = 0; dy = (opts.baseH - drawH) / 2;
-            }
-            const canvas = new OffscreenCanvas(targetW, targetH); const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, targetW, targetH);
-            ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(bmp, dx, dy, drawW, drawH);
-            bmp.close();
-            return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-        }
-        async selectDirectory() { return await window.showDirectoryPicker({ mode: 'readwrite' }); }
-        async selectDirectoryFallback() {
-            return new Promise((resolve) => {
-                const input = document.createElement('input'); input.type = 'file'; input.webkitdirectory = true; input.multiple = true;
-                input.onchange = (e) => resolve(Array.from(e.target.files));
-                window.addEventListener('focus', function onFocus() {
-                    window.removeEventListener('focus', onFocus);
-                    setTimeout(() => resolve(Array.from(input.files || [])), 300);
-                }, { once: true });
-                input.click();
-            });
-        }
-        async loadImages(dirHandle) {
-            const items =[]; let count = 0;
-            for await (const entry of dirHandle.values()) {
-                if (entry.kind === 'file') {
-                    if (entry.name.startsWith('.')) continue; 
-                    const ext = entry.name.split('.').pop().toLowerCase();
-                    if (USER_SETTINGS.validExts.includes(ext)) items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null, tocName: null });
-                }
-                if (++count % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
-            }
-            await new Promise(resolve => setTimeout(resolve, 0));
-            items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-            return items;
-        }
-        async loadImagesFallback(files) {
-            const items =[];
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                if (file.name.startsWith('.')) continue;
-                const ext = file.name.split('.').pop().toLowerCase();
-                if (USER_SETTINGS.validExts.includes(ext)) {
-                    items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null, tocName: null });
-                }
-                if (i % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
-            }
-            await new Promise(resolve => setTimeout(resolve, 0));
-            items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-            return items;
-        }
-        async saveRenamedFiles(targetDirHandle, fileItems, onProgress, prefix = '', resizeOpts = null, useOriginalName = false) {
-            const padLength = Math.max(3, String(fileItems.length).length);
-            for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i];
-                let ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                if (resizeOpts && resizeOpts.mode !== 'none') ext = 'jpg'; 
-                let newName;
-                if (useOriginalName) {
-                    const baseOrigName = item.name.includes('.') ? item.name.substring(0, item.name.lastIndexOf('.')) : item.name;
-                    newName = prefix ? `${prefix}_${baseOrigName}.${ext}` : `${baseOrigName}.${ext}`;
-                } else {
-                    const numStr = String(i + 1).padStart(padLength, '0');
-                    newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
-                }
-                const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
-                const writable = await newFileHandle.createWritable();
-                const file = item.editedBlob || await item.handle.getFile();
-                if (resizeOpts && resizeOpts.mode !== 'none') {
-                    const blob = await this.processImageResize(file, resizeOpts);
-                    await writable.write(blob);
-                } else await writable.write(file);
-                await writable.close();
-                onProgress(i + 1, fileItems.length, newName);
-            }
-        }
-        async saveRenamedFilesFallback(fileItems, onProgress, baseName, prefix = '', resizeOpts = null, useOriginalName = false) {
-            const zip = new ZipDocument();
-            const padLength = Math.max(3, String(fileItems.length).length);
-            for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i];
-                let ext = item.name.includes('.') ? item.name.split('.').pop() : 'jpg';
-                if (resizeOpts && resizeOpts.mode !== 'none') ext = 'jpg'; 
-                let newName;
-                if (useOriginalName) {
-                    const baseOrigName = item.name.includes('.') ? item.name.substring(0, item.name.lastIndexOf('.')) : item.name;
-                    newName = prefix ? `${prefix}_${baseOrigName}.${ext}` : `${baseOrigName}.${ext}`;
-                } else {
-                    const numStr = String(i + 1).padStart(padLength, '0');
-                    newName = prefix ? `${prefix}_${numStr}.${ext}` : `${numStr}.${ext}`;
-                }
-                const file = item.editedBlob || await item.handle.getFile();
-                if (resizeOpts && resizeOpts.mode !== 'none') {
-                    const blob = await this.processImageResize(file, resizeOpts);
-                    await zip.addFileAsync(newName, blob);
-                } else await zip.addFileAsync(newName, file);
-                onProgress(i + 1, fileItems.length, newName);
-                await new Promise(resolve => setTimeout(resolve, 0)); 
-            }
-            const blob = zip.finish();
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = baseName ? `${baseName}.zip` : 'renamed_images.zip'; a.click();
-            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        }
-        async saveAsPDF(fileItems, quality, onProgress, baseName, resizeOpts = null, viewMode = 'spread-ltr', usePicker = true) {
-            const defaultName = baseName ? `${baseName}.pdf` : 'output.pdf'; let handle = null;
-            if (usePicker && 'showSaveFilePicker' in window) {
-                try {
-                    handle = await window.showSaveFilePicker({ suggestedName: defaultName, types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }], startIn: 'downloads' });
-                } catch (e) { if (e.name === 'AbortError') return false; throw e; }
-            }
-            const blob = await this._runPdfWorker(fileItems, quality, onProgress, resizeOpts, viewMode);
-            if (handle) {
-                const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
-            } else {
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = defaultName; a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-            }
-            return true;
-        }
-        async _runPdfWorker(fileItems, quality, onProgress, resizeOpts, viewMode) {
-            return new Promise(async (resolve, reject) => {
-                const filesData =[];
-                for (let i = 0; i < fileItems.length; i++) filesData.push({ file: fileItems[i].editedBlob || await fileItems[i].handle.getFile() });
-                const workerCode = `
-                    ${PDFDocument.toString()}
-                    self.onmessage = async function(e) {
-                        const { files, quality, resizeOpts, viewMode } = e.data;
-                        try {
-                            const direction = viewMode === 'spread-rtl' ? 'R2L' : 'L2R'; const pdf = new PDFDocument(direction);
-                            for (let i = 0; i < files.length; i++) {
-                                const bitmap = await createImageBitmap(files[i].file);
-                                let targetW = bitmap.width, targetH = bitmap.height, dx = 0, dy = 0, drawW = bitmap.width, drawH = bitmap.height;
-                                if (resizeOpts && resizeOpts.mode === 'fit-width') {
-                                    const s = resizeOpts.baseW / bitmap.width; targetW = resizeOpts.baseW; targetH = Math.max(1, Math.round(bitmap.height * s)); drawW = targetW; drawH = targetH;
-                                } else if (resizeOpts && resizeOpts.mode === 'fit-height') {
-                                    const s = resizeOpts.baseH / bitmap.height; targetW = Math.max(1, Math.round(bitmap.width * s)); targetH = resizeOpts.baseH; drawW = targetW; drawH = targetH;
-                                } else if (resizeOpts && resizeOpts.mode === 'pad-white-v') {
-                                    targetW = resizeOpts.baseW; targetH = resizeOpts.baseH; const fitScale = resizeOpts.baseH / bitmap.height;
-                                    drawW = Math.max(1, Math.round(bitmap.width * fitScale)); drawH = resizeOpts.baseH; dx = (targetW - drawW) / 2; dy = 0;
-                                } else if (resizeOpts && resizeOpts.mode === 'pad-white-h') {
-                                    targetW = resizeOpts.baseW; targetH = resizeOpts.baseH; const fitScale = resizeOpts.baseW / bitmap.width;
-                                    drawW = resizeOpts.baseW; drawH = Math.max(1, Math.round(bitmap.height * fitScale)); dx = 0; dy = (targetH - drawH) / 2;
-                                }
-                                const scale = quality / 100;
-                                const width = Math.max(1, Math.floor(targetW * scale)); const height = Math.max(1, Math.floor(targetH * scale));
-                                const canvas = new OffscreenCanvas(width, height); const ctx = canvas.getContext('2d');
-                                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                ctx.drawImage(bitmap, dx * scale, dy * scale, drawW * scale, drawH * scale); bitmap.close();
-                                const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
-                                await pdf.addImagePage(blob, width, height);
-                                self.postMessage({ type: 'progress', current: i + 1, total: files.length, info: 'ページ ' + (i + 1) });
-                            }
-                            self.postMessage({ type: 'done', blob: pdf.finish() });
-                        } catch(err) { self.postMessage({ type: 'error', error: err.message }); }
-                    };
-                `;
-                const blob = new Blob([workerCode], { type: 'text/javascript' }); const workerUrl = URL.createObjectURL(blob);
-                const worker = new Worker(workerUrl);
-                worker.onmessage = (e) => {
-                    const msg = e.data;
-                    if (msg.type === 'progress') onProgress(msg.current, msg.total, msg.info);
-                    else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
-                    else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
-                };
-                worker.postMessage({ files: filesData, quality, resizeOpts, viewMode });
-            });
-        }
-        async saveAsThumbnailPDF(layoutInfo, quality, onProgress, baseName, usePicker = true) {
-            const defaultName = baseName ? `${baseName}.pdf` : 'thumbnail_sheet.pdf'; let handle = null;
-            if (usePicker && 'showSaveFilePicker' in window) {
-                try { handle = await window.showSaveFilePicker({ suggestedName: defaultName, types:[{ description: 'PDF File', accept: { 'application/pdf': ['.pdf'] } }], startIn: 'downloads' }); } 
-                catch (e) { if (e.name === 'AbortError') return false; throw e; }
-            }
-            const blob = await this._runThumbnailPdfWorker(layoutInfo, quality, onProgress);
-            if (handle) {
-                const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
-            } else {
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = defaultName; a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-            }
-            return true;
-        }
-        async _runThumbnailPdfWorker(layoutInfo, quality, onProgress) {
-            return new Promise(async (resolve, reject) => {
-                const filesData =[];
-                for (let i = 0; i < layoutInfo.items.length; i++) {
-                    const item = layoutInfo.items[i];
-                    filesData.push({ file: item.fileItem.editedBlob || await item.fileItem.handle.getFile(), x: item.x, y: item.y, w: item.w, h: item.h, alignX: item.alignX, index: item.index });
-                }
-                const workerCode = `
-                    ${PDFDocument.toString()}
-                    self.onmessage = async function(e) {
-                        const { filesData, totalWidth, totalHeight, quality } = e.data;
-                        try {
-                            const pdf = new PDFDocument(); const processedData =[]; const maxPdfSize = 14400;
-                            const scale = Math.min(1, maxPdfSize / totalWidth, maxPdfSize / totalHeight);
-                            const pdfTotalWidth = totalWidth * scale; const pdfTotalHeight = totalHeight * scale;
-                            for (let i = 0; i < filesData.length; i++) {
-                                const item = filesData[i]; const bitmap = await createImageBitmap(item.file);
-                                const imgW = bitmap.width, imgH = bitmap.height; const fitScale = Math.min(item.w / imgW, item.h / imgH);
-                                const drawW = imgW * fitScale, drawH = imgH * fitScale;
-                                let offsetX = (item.w - drawW) / 2;
-                                if (item.alignX === 'left') offsetX = 0; else if (item.alignX === 'right') offsetX = item.w - drawW;
-                                const offsetY = (item.h - drawH) / 2; const textHeight = 20; const totalDrawH = drawH + textHeight;
-                                const pdfX = (item.x + offsetX) * scale; const pdfY = pdfTotalHeight - ((item.y + offsetY + totalDrawH) * scale);
-                                const pdfDrawW = drawW * scale; const pdfDrawH = totalDrawH * scale; const resScale = 1; 
-                                const canvasW = Math.max(1, Math.floor(drawW * resScale)); const canvasH = Math.max(1, Math.floor(totalDrawH * resScale));
-                                const canvas = new OffscreenCanvas(canvasW, canvasH); const ctx = canvas.getContext('2d');
-                                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                const imgCanvasH = Math.floor(drawH * resScale); ctx.drawImage(bitmap, 0, 0, canvasW, imgCanvasH); bitmap.close();
-                                const seqNum = String(item.index + 1).padStart(3, '0');
-                                ctx.fillStyle = '#000000'; ctx.font = \`\${Math.floor(14 * resScale)}px sans-serif\`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-                                ctx.fillText(seqNum, canvasW / 2, imgCanvasH + (2 * resScale));
-                                const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
-                                processedData.push({ blob: blob, pdfX: pdfX, pdfY: pdfY, pdfW: pdfDrawW, pdfH: pdfDrawH, canvasW: canvasW, canvasH: canvasH });
-                                self.postMessage({ type: 'progress', current: i + 1, total: filesData.length, info: '画像処理 ' + (i + 1) });
-                            }
-                            await pdf.addThumbnailPage(processedData, pdfTotalWidth, pdfTotalHeight); self.postMessage({ type: 'done', blob: pdf.finish() });
-                        } catch(err) { self.postMessage({ type: 'error', error: err.message }); }
-                    };
-                `;
-                const blob = new Blob([workerCode], { type: 'text/javascript' }); const workerUrl = URL.createObjectURL(blob);
-                const worker = new Worker(workerUrl);
-                worker.onmessage = (e) => {
-                    const msg = e.data;
-                    if (msg.type === 'progress') onProgress(msg.current, msg.total, msg.info);
-                    else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
-                    else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
-                };
-                worker.postMessage({ filesData, totalWidth: layoutInfo.totalWidth, totalHeight: layoutInfo.totalHeight, quality });
-            });
-        }
-        async _mergeImagePair(pair, resizeOpts = null) {
-            if (pair.length === 1) {
-                const file = pair[0].editedBlob || await pair[0].handle.getFile();
-                return resizeOpts && resizeOpts.mode !== 'none' ? await this.processImageResize(file, resizeOpts) : file;
-            }
-            const fileL = pair[0].editedBlob || await pair[0].handle.getFile();
-            const fileR = pair[1].editedBlob || await pair[1].handle.getFile();
-            const bmpL = await createImageBitmap(fileL); const bmpR = await createImageBitmap(fileR);
-            let canvasW, canvasH;
-            if (resizeOpts && (resizeOpts.mode === 'pad-white-v' || resizeOpts.mode === 'pad-white-h')) {
-                canvasH = resizeOpts.baseH; canvasW = resizeOpts.baseW * 2; 
-                const canvas = new OffscreenCanvas(canvasW, canvasH); const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH);
-                let dxL, dyL, dWL, dHL, fitL;
-                if (resizeOpts.mode === 'pad-white-v') {
-                    fitL = resizeOpts.baseH / bmpL.height; dWL = Math.round(bmpL.width * fitL); dHL = resizeOpts.baseH; dxL = (resizeOpts.baseW - dWL) / 2; dyL = 0;
-                } else {
-                    fitL = resizeOpts.baseW / bmpL.width; dWL = resizeOpts.baseW; dHL = Math.round(bmpL.height * fitL); dxL = 0; dyL = (resizeOpts.baseH - dHL) / 2;
-                }
-                ctx.drawImage(bmpL, dxL, dyL, dWL, dHL);
-                let dxR, dyR, dWR, dHR, fitR;
-                if (resizeOpts.mode === 'pad-white-v') {
-                    fitR = resizeOpts.baseH / bmpR.height; dWR = Math.round(bmpR.width * fitR); dHR = resizeOpts.baseH; dxR = resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2; dyR = 0;
-                } else {
-                    fitR = resizeOpts.baseW / bmpR.width; dWR = resizeOpts.baseW; dHR = Math.round(bmpR.height * fitR); dxR = resizeOpts.baseW; dyR = (resizeOpts.baseH - dHR) / 2;
-                }
-                ctx.drawImage(bmpR, dxR, dyR, dWR, dHR); bmpL.close(); bmpR.close();
-                return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-            } else {
-                let tempHeight = Math.max(bmpL.height, bmpR.height);
-                let scaleL1 = tempHeight / bmpL.height, scaleR1 = tempHeight / bmpR.height;
-                let tempWL = bmpL.width * scaleL1, tempWR = bmpR.width * scaleR1; let tempTotalW = tempWL + tempWR; let finalScale = 1;
-                if (resizeOpts && resizeOpts.mode === 'fit-height') finalScale = resizeOpts.baseH / tempHeight;
-                else if (resizeOpts && resizeOpts.mode === 'fit-width') finalScale = (resizeOpts.baseW * 2) / tempTotalW;
-                canvasH = Math.max(1, Math.round(tempHeight * finalScale)); canvasW = Math.max(1, Math.round(tempTotalW * finalScale));
-                let drawWL = Math.round(tempWL * finalScale); let drawWR = canvasW - drawWL;
-                const canvas = new OffscreenCanvas(canvasW, canvasH); const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasW, canvasH); ctx.drawImage(bmpL, 0, 0, drawWL, canvasH); ctx.drawImage(bmpR, drawWL, 0, drawWR, canvasH);
-                bmpL.close(); bmpR.close();
-                return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-            }
-        }
-        async saveMergedRenamedFiles(targetDirHandle, pairs, onProgress, prefix = '', resizeOpts = null) {
-            const padLength = Math.max(3, String(pairs.length).length);
-            for (let i = 0; i < pairs.length; i++) {
-                const blob = await this._mergeImagePair(pairs[i], resizeOpts);
-                const numStr = String(i + 1).padStart(padLength, '0');
-                const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
-                const newFileHandle = await targetDirHandle.getFileHandle(newName, { create: true });
-                const writable = await newFileHandle.createWritable(); await writable.write(blob); await writable.close();
-                onProgress(i + 1, pairs.length, newName);
-            }
-        }
-        async saveMergedRenamedFilesFallback(pairs, onProgress, baseName, prefix = '', resizeOpts = null) {
-            const zip = new ZipDocument(); const padLength = Math.max(3, String(pairs.length).length);
-            for (let i = 0; i < pairs.length; i++) {
-                const blob = await this._mergeImagePair(pairs[i], resizeOpts);
-                const numStr = String(i + 1).padStart(padLength, '0');
-                const newName = prefix ? `${prefix}_${numStr}.jpg` : `${numStr}.jpg`;
-                await zip.addFileAsync(newName, blob); onProgress(i + 1, pairs.length, newName); await new Promise(resolve => setTimeout(resolve, 0)); 
-            }
-            const zipBlob = zip.finish(); const a = document.createElement('a');
-            a.href = URL.createObjectURL(zipBlob); a.download = baseName ? `${baseName}.zip` : 'merged_images.zip'; a.click();
-            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        }
-        async saveMergedAsPDF(pairs, quality, onProgress, baseName, resizeOpts = null, viewMode = 'spread-ltr', usePicker = true) {
-            const defaultName = baseName ? `${baseName}.pdf` : 'merged_output.pdf'; let handle = null;
-            if (usePicker && 'showSaveFilePicker' in window) {
-                try { handle = await window.showSaveFilePicker({ suggestedName: defaultName, types:[{ description: 'PDF File', accept: { 'application/pdf':['.pdf'] } }], startIn: 'downloads' }); } 
-                catch (e) { if (e.name === 'AbortError') return false; throw e; }
-            }
-            const blob = await this._runMergedPdfWorker(pairs, quality, onProgress, resizeOpts, viewMode);
-            if (handle) { const writable = await handle.createWritable(); await writable.write(blob); await writable.close(); } 
-            else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = defaultName; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
-            return true;
-        }
-        async _runMergedPdfWorker(pairs, quality, onProgress, resizeOpts, viewMode) {
-            return new Promise(async (resolve, reject) => {
-                const pairsData =[];
-                for (let i = 0; i < pairs.length; i++) {
-                    const pair = pairs[i];
-                    if (pair.length === 1) pairsData.push([ { file: pair[0].editedBlob || await pair[0].handle.getFile() } ]);
-                    else pairsData.push([ { file: pair[0].editedBlob || await pair[0].handle.getFile() }, { file: pair[1].editedBlob || await pair[1].handle.getFile() } ]);
-                }
-                const workerCode = `
-                    ${PDFDocument.toString()}
-                    self.onmessage = async function(e) {
-                        const { pairs, quality, resizeOpts, viewMode } = e.data;
-                        try {
-                            const direction = viewMode === 'spread-rtl' ? 'R2L' : 'L2R'; const pdf = new PDFDocument(direction);
-                            for (let i = 0; i < pairs.length; i++) {
-                                const pair = pairs[i]; let canvas, width, height;
-                                if (pair.length === 1) {
-                                    const bitmap = await createImageBitmap(pair[0].file);
-                                    let tW = bitmap.width, tH = bitmap.height, dx = 0, dy = 0;
-                                    if (resizeOpts && resizeOpts.mode === 'fit-width') { tW = resizeOpts.baseW; tH = Math.max(1, Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width))); } 
-                                    else if (resizeOpts && resizeOpts.mode === 'fit-height') { tW = Math.max(1, Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height))); tH = resizeOpts.baseH; } 
-                                    else if (resizeOpts && resizeOpts.mode === 'pad-white-v') { tW = resizeOpts.baseW; tH = resizeOpts.baseH; dx = (tW - Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height))) / 2; dy = 0; } 
-                                    else if (resizeOpts && resizeOpts.mode === 'pad-white-h') { tW = resizeOpts.baseW; tH = resizeOpts.baseH; dx = 0; dy = (tH - Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width))) / 2; }
-                                    const scale = quality / 100; width = Math.max(1, Math.floor(tW * scale)); height = Math.max(1, Math.floor(tH * scale));
-                                    canvas = new OffscreenCanvas(width, height); const ctx = canvas.getContext('2d');
-                                    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                    if (resizeOpts && (resizeOpts.mode === 'pad-white-v' || resizeOpts.mode === 'pad-white-h')) {
-                                        let fitW = (resizeOpts.mode === 'pad-white-v') ? Math.round(bitmap.width * (resizeOpts.baseH / bitmap.height)) : resizeOpts.baseW;
-                                        let fitH = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH : Math.round(bitmap.height * (resizeOpts.baseW / bitmap.width));
-                                        ctx.drawImage(bitmap, dx * scale, dy * scale, fitW * scale, fitH * scale);
-                                    } else ctx.drawImage(bitmap, 0, 0, width, height);
-                                    bitmap.close();
-                                } else {
-                                    const bmpL = await createImageBitmap(pair[0].file); const bmpR = await createImageBitmap(pair[1].file); const scale = quality / 100;
-                                    if (resizeOpts && (resizeOpts.mode === 'pad-white-v' || resizeOpts.mode === 'pad-white-h')) {
-                                        const origH = resizeOpts.baseH; const origW = resizeOpts.baseW * 2; width = Math.max(1, Math.floor(origW * scale)); height = Math.max(1, Math.floor(origH * scale));
-                                        canvas = new OffscreenCanvas(width, height); const ctx = canvas.getContext('2d');
-                                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                        let fitL = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH / bmpL.height : resizeOpts.baseW / bmpL.width;
-                                        let dWL = (resizeOpts.mode === 'pad-white-v') ? Math.round(bmpL.width * fitL) : resizeOpts.baseW;
-                                        let dHL = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH : Math.round(bmpL.height * fitL);
-                                        let dxL = (resizeOpts.mode === 'pad-white-v') ? (resizeOpts.baseW - dWL) / 2 : 0; let dyL = (resizeOpts.mode === 'pad-white-v') ? 0 : (resizeOpts.baseH - dHL) / 2;
-                                        ctx.drawImage(bmpL, dxL * scale, dyL * scale, dWL * scale, dHL * scale);
-                                        let fitR = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH / bmpR.height : resizeOpts.baseW / bmpR.width;
-                                        let dWR = (resizeOpts.mode === 'pad-white-v') ? Math.round(bmpR.width * fitR) : resizeOpts.baseW;
-                                        let dHR = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseH : Math.round(bmpR.height * fitR);
-                                        let dxR = (resizeOpts.mode === 'pad-white-v') ? resizeOpts.baseW + (resizeOpts.baseW - dWR) / 2 : resizeOpts.baseW;
-                                        let dyR = (resizeOpts.mode === 'pad-white-v') ? 0 : (resizeOpts.baseH - dHR) / 2;
-                                        ctx.drawImage(bmpR, dxR * scale, dyR * scale, dWR * scale, dHR * scale);
-                                    } else {
-                                        let tempHeight = Math.max(bmpL.height, bmpR.height); let scaleL1 = tempHeight / bmpL.height, scaleR1 = tempHeight / bmpR.height;
-                                        let tempWL = bmpL.width * scaleL1, tempWR = bmpR.width * scaleR1; let tempTotalW = tempWL + tempWR; let finalScale = 1;
-                                        if (resizeOpts && resizeOpts.mode === 'fit-height') finalScale = resizeOpts.baseH / tempHeight; else if (resizeOpts && resizeOpts.mode === 'fit-width') finalScale = (resizeOpts.baseW * 2) / tempTotalW;
-                                        width = Math.max(1, Math.floor(tempTotalW * finalScale * scale)); height = Math.max(1, Math.floor(tempHeight * finalScale * scale));
-                                        const drawWL = Math.max(1, Math.floor(tempWL * finalScale * scale)); const drawWR = width - drawWL;
-                                        canvas = new OffscreenCanvas(width, height); const ctx = canvas.getContext('2d');
-                                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                                        ctx.drawImage(bmpL, 0, 0, drawWL, height); ctx.drawImage(bmpR, drawWL, 0, drawWR, height);
-                                    }
-                                    bmpL.close(); bmpR.close();
-                                }
-                                const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
-                                await pdf.addImagePage(blob, width, height);
-                                self.postMessage({ type: 'progress', current: i + 1, total: pairs.length, info: 'ページ ' + (i + 1) });
-                            }
-                            self.postMessage({ type: 'done', blob: pdf.finish() });
-                        } catch(err) { self.postMessage({ type: 'error', error: err.message }); }
-                    };
-                `;
-                const blob = new Blob([workerCode], { type: 'text/javascript' }); const workerUrl = URL.createObjectURL(blob); const worker = new Worker(workerUrl);
-                worker.onmessage = (e) => {
-                    const msg = e.data;
-                    if (msg.type === 'progress') onProgress(msg.current, msg.total, msg.info);
-                    else if (msg.type === 'done') { URL.revokeObjectURL(workerUrl); worker.terminate(); resolve(msg.blob); }
-                    else if (msg.type === 'error') { URL.revokeObjectURL(workerUrl); worker.terminate(); reject(new Error(msg.error)); }
-                };
-                worker.postMessage({ pairs: pairsData, quality, resizeOpts, viewMode });
-            });
-        }
-        _generateUUID() {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
-        }
-        _escapeXml(unsafe) {
-            return unsafe.replace(/[<>&'"]/g, c => {
-                switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; }
-            });
-        }
-    }
-
-    class EpubGenerator {
-        constructor(fileSystemManager) { this.fs = fileSystemManager; }
-        async generate(fileItems, metadata, viewMode, onProgress, baseName, resizeOpts = null) {
-            let handle = null; let sanitizedTitle = (metadata.title || '').replace(/[\\/:*?"<>|]/g, '_');
-            const suggestedName = sanitizedTitle ? `${sanitizedTitle}.epub` : (baseName ? `${baseName}.epub` : 'book.epub');
-            if ('showSaveFilePicker' in window) {
-                try { handle = await window.showSaveFilePicker({ suggestedName: suggestedName, types:[{ description: 'EPUB File', accept: { 'application/epub+zip':['.epub'] } }], startIn: 'downloads' }); } 
-                catch (e) { if (e.name === 'AbortError') return false; throw e; }
-            }
-            const zip = new ZipDocument(); const encoder = new TextEncoder();
-            zip.addFile('mimetype', encoder.encode(EPUB_TEMPLATES.mimetype)); zip.addFile('META-INF/container.xml', encoder.encode(EPUB_TEMPLATES.container)); zip.addFile('item/style/fixed-layout-jp.css', encoder.encode(EPUB_TEMPLATES.css));
-            let navList = ''; let navPoints = ''; let playOrder = 1; let manifestImage = ''; let manifestXhtml = ''; let spineStr = ''; const padLength = Math.max(3, String(fileItems.length).length);
-            const title = this.fs._escapeXml(metadata.title || 'Untitled'); const titleRuby = this.fs._escapeXml(metadata.titleRuby || metadata.title || 'Untitled');
-            const author = this.fs._escapeXml(metadata.author || ''); const authorRuby = this.fs._escapeXml(metadata.authorRuby || metadata.author || '');
-            const publisher = this.fs._escapeXml(metadata.publisher || ''); const publisherRuby = this.fs._escapeXml(metadata.publisherRuby || metadata.publisher || '');
-            const bookId = this.fs._escapeXml(metadata.bookId || 'urn:uuid:' + this.fs._generateUUID());
-            let modifiedDate; if (metadata.modified) { let mod = metadata.modified; if (mod.length === 16) mod += ':00'; modifiedDate = mod + 'Z'; } else { modifiedDate = new Date().toISOString().split('.')[0] + 'Z'; }
-            let coverW = 0, coverH = 0;
-            if (!metadata.includeImages) zip.addFile('item/image/', new Uint8Array(0));
-            for (let i = 0; i < fileItems.length; i++) {
-                const item = fileItems[i]; const file = item.editedBlob || await item.handle.getFile(); let dataToWrite = file; let w, h; let imgName = item.name; 
-                if (resizeOpts && resizeOpts.mode !== 'none') {
-                    const blob = await this.fs.processImageResize(file, resizeOpts); imgName = item.name.replace(/\.[^/.]+$/, "") + ".jpg"; 
-                    dataToWrite = new File([blob], imgName, { type: 'image/jpeg' }); const bmp = await createImageBitmap(dataToWrite); w = bmp.width; h = bmp.height; bmp.close();
-                } else { const bmp = await createImageBitmap(file); w = bmp.width; h = bmp.height; bmp.close(); }
-                if (metadata.includeImages || imgName.startsWith('blank_')) { const fileData = new Uint8Array(await dataToWrite.arrayBuffer()); zip.addFile(`item/image/${imgName}`, fileData); }
-                const ext = imgName.split('.').pop().toLowerCase(); let mime = 'image/jpeg';
-                if (ext === 'png') mime = 'image/png'; else if (ext === 'gif') mime = 'image/gif'; else if (ext === 'webp') mime = 'image/webp';
-                const index = i + 1; const isCover = (index === 1); if (isCover) { coverW = w; coverH = h; }
-                const numStr = String(index).padStart(padLength, '0'); const imgId = isCover ? 'cover' : `img-${numStr}`;
-                const encodedImgName = encodeURI(imgName); const escapedHref = this.fs._escapeXml(encodedImgName);
-                const xhtmlId = isCover ? 'p-cover' : `p-${numStr}`; const xhtmlName = isCover ? 'p-cover.xhtml' : `p-${numStr}.xhtml`;
-                const xhtml = EPUB_TEMPLATES.getXhtml(w, h, title, escapedHref); zip.addFile(`item/xhtml/${xhtmlName}`, encoder.encode(xhtml));
-                manifestImage += `<item media-type="${mime}" id="${imgId}" href="image/${escapedHref}"${isCover ? ' properties="cover-image"' : ''}/>\n`;
-                manifestXhtml += `<item media-type="application/xhtml+xml" id="${xhtmlId}" href="xhtml/${xhtmlName}" properties="svg" fallback="${imgId}"/>\n`;
-                if (isCover || item.tocName) {
-                    const tocLabel = isCover ? title : this.fs._escapeXml(item.tocName); const navId = isCover ? 'cover' : `navPoint-${playOrder}`;
-                    navList += `<li><a href="xhtml/${xhtmlName}">${tocLabel}</a></li>\n`;
-                    navPoints += `<navPoint id="${navId}" playOrder="${playOrder}">\n<navLabel>\n<text>${tocLabel}</text>\n</navLabel>\n<content src="xhtml/${xhtmlName}"/>\n</navPoint>\n`;
-                    playOrder++;
-                }
-                let spreadProp = '';
-                if (viewMode === 'spread-rtl') { if (isCover) spreadProp = ' properties="rendition:page-spread-center"'; else spreadProp = (index % 2 === 0) ? ' properties="page-spread-right"' : ' properties="page-spread-left"'; } 
-                else if (viewMode === 'spread-ltr') { if (isCover) spreadProp = ' properties="rendition:page-spread-center"'; else spreadProp = (index % 2 === 0) ? ' properties="page-spread-left"' : ' properties="page-spread-right"'; }
-                spineStr += `<itemref linear="yes" idref="${xhtmlId}"${spreadProp}/>\n`;
-                onProgress(index, fileItems.length, item.name); if (i % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
-            }
-            const navXml = EPUB_TEMPLATES.getNav(title, navList); zip.addFile('item/navigation-documents.xhtml', encoder.encode(navXml));
-            const ncxXml = EPUB_TEMPLATES.getNcx(title, bookId, navPoints); zip.addFile('item/toc.ncx', encoder.encode(ncxXml));
-            let direction = 'default'; if (viewMode === 'spread-rtl') direction = 'rtl'; else if (viewMode === 'spread-ltr') direction = 'ltr';
-            const opf = EPUB_TEMPLATES.getOpf({ title, titleRuby, author, authorRuby, publisher, publisherRuby, bookId, modifiedDate, coverW, coverH, manifestImage, manifestXhtml, direction, spineStr });
-            zip.addFile('item/standard.opf', encoder.encode(opf));
-            const blob = zip.finish();
-            if (metadata.exportOrder) {
-                const orderText = fileItems.map(item => item.tocName ? `${item.name}\t${item.tocName}` : item.name).join('\n');
-                const txtBlob = new Blob([orderText], { type: 'text/plain' }); const txtA = document.createElement('a');
-                txtA.href = URL.createObjectURL(txtBlob); txtA.download = suggestedName.replace('.epub', '_order.txt'); txtA.click(); setTimeout(() => URL.revokeObjectURL(txtA.href), 1000);
-            }
-            if (handle) { const writable = await handle.createWritable(); await writable.write(blob); await writable.close(); } 
-            else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = suggestedName; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
-            return { success: true, filename: suggestedName };
-        }
-    }
-
-    class App {
-        constructor() {
-            this.ui = new UIManager((id) => this.getImageUrl(id), (id) => this.releaseImageUrl(id));
-            this.fs = new FileSystemManager();
-            this.epubGen = new EpubGenerator(this.fs);
-            
-            this.imageEditor = new ImageEditor((item, editedBlob) => {
-                this.saveHistory(); item.editedBlob = editedBlob; this.releaseImageUrl(item.id);
-                this.ui.renderItems(this.fileItems); this.ui.showToast('画像の編集を適用しました。');
-            });
-
-            this.sortManager = new SortManager(
-                this.ui, 
-                (draggedIds, targetId, isLogicalBefore) => this.reorderFiles(draggedIds, targetId, isLogicalBefore),
-                (itemsOrFiles, targetId, isLogicalBefore) => this.handleExternalDropToItem(itemsOrFiles, targetId, isLogicalBefore)
-            );
-            this.epubModal = new EpubMetadataModal();
-            
-            this.dirHandle = null; this.sourceFolderName = null; this.fileItems =[]; this.isProcessing = false;
-            this.historyUndo =[]; this.historyRedo =[];
-
-            this.hasFSApi = 'showDirectoryPicker' in window;
-            if (!this.hasFSApi) console.warn(USER_SETTINGS.msgFallbackLoad);
-            
-            this.ui.changeViewMode('spread-rtl');
-            this.bindEvents();
-        }
-
-        saveSettings(baseName) {
-            try {
-                const settings = {
-                    outputFilename: this.ui.outputFilename.value, saveFormat: this.ui.saveFormatSelect.value,
-                    pdfQuality: this.ui.pdfQuality.value, viewMode: this.ui.viewModeSelect.value,
-                    thumbSize: this.ui.sizeSlider.value, resizeMode: this.ui.resizeModeSelect.value,
-                    resizeBase: this.ui.resizeBaseSelect.value, epubMetadata: this.epubModal.getCurrentData()
-                };
-                const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-                a.download = baseName ? `${baseName}_setting.json` : 'image_sorting_setting.json'; a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000); this.ui.showToast('設定ファイルを保存しました。');
-            } catch (e) { console.error(e); this.ui.showToast('設定の保存に失敗しました。', true); }
-        }
-
-        async processLoadSettings(file) {
-            try {
-                const text = await file.text(); const settings = JSON.parse(text);
-                if (settings.outputFilename !== undefined) this.ui.outputFilename.value = settings.outputFilename;
-                if (settings.saveFormat) { this.ui.saveFormatSelect.value = settings.saveFormat; this.ui.saveFormatSelect.dispatchEvent(new Event('change')); }
-                if (settings.pdfQuality) this.ui.pdfQuality.value = settings.pdfQuality;
-                if (settings.viewMode) { this.ui.viewModeSelect.value = settings.viewMode; this.ui.changeViewMode(settings.viewMode); }
-                if (settings.thumbSize) { this.ui.sizeSlider.value = settings.thumbSize; this.ui.sizeSlider.dispatchEvent(new Event('input')); }
-                if (settings.resizeMode) { this.ui.resizeModeSelect.value = settings.resizeMode; this.ui.resizeModeSelect.dispatchEvent(new Event('change')); }
-                if (settings.resizeBase) this.ui.resizeBaseSelect.value = settings.resizeBase;
-                if (settings.epubMetadata) this.epubModal.setSavedData(settings.epubMetadata);
-                this.ui.showToast('設定を復元しました。');
-            } catch (e) { console.error(e); this.ui.showToast('設定ファイルの読み込みに失敗しました。', true); }
-        }
-
-        setProcessingState(isProcessing) {
-            this.isProcessing = isProcessing; this.ui.setButtonsState(isProcessing, this.fileItems.length > 0);
-            if (!isProcessing) this.updateHistoryButtons();
-        }
-
-        async getImageUrl(id) {
-            const item = this.fileItems.find(i => i.id === id); if (!item) return null;
-            if (item.objectUrl) return item.objectUrl; 
-            const file = item.editedBlob || await item.handle.getFile();
-            if (file.size > 1048576) {
-                try {
-                    const bmp = await createImageBitmap(file, { resizeWidth: 300, resizeQuality: 'low' });
-                    const canvas = new OffscreenCanvas(bmp.width, bmp.height); const ctx = canvas.getContext('2d'); ctx.drawImage(bmp, 0, 0); bmp.close();
-                    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.6 });
-                    item.objectUrl = URL.createObjectURL(blob); return item.objectUrl;
-                } catch(e) { item.objectUrl = URL.createObjectURL(file); return item.objectUrl; }
-            } else { item.objectUrl = URL.createObjectURL(file); return item.objectUrl; }
-        }
-
-        releaseImageUrl(id) {
-            const item = this.fileItems.find(i => i.id === id);
-            if (item && item.objectUrl) { URL.revokeObjectURL(item.objectUrl); item.objectUrl = null; }
-        }
-
-        bindEvents() {
-            this.ui.emptyMessage.addEventListener('click', () => this.handleSelectFolder());
-            this.ui.btnExecute.addEventListener('click', () => this.handleExecute());
-            this.ui.btnUndo.addEventListener('click', () => this.undo());
-            this.ui.btnRedo.addEventListener('click', () => this.redo());
-            this.ui.btnReset.addEventListener('click', () => this.reset());
-            this.ui.btnSetToc.addEventListener('click', () => this.handleSetToc()); 
-            this.ui.btnAddBlank.addEventListener('click', () => this.handleAddBlank());
-            this.ui.btnDelete.addEventListener('click', () => this.handleDelete());
-            this.ui.btnExportOrder.addEventListener('click', () => this.handleExportOrder());
-            this.ui.btnRestoreOrder.addEventListener('click', () => this.openRestoreModal());
-            this.ui.btnExportSettings.addEventListener('click', () => this.handleExportSettings());
-
-            this.ui.restoreCheckAll.addEventListener('change', (e) => {
-                const checkboxes = this.ui.restoreList.querySelectorAll('.cache-check');
-                checkboxes.forEach(chk => chk.checked = e.target.checked); this.updateCacheDeleteButton();
-            });
-            this.ui.btnDeleteSelectedCache.addEventListener('click', () => this.deleteSelectedCaches());
-            if (this.ui.restoreSortMode) this.ui.restoreSortMode.addEventListener('change', () => this.renderCacheList());
-
-            const btnAutoSort = document.getElementById('btn-auto-sort'); const modalAutoSort = document.getElementById('auto-sort-modal');
-            const txtAutoSort = document.getElementById('auto-sort-text'); const chkKeepFirst = document.getElementById('auto-sort-keep-first');
-            btnAutoSort.addEventListener('click', () => { txtAutoSort.value = ''; modalAutoSort.style.display = 'flex'; });
-            document.getElementById('auto-sort-btn-close').addEventListener('click', () => modalAutoSort.style.display = 'none');
-            document.getElementById('auto-sort-btn-start').addEventListener('click', () => { modalAutoSort.style.display = 'none'; this.handleAutoSort(txtAutoSort.value, chkKeepFirst.checked); });
-
-            this.ui.mainGrid.addEventListener('dblclick', async (e) => {
-                if (this.isProcessing) return; const item = e.target.closest('.thumb-item'); if (!item) return;
-                const fileItem = this.fileItems.find(i => i.id === item.dataset.id); if (fileItem) this.imageEditor.open(fileItem);
-            });
-
-            window.addEventListener('beforeunload', (e) => {
-                if (this.isProcessing || this.fileItems.length > 0) { e.preventDefault(); e.returnValue = '編集中のデータがあります。ページを離れると変更が失われます。'; }
-            });
-
-            document.addEventListener('keydown', (e) => {
-                if (this.isProcessing) return;
-                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-                const cmdOrCtrl = (navigator.platform.toUpperCase().indexOf('MAC') >= 0) ? e.metaKey : e.ctrlKey;
-                if (cmdOrCtrl && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); } 
-                else if (cmdOrCtrl && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redo(); } 
-                else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.handleDelete(); }
-            });
-
-            document.body.addEventListener('dragover', (e) => e.preventDefault());
-            document.body.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                if (!e.dataTransfer.types || (!e.dataTransfer.types.includes('Files') && !e.dataTransfer.types.includes('application/x-moz-file'))) return;
-                if (this.isProcessing) return;
-                const rawFiles = Array.from(e.dataTransfer.files);
-                const settingsFile = rawFiles.find(f => f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.js')));
-                if (settingsFile) { await this.processLoadSettings(settingsFile); return; }
-                const txtFile = rawFiles.find(f => f.name && f.name.toLowerCase().endsWith('.txt'));
-                if (txtFile) { const text = await txtFile.text(); await this.applyOrderFromText(text); return; }
-
-                const items = e.dataTransfer.items; let droppedDirHandle = null; const fileHandles = []; const filesFallback = []; let hasDirectory = false;
-                if (this.hasFSApi && items) {
-                    const handlePromises = [];
-                    for (let i = 0; i < items.length; i++) {
-                        const item = items[i];
-                        if (item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function') handlePromises.push(item.getAsFileSystemHandle());
-                    }
-                    const handles = await Promise.all(handlePromises);
-                    for (const handle of handles) {
-                        if (handle) {
-                            if (handle.kind === 'directory') { hasDirectory = true; droppedDirHandle = handle; break; } 
-                            else if (handle.kind === 'file') fileHandles.push(handle);
-                        }
-                    }
-                } else {
-                    for (let f of rawFiles) {
-                        if (!f.name || f.name.startsWith('.')) continue;
-                        const ext = f.name.split('.').pop().toLowerCase();
-                        if (USER_SETTINGS.validExts.includes(ext)) filesFallback.push(f);
-                        else if (!f.type) hasDirectory = true; 
-                    }
-                }
-
-                if (hasDirectory && droppedDirHandle) { this.handleLoadDirectory(droppedDirHandle); } 
-                else if (hasDirectory && !this.hasFSApi) {
-                    this.resetMemory(); const filesArray = Array.from(e.dataTransfer.files);
-                    this.sourceFolderName = (filesArray.length > 0 && filesArray[0].webkitRelativePath) ? filesArray[0].webkitRelativePath.split('/')[0] : null;
-                    this.fileItems = await this.fs.loadImagesFallback(filesArray); this.finalizeLoad();
-                } else {
-                    const targetFiles = this.hasFSApi ? fileHandles : filesFallback;
-                    if (targetFiles.length > 0) await this.handleAddFilesToTail(targetFiles, this.hasFSApi && fileHandles.length > 0);
-                }
-            });
-        }
-
-        async applyOrderFromText(text, silent = false, customMsg = '') {
-            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-            if (lines.length === 0 || this.fileItems.length === 0) return;
-            this.setProcessingState(true); this.saveHistory();
-            const newItems = []; const remainingItems = [...this.fileItems];
-            for (const line of lines) {
-                const parts = line.split('\t'); const name = parts[0]; const tocName = parts.length > 1 ? parts[1] : null;
-                const idx = remainingItems.findIndex(item => item.name === name);
-                if (idx !== -1) {
-                    const item = remainingItems[idx]; item.tocName = tocName; newItems.push(item); remainingItems.splice(idx, 1);
-                } else if (name.startsWith('blank_')) {
-                    const match = name.match(/^blank_(\d+)x(\d+)_/);
-                    if (match) {
-                        const w = parseInt(match[1], 10); const h = parseInt(match[2], 10);
-                        const canvas = new OffscreenCanvas(w, h); const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
-                        const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-                        const dummyFile = new File([blob], name, { type: 'image/jpeg' });
-                        const uniqueStr = name.replace('.jpg', '').split('_').pop();
-                        newItems.push({ id: `blank_${uniqueStr}`, name: name, handle: { getFile: async () => dummyFile }, objectUrl: URL.createObjectURL(dummyFile), tocName: tocName });
-                    }
-                }
-            }
-            newItems.push(...remainingItems); this.fileItems = newItems;
-            this.ui.renderItems(this.fileItems); this.sortManager.init(); this.setProcessingState(false);
-            if (!silent) this.ui.showToast(customMsg || 'テキストファイルから並び順と目次を復元しました。');
-        }
-
-        saveHistory() { this.historyUndo.push(this.fileItems.map(item => ({...item}))); this.historyRedo =[]; this.updateHistoryButtons(); }
-
-        undo() {
-            if (this.historyUndo.length === 0 || this.isProcessing) return;
-            this.fileItems.forEach(item => this.releaseImageUrl(item.id));
-            this.historyRedo.push(this.fileItems.map(item => ({...item})));
-            this.fileItems = this.historyUndo.pop().map(item => { item.objectUrl = null; return item; });
-            this.ui.renderItems(this.fileItems); this.sortManager.init(); this.updateHistoryButtons(); this.ui.setButtonsState(false, this.fileItems.length > 0);
-        }
-
-        redo() {
-            if (this.historyRedo.length === 0 || this.isProcessing) return;
-            this.fileItems.forEach(item => this.releaseImageUrl(item.id));
-            this.historyUndo.push(this.fileItems.map(item => ({...item})));
-            this.fileItems = this.historyRedo.pop().map(item => { item.objectUrl = null; return item; });
-            this.ui.renderItems(this.fileItems); this.sortManager.init(); this.updateHistoryButtons(); this.ui.setButtonsState(false, this.fileItems.length > 0);
-        }
-
-        updateHistoryButtons() { this.ui.btnUndo.disabled = this.historyUndo.length === 0 || this.isProcessing; this.ui.btnRedo.disabled = this.historyRedo.length === 0 || this.isProcessing; }
-
-        async handleSelectFolder() {
-            try {
-                if (this.hasFSApi) { const handle = await this.fs.selectDirectory(); await this.handleLoadDirectory(handle); } 
-                else {
-                    const files = await this.fs.selectDirectoryFallback(); this.resetMemory();
-                    this.sourceFolderName = (files.length > 0 && files[0].webkitRelativePath) ? files[0].webkitRelativePath.split('/')[0] : null;
-                    this.fileItems = await this.fs.loadImagesFallback(files); this.finalizeLoad();
-                }
-            } catch (e) { if (e.name !== 'AbortError') console.error(e); }
-        }
-
-        async handleLoadDirectory(dirHandle) {
-            this.dirHandle = dirHandle; this.sourceFolderName = dirHandle.name;
-            try { this.resetMemory(); this.fileItems = await this.fs.loadImages(this.dirHandle); this.finalizeLoad(); } 
-            catch (e) { console.error(e); this.ui.showToast('❌ エラーが発生しました: ' + e.message, true); }
-        }
-
-        async finalizeLoad() {
-            if (this.fileItems.length === 0) { this.ui.showToast('❌ 画像が見つかりませんでした。', true); return; }
-            this.ui.renderItems(this.fileItems);
-            if (this.ui.currentFolderName) this.ui.currentFolderName.textContent = this.sourceFolderName ? `[ ${this.sourceFolderName} ]` : '';
-            this.sortManager.init(); this.historyUndo =[]; this.historyRedo =[]; this.updateHistoryButtons(); this.ui.setButtonsState(false, true);
-
-            if (this.sourceFolderName) {
-                try {
-                    const caches = JSON.parse(localStorage.getItem('image_sorting_orders') || '[]');
-                    const match = caches.find(c => c.title === this.sourceFolderName);
-                    if (match && match.orderText) { await new Promise(res => setTimeout(res, 50)); await this.applyOrderFromText(match.orderText, false, `前回保存された並び順を自動適用しました。`); }
-                } catch (e) { console.warn('キャッシュの自動適用に失敗しました:', e); }
-            }
-        }
-
-        reorderFiles(draggedIds, targetId, isLogicalBefore) {
-            this.saveHistory(); const draggedItems = this.fileItems.filter(item => draggedIds.includes(item.id));
-            let newItems = this.fileItems.filter(item => !draggedIds.includes(item.id));
-            let targetIndex = newItems.findIndex(item => item.id === targetId); if (targetIndex === -1) targetIndex = newItems.length;
-            const insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1; newItems.splice(insertIndex, 0, ...draggedItems);
-            this.fileItems = newItems; this.ui.renderItems(this.fileItems); this.sortManager.init();
-            draggedIds.forEach(id => this.sortManager.selectById(id, true)); this.sortManager.lastSelectedId = draggedIds[draggedIds.length - 1];
-        }
-
-        handleSetToc() {
-            const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected'));
-            if (selectedEls.length === 0) { this.ui.showToast('目次を設定する画像を選択してください。', true); return; }
-            const firstId = selectedEls[0].dataset.id; const firstItem = this.fileItems.find(item => item.id === firstId);
-            const currentToc = firstItem ? (firstItem.tocName || '') : '';
-            const newToc = prompt('目次名（チャプター名）を入力してください。\n空欄にすると目次設定を解除します。', currentToc);
-            if (newToc === null) return; 
-            this.saveHistory();
-            selectedEls.forEach(el => { const item = this.fileItems.find(i => i.id === el.dataset.id); if (item) item.tocName = newToc.trim() === '' ? null : newToc.trim(); });
-            this.ui.renderItems(this.fileItems); this.sortManager.init(); selectedEls.forEach(el => this.sortManager.selectById(el.dataset.id, true));
-        }
-
-        async handleAddBlank() {
-            const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected'));
-            if (selectedEls.length === 0) { this.ui.showToast('白紙を挿入する基準となる画像を選択してください。', true); return; }
-            this.setProcessingState(true);
-            try {
-                this.saveHistory();
-                for (let i = selectedEls.length - 1; i >= 0; i--) {
-                    const id = selectedEls[i].dataset.id; const index = this.fileItems.findIndex(item => item.id === id); if (index === -1) continue;
-                    const baseItem = this.fileItems[index]; const file = baseItem.editedBlob || await baseItem.handle.getFile();
-                    const bmp = await createImageBitmap(file); const w = bmp.width; const h = bmp.height; bmp.close();
-                    const canvas = new OffscreenCanvas(w, h); const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
-                    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-                    const uniqueStr = Date.now().toString(36) + Math.random().toString(36).substring(2,5);
-                    const newName = `blank_${w}x${h}_${uniqueStr}.jpg`; const dummyFile = new File([blob], newName, { type: 'image/jpeg' });
-                    this.fileItems.splice(index + 1, 0, { id: `blank_${uniqueStr}`, name: newName, handle: { getFile: async () => dummyFile }, objectUrl: URL.createObjectURL(dummyFile), tocName: null });
-                }
-                this.ui.renderItems(this.fileItems); this.sortManager.init();
-            } catch (e) { console.error(e); this.ui.showToast('白紙の挿入に失敗しました。', true); } finally { this.setProcessingState(false); }
-        }
-
-        handleDelete() {
-            const selectedEls = Array.from(document.querySelectorAll('.thumb-item.selected')); if (selectedEls.length === 0) return;
-            this.saveHistory(); const idsToRemove = selectedEls.map(el => el.dataset.id);
-            this.fileItems = this.fileItems.filter(item => !idsToRemove.includes(item.id));
-            this.ui.renderItems(this.fileItems); this.sortManager.init(); this.ui.setButtonsState(false, this.fileItems.length > 0);
-        }
-
-        async handleExternalDropToItem(itemsOrFiles, targetId, isLogicalBefore) {
-            if (this.isProcessing) return;
-            const rawFiles = itemsOrFiles instanceof FileList ? Array.from(itemsOrFiles) : Array.from(itemsOrFiles).map(i => i.getAsFile && i.getAsFile() || i);
-            const settingsFile = rawFiles.find(f => f && f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.js')));
-            if (settingsFile) { await this.processLoadSettings(settingsFile); return; }
-            const txtFile = rawFiles.find(f => f && f.name && f.name.toLowerCase().endsWith('.txt'));
-            if (txtFile) { const text = await txtFile.text(); await this.applyOrderFromText(text); return; }
-            this.setProcessingState(true);
-            try {
-                const newItems = [];
-                if (this.hasFSApi && itemsOrFiles.length > 0 && typeof itemsOrFiles[0].getAsFileSystemHandle === 'function') {
-                    const handlePromises = [];
-                    for (let i = 0; i < itemsOrFiles.length; i++) {
-                        const item = itemsOrFiles[i]; if (item.kind === 'file') handlePromises.push(item.getAsFileSystemHandle());
-                    }
-                    const handles = await Promise.all(handlePromises);
-                    for (const handle of handles) {
-                        if (handle && handle.kind === 'file' && !handle.name.startsWith('.')) {
-                            if (USER_SETTINGS.validExts.includes(handle.name.split('.').pop().toLowerCase())) newItems.push({ handle, name: handle.name });
-                        }
-                    }
-                } else {
-                    for (let f of rawFiles) {
-                        if (!f || !f.name || f.name.startsWith('.')) continue; 
-                        if (USER_SETTINGS.validExts.includes(f.name.split('.').pop().toLowerCase())) newItems.push({ handle: { getFile: async () => f }, name: f.name });
-                    }
-                }
-                if (newItems.length > 0) {
-                    if (this.fileItems.length > 0) this.saveHistory();
-                    const addedItems = newItems.map(ni => ({ id: `added_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${ni.name}`, name: ni.name, handle: ni.handle, objectUrl: null, tocName: null }));
-                    let insertIndex = this.fileItems.length;
-                    if (targetId) {
-                        let targetIndex = this.fileItems.findIndex(item => item.id === targetId);
-                        if (targetIndex !== -1) insertIndex = isLogicalBefore ? targetIndex : targetIndex + 1;
-                    }
-                    this.fileItems.splice(insertIndex, 0, ...addedItems); this.ui.renderItems(this.fileItems); this.sortManager.init();
-                }
-            } catch (e) { console.error(e); this.ui.showToast('画像の追加に失敗しました。', true); } finally { this.setProcessingState(false); }
-        }
-
-        async handleAddFilesToTail(filesOrHandles, isHandles) {
-            this.setProcessingState(true);
-            try {
-                if (this.fileItems.length > 0) this.saveHistory();
-                const newItems = [];
-                for (let i = 0; i < filesOrHandles.length; i++) {
-                    const f = filesOrHandles[i]; const name = f.name; const ext = name.split('.').pop().toLowerCase();
-                    if (USER_SETTINGS.validExts.includes(ext)) {
-                        newItems.push({ id: `added_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${name}`, name: name, handle: isHandles ? f : { getFile: async () => f }, objectUrl: null, tocName: null });
-                    }
-                }
-                newItems.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-                if (newItems.length > 0) { this.fileItems.push(...newItems); this.ui.renderItems(this.fileItems); this.sortManager.init(); }
-            } catch (e) { console.error(e); this.ui.showToast('画像の追加に失敗しました。', true); } finally { this.setProcessingState(false); }
-        }
-
-        getGridLayoutData() {
-            const gridRect = this.ui.mainGrid.getBoundingClientRect(); const items =[]; const viewMode = this.ui.viewModeSelect.value; let maxX = 0; let maxY = 0;
-            this.ui.mainGrid.querySelectorAll('.thumb-item').forEach((el, index) => {
-                const fileItem = this.fileItems.find(i => i.id === el.dataset.id); if (!fileItem) return;
-                const img = el.querySelector('img'); if (!img) return;
-                const rect = img.getBoundingClientRect();
-                const x = rect.left - gridRect.left + this.ui.mainGrid.scrollLeft; const y = rect.top - gridRect.top + this.ui.mainGrid.scrollTop;
-                let alignX = 'center';
-                if (viewMode === 'spread-ltr' && index > 0) alignX = (index % 2 === 1) ? 'right' : 'left';
-                else if (viewMode === 'spread-rtl' && index > 0) alignX = (index % 2 === 1) ? 'left' : 'right';
-                items.push({ fileItem, x, y, w: rect.width, h: rect.height, alignX, index });
-                if (x + rect.width > maxX) maxX = x + rect.width; if (y + rect.height + 20 > maxY) maxY = y + rect.height + 20; 
-            });
-            return { items, totalWidth: maxX + 20, totalHeight: maxY + 20 };
-        }
-
-        getSpreadPairs() {
-            const viewMode = this.ui.viewModeSelect.value; const pairs =[];
-            if (viewMode === 'grid') { this.fileItems.forEach(item => pairs.push([item])); return pairs; }
-            if (this.fileItems.length > 0) pairs.push([this.fileItems[0]]);
-            for (let i = 1; i < this.fileItems.length; i += 2) {
-                const item1 = this.fileItems[i]; const item2 = this.fileItems[i + 1];
-                if (!item2) pairs.push([item1]); else pairs.push(viewMode === 'spread-rtl' ? [item2, item1] : [item1, item2]);
-            }
-            return pairs;
-        }
-
-        handleExportSettings() {
-            const prefix = this.ui.outputFilename.value.trim(); const baseName = prefix || this.sourceFolderName; this.saveSettings(baseName);
-        }
-
-        handleExportOrder(silent = false) {
-            if (this.fileItems.length === 0) return;
-            const prefix = this.ui.outputFilename.value.trim(); const baseName = prefix || this.sourceFolderName;
-            const orderText = this.fileItems.map(item => item.tocName ? `${item.name}\t${item.tocName}` : item.name).join('\n');
-            const blob = new Blob([orderText], { type: 'text/plain' }); const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = baseName ? `${baseName}_order.txt` : 'image_order.txt'; a.click();
-            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-
-            try {
-                const dateStr = new Date().toLocaleString(); const title = baseName || '無題のリスト'; const currentTimestamp = Date.now();
-                let caches = JSON.parse(localStorage.getItem('image_sorting_orders') || '[]');
-                const existingIndex = caches.findIndex(c => c.title === title);
-                if (existingIndex !== -1) { caches[existingIndex].date = dateStr; caches[existingIndex].orderText = orderText; caches[existingIndex].timestamp = currentTimestamp; } 
-                else { caches.push({ id: currentTimestamp.toString(), title, date: dateStr, orderText, timestamp: currentTimestamp }); if(caches.length > 50) caches.shift(); }
-                localStorage.setItem('image_sorting_orders', JSON.stringify(caches));
-            } catch(e) { console.warn('キャッシュの保存に失敗しました:', e); }
-            if (!silent) this.ui.showToast(`並び順テキストとキャッシュを保存しました。`);
-        }
-
-        handleAutoSort(text, keepFirst = true) {
-            if (!text || this.fileItems.length === 0) return;
-            const rawQueries = text.split(/\s+/).map(q => q.trim()).filter(q => q); if (rawQueries.length === 0) return;
-            const queries = [...new Set(rawQueries)]; const grouped = {}; queries.forEach(q => grouped[q] = []); const unmatched = [];
-            let itemsToSort = this.fileItems; let firstItem = null;
-            if (keepFirst && this.fileItems.length > 0) { firstItem = this.fileItems[0]; itemsToSort = this.fileItems.slice(1); }
-            itemsToSort.forEach(item => {
-                let matched = false;
-                for (const q of queries) { if (item.name.includes(q)) { grouped[q].push(item); matched = true; break; } }
-                if (!matched) unmatched.push(item);
-            });
-            const newItems = []; if (firstItem) newItems.push(firstItem);
-            queries.forEach(q => newItems.push(...grouped[q])); newItems.push(...unmatched);
-            this.saveHistory(); this.fileItems = newItems; this.ui.renderItems(this.fileItems); this.sortManager.init(); this.ui.showToast('自動並び替えを完了しました。');
-        }
-
-        async handleExecute() {
-            if (this.fileItems.length === 0) return;
-            const saveFormat = this.ui.saveFormatSelect.value;
-            const rawPrefix = this.ui.outputFilename.value.trim(); const prefix = rawPrefix.replace(/[\\/:*?"<>|]/g, '_');
-            const safeFolderName = this.sourceFolderName ? this.sourceFolderName.replace(/[\\/:*?"<>|]/g, '_') : ''; const baseName = prefix || safeFolderName;
-            const resizeModeVal = this.ui.resizeModeSelect.value; const resizeBaseVal = this.ui.resizeBaseSelect.value;
-            let resizeOpts = { mode: resizeModeVal, baseType: resizeBaseVal, baseW: 0, baseH: 0 };
-            
-            if (resizeModeVal !== 'none') {
-                this.setProcessingState(true); this.ui.updateProgress(0, '画像サイズを計算中...');
-                try {
-                    const dims = await this.fs.calculateBaseDimensions(this.fileItems, resizeBaseVal, (current, total) => { this.ui.updateProgress((current / total) * 100, `画像サイズを計算中... ${current} / ${total}`); });
-                    resizeOpts.baseW = dims.baseW; resizeOpts.baseH = dims.baseH;
-                } catch(e) { console.error(e); this.ui.showToast('サイズ計算中にエラーが発生しました。', true); this.setProcessingState(false); return; }
-            }
-
-            if (saveFormat === 'epub') {
-                let metadata; try { metadata = await this.epubModal.show(prefix); } catch (e) { return; }
-                this.setProcessingState(true);
-                try {
-                    const result = await this.epubGen.generate(this.fileItems, metadata, this.ui.viewModeSelect.value, (current, total, info) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSavingEpub.replace('{current}', current).replace('{total}', total) + ` (${info})`); }, baseName, resizeOpts);
-                    if (result && result.success) {
-                        this.ui.showToast(`EPUBを保存しました。`);
-                        if (metadata.exportSettings) this.saveSettings(result.filename.replace(/\.epub$/i, ''));
-                    }
-                } catch (e) { console.error(e); if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true); } 
-                finally { this.setProcessingState(false); setTimeout(() => this.ui.updateProgress(0, ''), 3000); if (window.gc) { try { window.gc(); } catch (e) {} } }
-                return;
-            }
-
-            this.setProcessingState(true);
-            try {
-                if (saveFormat === 'rename' || saveFormat === 'copy') {
-                    const useOriginalName = (saveFormat === 'copy');
-                    if (this.hasFSApi) {
-                        let targetDirHandle;
-                        try { targetDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'save-folder', startIn: 'downloads' }); } 
-                        catch (e) { if (e.name === 'AbortError') return; throw new Error('フォルダ選択がキャンセルされました。'); }
-                        await this.fs.saveRenamedFiles(targetDirHandle, this.fileItems, (current, total, newName) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`); }, prefix, resizeOpts, useOriginalName);
-                        this.ui.showToast(`選択したフォルダ内に画像を保存しました。`);
-                    } else {
-                        await this.fs.saveRenamedFilesFallback(this.fileItems, (current, total, newName) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`); }, baseName, prefix, resizeOpts, useOriginalName);
-                        this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
-                    }
-                } else if (saveFormat === 'merge-rename') {
-                    const pairs = this.getSpreadPairs();
-                    if (this.hasFSApi) {
-                        let targetDirHandle;
-                        try { targetDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'save-folder', startIn: 'downloads' }); } 
-                        catch (e) { if (e.name === 'AbortError') return; throw new Error('フォルダ選択がキャンセルされました。'); }
-                        await this.fs.saveMergedRenamedFiles(targetDirHandle, pairs, (current, total, newName) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`); }, prefix, resizeOpts);
-                        this.ui.showToast(`選択したフォルダ内に結合画像を保存しました。`);
-                    } else {
-                        await this.fs.saveMergedRenamedFilesFallback(pairs, (current, total, newName) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSaving.replace('{current}', current).replace('{total}', total) + ` (${newName})`); }, baseName, prefix, resizeOpts);
-                        this.ui.showToast(`ZIPファイルのダウンロードが完了しました。`);
-                    }
-                } else if (saveFormat.includes('pdf')) {
-                    const quality = Math.max(1, Math.min(100, parseInt(this.ui.pdfQuality.value, 10) || 30));
-                    const viewMode = this.ui.viewModeSelect.value; let success1 = false, success2 = false;
-                    const usePicker = (saveFormat !== 'pdf-both');
-                    if (saveFormat === 'pdf' || saveFormat === 'pdf-both') {
-                        success1 = await this.fs.saveAsPDF(this.fileItems, quality, (current, total, info) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`); }, baseName, resizeOpts, viewMode, usePicker);
-                    } 
-                    if (saveFormat === 'pdf-sheet' || saveFormat === 'pdf-both') {
-                        const layoutData = this.getGridLayoutData();
-                        success2 = await this.fs.saveAsThumbnailPDF(layoutData, 100, (current, total, info) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`); }, baseName ? `${baseName}_thumbnail` : 'thumbnail_sheet', usePicker);
-                    } 
-                    if (saveFormat === 'merge-pdf') {
-                        const pairs = this.getSpreadPairs();
-                        success1 = await this.fs.saveMergedAsPDF(pairs, quality, (current, total, info) => { this.ui.updateProgress((current / total) * 100, USER_SETTINGS.msgSavingPDF.replace('{current}', current).replace('{total}', total) + ` (${info})`); }, baseName, resizeOpts, viewMode, usePicker);
-                    }
-                    if (success1 || success2) {
-                        if (saveFormat === 'pdf-both') { this.handleExportOrder(true); this.ui.showToast(`一括出力（PDF2種 ＋ 並び順テキスト）を完了しました。`); } 
-                        else { this.ui.showToast(`PDFを保存しました。`); }
-                    }
-                }
-            } catch (e) { console.error(e); if (e.name !== 'AbortError') this.ui.showToast('保存中にエラーが発生しました: ' + e.message, true); } 
-            finally { this.setProcessingState(false); setTimeout(() => this.ui.updateProgress(0, ''), 3000); if (window.gc) { try { window.gc(); } catch (e) {} } }
-        }
-
-        resetMemory() {
-            const allItems = new Set([...this.fileItems, ...this.historyUndo.flat(), ...this.historyRedo.flat()]);
-            allItems.forEach(item => { if (item.objectUrl) { URL.revokeObjectURL(item.objectUrl); item.objectUrl = null; } });
-        }
-
-        reset() {
-            if (this.isProcessing) return;
-            if (this.fileItems.length > 0 && !confirm(USER_SETTINGS.msgConfirmReset)) return;
-            this.resetMemory(); this.fileItems = []; this.historyUndo = []; this.historyRedo = []; this.sourceFolderName = null; this.ui.outputFilename.value = '';
-            this.ui.clear(); this.updateHistoryButtons(); this.sortManager.destroy();
-        }
-
-        openRestoreModal() { this.renderCacheList(); this.ui.restoreModal.style.display = 'flex'; }
-
-        renderCacheList() {
-            let caches = []; try { caches = JSON.parse(localStorage.getItem('image_sorting_orders') || '[]'); } catch(e) { caches = []; }
-            const sortMode = this.ui.restoreSortMode ? this.ui.restoreSortMode.value : 'name';
-            caches.sort((a, b) => {
-                if (sortMode === 'name') return a.title.localeCompare(b.title, undefined, { numeric: true });
-                else { const timeA = a.timestamp || parseInt(a.id, 10) || 0; const timeB = b.timestamp || parseInt(b.id, 10) || 0; return sortMode === 'date-asc' ? (timeA - timeB) : (timeB - timeA); }
-            });
-            this.ui.restoreList.innerHTML = ''; this.ui.restoreCheckAll.checked = false; this.updateCacheDeleteButton();
-            if (caches.length === 0) { this.ui.restoreList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-sub); font-size: 13px;">保存された並び順はありません。</div>'; return; }
-
-            caches.forEach(cache => {
-                const itemDiv = document.createElement('div');
-                itemDiv.style.display = 'flex'; itemDiv.style.alignItems = 'center'; itemDiv.style.justifyContent = 'space-between';
-                itemDiv.style.padding = '8px 12px'; itemDiv.style.borderBottom = '1px solid var(--border-color)';
-                itemDiv.style.gap = '10px'; itemDiv.style.width = '100%'; itemDiv.style.boxSizing = 'border-box';
-                itemDiv.style.cursor = 'pointer'; itemDiv.style.transition = 'background 0.1s';
-                itemDiv.addEventListener('mouseenter', () => itemDiv.style.backgroundColor = 'rgba(128, 128, 128, 0.1)');
-                itemDiv.addEventListener('mouseleave', () => itemDiv.style.backgroundColor = 'transparent');
-                
-                const chk = document.createElement('input'); chk.type = 'checkbox'; chk.className = 'cache-check'; chk.dataset.id = cache.id;
-                chk.style.margin = '0'; chk.style.cursor = 'pointer'; chk.style.flexShrink = '0'; chk.style.width = '16px'; chk.style.height = '16px';
-                chk.addEventListener('change', () => this.updateCacheDeleteButton());
-                
-                const infoDiv = document.createElement('div'); infoDiv.style.display = 'flex'; infoDiv.style.flexDirection = 'column';
-                infoDiv.style.flexGrow = '1'; infoDiv.style.minWidth = '0'; infoDiv.style.overflow = 'hidden';
-                
-                const titleSpan = document.createElement('span'); titleSpan.style.fontSize = '13px'; titleSpan.style.fontWeight = 'bold';
-                titleSpan.style.color = 'var(--text-main)'; titleSpan.style.whiteSpace = 'nowrap'; titleSpan.style.overflow = 'hidden';
-                titleSpan.style.textOverflow = 'ellipsis'; titleSpan.style.display = 'block'; titleSpan.textContent = cache.title;
-                
-                const dateSpan = document.createElement('span'); dateSpan.style.fontSize = '11px'; dateSpan.style.color = 'var(--text-sub)';
-                dateSpan.style.display = 'block'; dateSpan.textContent = cache.date;
-                
-                infoDiv.appendChild(titleSpan); infoDiv.appendChild(dateSpan);
-                
-                const btnRestore = document.createElement('button'); btnRestore.textContent = "復元"; btnRestore.style.padding = '6px 12px';
-                btnRestore.style.background = 'var(--primary-color)'; btnRestore.style.color = '#fff'; btnRestore.style.border = 'none';
-                btnRestore.style.borderRadius = '4px'; btnRestore.style.fontSize = '12px'; btnRestore.style.fontWeight = 'bold';
-                btnRestore.style.cursor = 'pointer'; btnRestore.style.flexShrink = '0'; btnRestore.style.whiteSpace = 'nowrap';
-                
-                btnRestore.addEventListener('click', () => { this.applyOrderFromText(cache.orderText); this.ui.restoreModal.style.display = 'none'; });
-                itemDiv.addEventListener('click', (e) => { if (e.target.closest('button') || e.target.tagName.toLowerCase() === 'input') return; chk.checked = !chk.checked; this.updateCacheDeleteButton(); });
-                itemDiv.appendChild(chk); itemDiv.appendChild(infoDiv); itemDiv.appendChild(btnRestore); this.ui.restoreList.appendChild(itemDiv);
-            });
-        }
-
-        updateCacheDeleteButton() {
-            const checked = this.ui.restoreList.querySelectorAll('.cache-check:checked'); this.ui.btnDeleteSelectedCache.disabled = checked.length === 0;
-            const all = this.ui.restoreList.querySelectorAll('.cache-check'); this.ui.restoreCheckAll.checked = (all.length > 0 && checked.length === all.length);
-        }
-
-        deleteSelectedCaches() {
-            if(!confirm('選択した保存データをクリアしますか？')) return;
-            const checkedIds = Array.from(this.ui.restoreList.querySelectorAll('.cache-check:checked')).map(chk => chk.dataset.id);
-            try {
-                let caches = JSON.parse(localStorage.getItem('image_sorting_orders') || '[]');
-                caches = caches.filter(c => !checkedIds.includes(c.id)); localStorage.setItem('image_sorting_orders', JSON.stringify(caches));
-                this.renderCacheList(); this.ui.showToast('選択したキャッシュをクリアしました。');
-            } catch(e) { console.error('キャッシュの削除に失敗しました', e); }
-        }
-    }
-
-    class ImageEditor {
-        constructor(onSave) {
-            this.onSave = onSave;
-            this.overlay = document.getElementById('lightbox-overlay');
-            this.canvas = document.getElementById('editor-canvas');
-            this.ctx = this.canvas.getContext('2d');
-            this.cropBox = document.getElementById('editor-crop-box');
-
-            // ツールバーUIの取得
-            this.inCropW = document.getElementById('ed-crop-w');
-            this.inCropH = document.getElementById('ed-crop-h');
-            this.chkCropKeep = document.getElementById('ed-crop-keep');
-            this.inOutW = document.getElementById('ed-out-w');
-            this.inOutH = document.getElementById('ed-out-h');
-            this.chkOutKeep = document.getElementById('ed-out-keep');
-            
-            // 回転・反転
-            document.getElementById('ed-rot-l').addEventListener('click', () => { this.state.rotate = (this.state.rotate - 90) % 360; this.state.outW = null; this.state.outH = null; this.renderPreview(); });
-            document.getElementById('ed-rot-r').addEventListener('click', () => { this.state.rotate = (this.state.rotate + 90) % 360; this.state.outW = null; this.state.outH = null; this.renderPreview(); });
-            document.getElementById('ed-flip-h').addEventListener('click', () => { this.state.flipH = !this.state.flipH; this.renderPreview(); });
-            document.getElementById('ed-flip-v').addEventListener('click', () => { this.state.flipV = !this.state.flipV; this.renderPreview(); });
-            
-            // トリミングマウス操作モードトグル
-            this.btnCrop = document.getElementById('ed-crop');
-            this.btnCrop.addEventListener('click', () => {
-                this.isCropping = !this.isCropping;
-                this.btnCrop.classList.toggle('active', this.isCropping);
-                this.canvas.style.cursor = this.isCropping ? 'crosshair' : 'default';
-            });
-
-            // 出力サイズの直接入力
-            const updateOutSize = (changed) => {
-                let w = parseInt(this.inOutW.value) || 1;
-                let h = parseInt(this.inOutH.value) || 1;
-                let cw = this.state.crop ? this.state.crop.w : this.getBaseSize().w;
-                let ch = this.state.crop ? this.state.crop.h : this.getBaseSize().h;
-                
-                if (this.chkOutKeep.checked) {
-                    if (changed === 'w') h = Math.max(1, Math.round(w * (ch / cw)));
-                    else w = Math.max(1, Math.round(h * (cw / ch)));
-                }
-                this.state.outW = w; this.state.outH = h;
-                this.renderPreview();
-            };
-            this.inOutW.addEventListener('change', () => updateOutSize('w'));
-            this.inOutH.addEventListener('change', () => updateOutSize('h'));
-
-            // トリミング枠の直接入力（入力時は自動計算のみ。適用はボタン押し時）
-            const updateCropInput = (changed) => {
-                if (this.chkCropKeep.checked) {
-                    let w = parseInt(this.inCropW.value) || 1;
-                    let h = parseInt(this.inCropH.value) || 1;
-                    let base = this.getBaseSize();
-                    if (changed === 'w') this.inCropH.value = Math.max(1, Math.round(w * (base.h / base.w)));
-                    else this.inCropW.value = Math.max(1, Math.round(h * (base.w / base.h)));
-                }
-            };
-            this.inCropW.addEventListener('input', () => updateCropInput('w'));
-            this.inCropH.addEventListener('input', () => updateCropInput('h'));
-
-            // トリミング枠を中央に適用
-            document.getElementById('ed-crop-apply').addEventListener('click', () => {
-                let cw = parseInt(this.inCropW.value) || 1;
-                let ch = parseInt(this.inCropH.value) || 1;
-                let base = this.getBaseSize();
-                cw = Math.min(cw, base.w); ch = Math.min(ch, base.h);
-                let cx = Math.floor((base.w - cw) / 2); let cy = Math.floor((base.h - ch) / 2);
-                this.state.crop = { x: cx, y: cy, w: cw, h: ch };
-                this.state.outW = null; this.state.outH = null; // リセット
-                this.renderPreview();
-            });
-
-            document.getElementById('ed-crop-clear').addEventListener('click', () => {
-                this.state.crop = null; this.state.outW = null; this.state.outH = null;
-                this.renderPreview();
-            });
-            
-            document.getElementById('ed-reset').addEventListener('click', () => { this.resetState(); this.renderPreview(); });
-            document.getElementById('ed-save').addEventListener('click', () => this.save());
-            document.getElementById('ed-close').addEventListener('click', () => this.close());
-            
-            // トリミング用マウスイベント
-            this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-            window.addEventListener('mousemove', (e) => this.onMouseMove(e));
-            window.addEventListener('mouseup', (e) => this.onMouseUp(e));
-        }
-
-        getBaseSize() {
-            if (!this.img) return { w: 0, h: 0 };
-            const isRotated = Math.abs(this.state.rotate) % 180 !== 0;
-            return { w: isRotated ? this.img.height : this.img.width, h: isRotated ? this.img.width : this.img.height };
-        }
-
-        async open(item) {
-            this.currentItem = item;
-            const file = item.editedBlob || await item.handle.getFile();
-            const url = URL.createObjectURL(file);
-            this.img = new Image();
-            this.img.onload = () => { URL.revokeObjectURL(url); this.resetState(); this.renderPreview(); this.overlay.style.display = 'flex'; };
-            this.img.src = url;
-        }
-
-        resetState() {
-            this.state = { rotate: 0, flipH: false, flipV: false, outW: null, outH: null, crop: null };
-            this.isCropping = false; this.isDragging = false;
-            this.btnCrop.classList.remove('active'); this.canvas.style.cursor = 'default'; this.cropBox.style.display = 'none';
-        }
-
-        renderPreview() {
-            if (!this.img) return;
-            const base = this.getBaseSize();
-            const baseCanvas = new OffscreenCanvas(base.w, base.h); const bCtx = baseCanvas.getContext('2d');
-            bCtx.translate(base.w / 2, base.h / 2);
-            bCtx.rotate(this.state.rotate * Math.PI / 180);
-            bCtx.scale(this.state.flipH ? -1 : 1, this.state.flipV ? -1 : 1);
-            bCtx.drawImage(this.img, -this.img.width / 2, -this.img.height / 2);
-            
-            let cx = 0, cy = 0, cw = base.w, ch = base.h;
-            if (this.state.crop) { cx = this.state.crop.x; cy = this.state.crop.y; cw = this.state.crop.w; ch = this.state.crop.h; }
-            
-            const finalW = this.state.outW || cw;
-            const finalH = this.state.outH || ch;
-            
-            this.canvas.width = finalW; this.canvas.height = finalH;
-            this.ctx.clearRect(0, 0, finalW, finalH);
-            this.ctx.imageSmoothingEnabled = true; this.ctx.imageSmoothingQuality = 'high';
-            this.ctx.drawImage(baseCanvas, cx, cy, cw, ch, 0, 0, finalW, finalH);
-
-            // UIの同期
-            this.inOutW.value = finalW; this.inOutH.value = finalH;
-            this.inCropW.value = cw; this.inCropH.value = ch;
-        }
-
-        onMouseDown(e) {
-            if (!this.isCropping || e.target !== this.canvas) return;
-            this.isDragging = true;
-            const rect = this.canvas.getBoundingClientRect();
-            this.startX = e.clientX - rect.left; this.startY = e.clientY - rect.top;
-            this.cropBox.style.display = 'block';
-            this.updateCropBox(this.startX, this.startY, 0, 0);
-        }
-
-        onMouseMove(e) {
-            if (!this.isDragging) return;
-            const rect = this.canvas.getBoundingClientRect();
-            const currX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-            const currY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
-            
-            const x = Math.min(this.startX, currX); const y = Math.min(this.startY, currY);
-            let w = Math.abs(currX - this.startX); let h = Math.abs(currY - this.startY);
-            
-            // マウスドラッグ中の比率維持
-            if (this.chkCropKeep.checked) {
-                let base = this.getBaseSize(); let ratio = base.h / base.w;
-                if (w * ratio > h) h = w * ratio; else w = h / ratio;
-            }
-            this.updateCropBox(x, y, w, h);
-        }
-
-        onMouseUp(e) {
-            if (!this.isDragging) return;
-            this.isDragging = false; this.cropBox.style.display = 'none';
-            
-            const rect = this.canvas.getBoundingClientRect();
-            const currX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-            const currY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
-            
-            let w = Math.abs(currX - this.startX); let h = Math.abs(currY - this.startY);
-            let cx = Math.min(this.startX, currX); let cy = Math.min(this.startY, currY);
-            
-            if (w > 10 && h > 10) { 
-                const scaleX = this.canvas.width / rect.width; const scaleY = this.canvas.height / rect.height;
-                const base = this.getBaseSize();
-                const currentCw = this.state.crop ? this.state.crop.w : base.w;
-                const currentCh = this.state.crop ? this.state.crop.h : base.h;
-                const currentCx = this.state.crop ? this.state.crop.x : 0;
-                const currentCy = this.state.crop ? this.state.crop.y : 0;
-                const ratioW = currentCw / this.canvas.width; const ratioH = currentCh / this.canvas.height;
-                
-                let realW = Math.round(w * scaleX * ratioW); let realH = Math.round(h * scaleY * ratioH);
-                if (this.chkCropKeep.checked) {
-                    let ratio = base.h / base.w;
-                    if (realW * ratio > realH) realH = Math.round(realW * ratio); else realW = Math.round(realH / ratio);
-                }
-                
-                let nextX = currentCx + Math.round(cx * scaleX * ratioW); let nextY = currentCy + Math.round(cy * scaleY * ratioH);
-                if (nextX + realW > base.w) realW = base.w - nextX;
-                if (nextY + realH > base.h) realH = base.h - nextY;
-
-                this.state.crop = { x: nextX, y: nextY, w: realW, h: realH };
-                this.state.outW = null; this.state.outH = null; // リセット
-                this.isCropping = false; this.btnCrop.classList.remove('active'); this.canvas.style.cursor = 'default';
-                this.renderPreview();
-            }
-        }
-
-        updateCropBox(x, y, w, h) {
-            this.cropBox.style.left = `${x}px`; this.cropBox.style.top = `${y}px`; this.cropBox.style.width = `${w}px`; this.cropBox.style.height = `${h}px`;
-        }
-
-        async save() {
-            const blob = await new Promise(resolve => this.canvas.toBlob(resolve, 'image/jpeg', 0.95));
-            this.close();
-            if (this.onSave && blob) this.onSave(this.currentItem, blob);
-        }
-
-        close() { this.overlay.style.display = 'none'; this.img = null; }
-    }
-
-    new App();
-
-});
-</script>
+<script src="app.js"></script>
 </body>
 </html>
