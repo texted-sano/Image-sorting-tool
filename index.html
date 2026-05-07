@@ -283,9 +283,9 @@
             <!-- グループ1: 出力・保存 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
-                    <div class="ribbon-col" style="width: 200px;">
-                        <input type="text" id="output-filename" placeholder="出力ファイル名">
-                        <select id="save-format" title="保存形式">
+                    <div class="ribbon-col" style="width: 150px;">
+                        <input type="text" id="output-filename" placeholder="出力ファイル名" style="width: 100%; box-sizing: border-box;">
+                        <select id="save-format" title="保存形式" style="width: 100%; text-overflow: ellipsis; box-sizing: border-box;">
                             <option value="pdf">☍ 連結してPDF保存</option>
                             <option value="copy">⧉ 複製を保存（元のファイル名）</option>
                             <option value="rename">☷ 連番リネームで保存</option>
@@ -320,18 +320,18 @@
             <!-- グループ2: 画像サイズ調整 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
-                    <div class="ribbon-col">
-                        <select id="resize-mode" title="処理方法">
+                    <div class="ribbon-col" style="width: 120px;">
+                        <select id="resize-mode" title="処理方法" style="width: 100%; text-overflow: ellipsis; box-sizing: border-box;">
                             <option value="none" selected>調整なし</option>
                             <option value="fit-width">横に揃える</option>
                             <option value="fit-height">縦に揃える</option>
-                            <option value="pad-white-h">横に揃えて余白を白埋め</option>
-                            <option value="pad-white-v">縦に揃えて余白を白埋め</option>
+                            <option value="pad-white-h">横に揃えて白埋め</option>
+                            <option value="pad-white-v">縦に揃えて白埋め</option>
                         </select>
-                        <select id="resize-base" title="基準とするサイズ" disabled>
-                            <option value="max" selected>最大サイズに合わせる</option>
-                            <option value="avg">平均サイズに合わせる</option>
-                            <option value="min">最小サイズに合わせる</option>
+                        <select id="resize-base" title="基準とするサイズ" disabled style="width: 100%; text-overflow: ellipsis; box-sizing: border-box;">
+                            <option value="max" selected>最大に合わせる</option>
+                            <option value="avg">平均に合わせる</option>
+                            <option value="min">最小に合わせる</option>
                         </select>
                     </div>
                 </div>
@@ -371,8 +371,8 @@
             <!-- グループ4: 表示 -->
             <div class="ribbon-group">
                 <div class="ribbon-items">
-                    <div class="ribbon-col">
-                        <select id="view-mode" title="表示モード切替">
+                    <div class="ribbon-col" style="width: 110px;">
+                        <select id="view-mode" title="表示モード切替" style="width: 100%; text-overflow: ellipsis; box-sizing: border-box;">
                             <option value="grid">単ページ</option>
                             <option value="spread-rtl" selected>見開き(右開き)</option>
                             <option value="spread-ltr">見開き(左開き)</option>
