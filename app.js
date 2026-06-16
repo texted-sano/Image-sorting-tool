@@ -60,13 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }   
         
         async loadAllThumbnails(fileItems) {
-            this.currentLoadSession = Date.now(); const session = this.currentLoadSession;
             for (const item of fileItems) {
-                if (session !== this.currentLoadSession) break;
-                if (!item.objectUrl) {
+                if (!item.objectUrl && !item.isThumbnailLoading) {
+                    item.isThumbnailLoading = true; 
+                    await new Promise(resolve => setTimeout(resolve, 0));
                     const url = await this.onRequestImage(item.id);
-                    if (session !== this.currentLoadSession) break;
-                    if (url) { const img = this.mainGrid.querySelector(`img[data-id="${item.id}"]`); if (img) img.src = url; }
+                    if (url) { 
+                        const img = this.mainGrid.querySelector(`img[data-id="${item.id}"]`); 
+                        if (img) img.src = url; 
+                    }
+                    item.isThumbnailLoading = false;
                 }
             }
         }
