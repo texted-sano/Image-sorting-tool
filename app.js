@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const USER_SETTINGS = {
         msgSaving: '保存中... {current} / {total}', msgSavingPDF: 'PDF生成中... {current} / {total}', msgSavingEpub: 'EPUB生成中... {current} / {total}',
-        validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'], msgFallbackLoad: 'File System API非対応。標準のファイル選択を使用します。',
-        msgFallbackSave: 'File System API非対応。ZIPにまとめて保存します。', msgConfirmReset: '本当にリセットしてもよろしいですか？\n編集中のデータはすべて失われます。'
+        validExts: ['jpg', 'jpeg', 'png', 'gif', 'webp'], pdfExt: 'pdf', msgFallbackLoad: 'File System API非対応。標準のファイル選択を使用します。',
+        msgFallbackSave: 'File System API非対応。ZIPにまとめて保存します。', msgConfirmReset: '本当にリセットしてもよろしいですか？\n編集中のデータはすべて失われます。',
+        pdfJsUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', pdfJsWorkerUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+        pdfCMapUrl: 'https://unpkg.com/pdf.js-dist@3.11.174/cmaps/', pdfRenderScale: 2, msgExpandingPdf: 'PDFを展開中... {current} / {total} ページ'
     };
 
     class UIManager {
@@ -34,11 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             document.addEventListener('click', (e) => { if (!e.target.closest('.ribbon-group')) ribbonGroups.forEach(g => g.classList.remove('active')); });
             
-            this.saveFormatSelect.addEventListener('change', (e) => {
-                const val = e.target.value; const isPdf = val.includes('pdf');
-                if (val === 'pdf-sheet') { this.pdfOptions.style.display = 'none'; this.pdfQuality.value = 100; } 
-                else { this.pdfOptions.style.display = isPdf ? 'flex' : 'none'; if (isPdf && this.pdfQuality.value === '100') this.pdfQuality.value = 30; }
-            });
+            this.saveFormatSelect.addEventListener('change', (e) => this.syncPdfOptionsVisibility(e.target.value));
+            this.syncPdfOptionsVisibility(this.saveFormatSelect.value);
             
             this.viewModeSelect = document.getElementById('view-mode'); this.sizeSlider = document.getElementById('size-slider');
             this.mainArea = document.querySelector('.main-area'); this.mainGrid = document.getElementById('main-grid');
@@ -83,6 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         toggleTheme() { document.body.classList.toggle('light-mode'); this.themeToggle.innerHTML = document.body.classList.contains('light-mode') ? '<span class="icon">🌙</span><span class="label">テーマ</span>' : '<span class="icon">☀</span><span class="label">テーマ</span>'; }
         
+        syncPdfOptionsVisibility(val) {
+            const isPdf = val.includes('pdf');
+            if (val === 'pdf-sheet') { this.pdfOptions.style.display = 'none'; this.pdfQuality.value = 100; }
+            else { this.pdfOptions.style.display = isPdf ? 'flex' : 'none'; if (isPdf && this.pdfQuality.value === '100') this.pdfQuality.value = 30; }
+        }
+        
         changeViewMode(mode) {
             this.mainGrid.className = 'thumb-grid'; 
             if (mode === 'spread-rtl') this.mainGrid.classList.add('mode-spread', 'mode-spread-rtl'); else if (mode === 'spread-ltr') this.mainGrid.classList.add('mode-spread', 'mode-spread-ltr');
@@ -116,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.resizeModeSelect.disabled = isProcessing; this.resizeBaseSelect.disabled = isProcessing || this.resizeModeSelect.value === 'none';
             this.btnSetToc.disabled = isProcessing || !hasFiles; this.btnAddBlank.disabled = isProcessing || !hasFiles; this.btnDelete.disabled = isProcessing || !hasFiles;
             this.btnBatchCrop.disabled = isProcessing || !hasFiles;
-            this.btnExportOrder.disabled = isProcessing || !hasFiles; this.btnRestoreOrder.disabled = isProcessing || !hasFiles; this.btnExportSettings.disabled = isProcessing;
+            this.btnExportOrder.disabled = isProcessing || !hasFiles; this.btnRestoreOrder.disabled = isProcessing; this.btnExportSettings.disabled = isProcessing || !hasFiles;
             if (isProcessing) { this.btnUndo.disabled = true; this.btnRedo.disabled = true; }
         }
         
@@ -330,6 +335,37 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tw, th); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bmp, dx, dy, dw, dh); bmp.close();
             return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
         }
+        async ensurePdfJsLoaded() {
+            if (window.pdfjsLib) return window.pdfjsLib;
+            if (!this._pdfJsLoadPromise) {
+                this._pdfJsLoadPromise = new Promise((resolve, reject) => {
+                    const s = document.createElement('script'); s.src = USER_SETTINGS.pdfJsUrl;
+                    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = USER_SETTINGS.pdfJsWorkerUrl; resolve(window.pdfjsLib); };
+                    s.onerror = () => reject(new Error('pdf.jsの読み込みに失敗しました。'));
+                    document.head.appendChild(s);
+                });
+            }
+            return this._pdfJsLoadPromise;
+        }
+        async expandPdfFile(file, onP) {
+            const pdfjsLib = await this.ensurePdfJsLoaded();
+            const data = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data, cMapUrl: USER_SETTINGS.pdfCMapUrl, cMapPacked: true, enableXfa: true }).promise;
+            try {
+                const baseName = file.name.includes('.') ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name;
+                const pad = Math.max(3, String(pdf.numPages).length); const out = [];
+                const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i); const vp = page.getViewport({ scale: USER_SETTINGS.pdfRenderScale });
+                    canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
+                    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+                    const nName = `${baseName}_${String(i).padStart(pad, '0')}.jpg`;
+                    out.push(new File([blob], nName, { type: 'image/jpeg' })); page.cleanup(); if (onP) onP(i, pdf.numPages);
+                }
+                return out;
+            } finally { pdf.destroy(); }
+        }
         async selectDirectory() { return await window.showDirectoryPicker({ mode: 'readwrite' }); }
         async selectDirectoryFallback() {
             return new Promise(resolve => {
@@ -337,21 +373,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.addEventListener('focus', function onFocus(){ window.removeEventListener('focus', onFocus); setTimeout(()=>resolve(Array.from(input.files||[])),300); }, { once: true }); input.click();
             });
         }
-        async loadImages(dirHandle) {
+        async loadImages(dirHandle, onPdfProgress) {
             const items =[]; let count = 0;
             for await (const entry of dirHandle.values()) {
                 if (entry.kind === 'file' && !entry.name.startsWith('.')) {
-                    if (USER_SETTINGS.validExts.includes(entry.name.split('.').pop().toLowerCase())) items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null, tocName: null });
+                    const ext = entry.name.split('.').pop().toLowerCase();
+                    if (USER_SETTINGS.validExts.includes(ext)) items.push({ id: entry.name, name: entry.name, handle: entry, objectUrl: null, tocName: null });
+                    else if (ext === USER_SETTINGS.pdfExt) { const pf = await entry.getFile(); const imgs = await this.expandPdfFile(pf, onPdfProgress); for (const im of imgs) items.push({ id: `pdf_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${im.name}`, name: im.name, handle: { getFile: async () => im }, objectUrl: null, tocName: null }); }
                 }
                 if (++count % 100 === 0) await new Promise(r => setTimeout(r, 0));
             }
             items.sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true})); return items;
         }
-        async loadImagesFallback(files) {
+        async loadImagesFallback(files, onPdfProgress) {
             const items =[];
             for (let i=0; i<files.length; i++) {
                 const file = files[i]; if (file.name.startsWith('.')) continue;
-                if (USER_SETTINGS.validExts.includes(file.name.split('.').pop().toLowerCase())) items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null, tocName: null });
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (USER_SETTINGS.validExts.includes(ext)) items.push({ id: file.webkitRelativePath || file.name, name: file.name, handle: { getFile: async () => file }, objectUrl: null, tocName: null });
+                else if (ext === USER_SETTINGS.pdfExt) { const imgs = await this.expandPdfFile(file, onPdfProgress); for (const im of imgs) items.push({ id: `pdf_${Date.now()}_${Math.random().toString(36).substring(2,9)}_${im.name}`, name: im.name, handle: { getFile: async () => im }, objectUrl: null, tocName: null }); }
                 if (i % 100 === 0) await new Promise(r => setTimeout(r, 0));
             }
             items.sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true})); return items;
@@ -790,8 +830,8 @@ async generate(items, meta, view, onP, baseN, rOpts=null) {
                 if (this.hasFSApi&&items) {
                     const hP=[]; for (let i=0; i<items.length; i++) if (items[i].kind==='file'&&typeof items[i].getAsFileSystemHandle==='function') hP.push(items[i].getAsFileSystemHandle());
                     const hs=await Promise.all(hP); for (const h of hs) if (h) { if (h.kind==='directory') {hD=true; dD=h; break;} else if(h.kind==='file') fH.push(h); }
-                } else { for(let f of rF){ if(!f.name||f.name.startsWith('.'))continue; if(USER_SETTINGS.validExts.includes(f.name.split('.').pop().toLowerCase())) fFb.push(f); else if(!f.type) hD=true; } }
-                if(hD&&dD) this.handleLoadDirectory(dD); else if(hD&&!this.hasFSApi){ this.resetMemory(); const fa=Array.from(e.dataTransfer.files); this.sourceFolderName=(fa.length>0&&fa[0].webkitRelativePath)?fa[0].webkitRelativePath.split('/')[0]:null; this.fileItems=await this.fs.loadImagesFallback(fa); this.finalizeLoad(); }
+                } else { for(let f of rF){ if(!f.name||f.name.startsWith('.'))continue; const ext=f.name.split('.').pop().toLowerCase(); if(USER_SETTINGS.validExts.includes(ext)||ext===USER_SETTINGS.pdfExt) fFb.push(f); else if(!f.type) hD=true; } }
+                if(hD&&dD) this.handleLoadDirectory(dD); else if(hD&&!this.hasFSApi){ this.resetMemory(); const fa=Array.from(e.dataTransfer.files); this.sourceFolderName=(fa.length>0&&fa[0].webkitRelativePath)?fa[0].webkitRelativePath.split('/')[0]:null; this.fileItems=await this.fs.loadImagesFallback(fa, (c,t)=>this.ui.updateProgress(c/t*100, USER_SETTINGS.msgExpandingPdf.replace('{current}',c).replace('{total}',t))); this.ui.updateProgress(0,''); this.finalizeLoad(); }
                 else { const tFs=this.hasFSApi?fH:fFb; if(tFs.length>0) await this.handleAddFilesToTail(tFs, this.hasFSApi&&fH.length>0); }
             });
         }
@@ -815,8 +855,8 @@ async generate(items, meta, view, onP, baseN, rOpts=null) {
         undo() { if(this.historyUndo.length===0||this.isProcessing)return; this.fileItems.forEach(i=>this.releaseImageUrl(i.id)); this.historyRedo.push(this.fileItems.map(i=>({...i}))); this.fileItems=this.historyUndo.pop().map(i=>{i.objectUrl=null; return i;}); this.ui.renderItems(this.fileItems); this.sortManager.init(); this.updateHistoryButtons(); this.ui.setButtonsState(false, this.fileItems.length>0); }
         redo() { if(this.historyRedo.length===0||this.isProcessing)return; this.fileItems.forEach(i=>this.releaseImageUrl(i.id)); this.historyUndo.push(this.fileItems.map(i=>({...i}))); this.fileItems=this.historyRedo.pop().map(i=>{i.objectUrl=null; return i;}); this.ui.renderItems(this.fileItems); this.sortManager.init(); this.updateHistoryButtons(); this.ui.setButtonsState(false, this.fileItems.length>0); }
         updateHistoryButtons() { this.ui.btnUndo.disabled=this.historyUndo.length===0||this.isProcessing; this.ui.btnRedo.disabled=this.historyRedo.length===0||this.isProcessing; }
-        async handleSelectFolder() { try { if(this.hasFSApi){ await this.handleLoadDirectory(await this.fs.selectDirectory()); } else{ const fs=await this.fs.selectDirectoryFallback(); this.resetMemory(); this.sourceFolderName=(fs.length>0&&fs[0].webkitRelativePath)?fs[0].webkitRelativePath.split('/')[0]:null; this.fileItems=await this.fs.loadImagesFallback(fs); this.finalizeLoad(); } } catch(e){if(e.name!=='AbortError')console.error(e);} }
-        async handleLoadDirectory(dh) { this.dirHandle=dh; this.sourceFolderName=dh.name; try{ this.resetMemory(); this.fileItems=await this.fs.loadImages(this.dirHandle); this.finalizeLoad(); } catch(e){ console.error(e); this.ui.showToast('❌ エラー: '+e.message,true); } }
+        async handleSelectFolder() { try { if(this.hasFSApi){ await this.handleLoadDirectory(await this.fs.selectDirectory()); } else{ const fs=await this.fs.selectDirectoryFallback(); this.resetMemory(); this.sourceFolderName=(fs.length>0&&fs[0].webkitRelativePath)?fs[0].webkitRelativePath.split('/')[0]:null; this.fileItems=await this.fs.loadImagesFallback(fs, (c,t)=>this.ui.updateProgress(c/t*100, USER_SETTINGS.msgExpandingPdf.replace('{current}',c).replace('{total}',t))); this.ui.updateProgress(0,''); this.finalizeLoad(); } } catch(e){if(e.name!=='AbortError')console.error(e); this.ui.updateProgress(0,'');} }
+        async handleLoadDirectory(dh) { this.dirHandle=dh; this.sourceFolderName=dh.name; try{ this.resetMemory(); this.fileItems=await this.fs.loadImages(this.dirHandle, (c,t)=>this.ui.updateProgress(c/t*100, USER_SETTINGS.msgExpandingPdf.replace('{current}',c).replace('{total}',t))); this.ui.updateProgress(0,''); this.finalizeLoad(); } catch(e){ console.error(e); this.ui.showToast('❌ エラー: '+e.message,true); this.ui.updateProgress(0,''); } }
         async finalizeLoad() {
             if(this.fileItems.length===0){this.ui.showToast('❌ 画像がありません。',true); return;} this.ui.renderItems(this.fileItems); if(this.ui.currentFolderName)this.ui.currentFolderName.textContent=this.sourceFolderName?`[ ${this.sourceFolderName} ]`:'';
             this.sortManager.init(); this.historyUndo=[]; this.historyRedo=[]; this.updateHistoryButtons(); this.ui.setButtonsState(false, true);
@@ -853,22 +893,42 @@ async generate(items, meta, view, onP, baseN, rOpts=null) {
                 const nI=[];
                 if(this.hasFSApi&&iof.length>0&&typeof iof[0].getAsFileSystemHandle==='function') {
                     const hP=[]; for(let i=0; i<iof.length; i++){if(iof[i].kind==='file')hP.push(iof[i].getAsFileSystemHandle());}
-                    const hs=await Promise.all(hP); for(const h of hs){if(h&&h.kind==='file'&&!h.name.startsWith('.')){if(USER_SETTINGS.validExts.includes(h.name.split('.').pop().toLowerCase()))nI.push({handle:h,name:h.name});}}
-                } else { for(let f of rF){if(!f||!f.name||f.name.startsWith('.'))continue; if(USER_SETTINGS.validExts.includes(f.name.split('.').pop().toLowerCase()))nI.push({handle:{getFile:async()=>f},name:f.name});} }
+                    const hs=await Promise.all(hP);
+                    for(const h of hs){
+                        if(!h||h.kind!=='file'||h.name.startsWith('.'))continue; const ext=h.name.split('.').pop().toLowerCase();
+                        if(USER_SETTINGS.validExts.includes(ext)) nI.push({handle:h,name:h.name});
+                        else if(ext===USER_SETTINGS.pdfExt){ const pf=await h.getFile(); const imgs=await this.fs.expandPdfFile(pf, (c,t)=>this.ui.updateProgress(c/t*100, USER_SETTINGS.msgExpandingPdf.replace('{current}',c).replace('{total}',t))); this.ui.updateProgress(0,''); for(const im of imgs) nI.push({handle:{getFile:async()=>im},name:im.name}); }
+                    }
+                } else {
+                    for(let f of rF){
+                        if(!f||!f.name||f.name.startsWith('.'))continue; const ext=f.name.split('.').pop().toLowerCase();
+                        if(USER_SETTINGS.validExts.includes(ext)) nI.push({handle:{getFile:async()=>f},name:f.name});
+                        else if(ext===USER_SETTINGS.pdfExt){ const imgs=await this.fs.expandPdfFile(f, (c,t)=>this.ui.updateProgress(c/t*100, USER_SETTINGS.msgExpandingPdf.replace('{current}',c).replace('{total}',t))); this.ui.updateProgress(0,''); for(const im of imgs) nI.push({handle:{getFile:async()=>im},name:im.name}); }
+                    }
+                }
                 if(nI.length>0) {
                     if(this.fileItems.length>0)this.saveHistory(); const aIs=nI.map(ni=>({id:`add_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,name:ni.name,handle:ni.handle,objectUrl:null,tocName:null}));
                     let iIdx=this.fileItems.length; if(tId){let tIdx=this.fileItems.findIndex(i=>i.id===tId); if(tIdx!==-1)iIdx=isB?tIdx:tIdx+1;}
                     this.fileItems.splice(iIdx,0,...aIs); this.ui.renderItems(this.fileItems); this.sortManager.init();
                 }
-            } catch(e){console.error(e); this.ui.showToast('追加に失敗しました。',true);} finally{this.setProcessingState(false);}
+            } catch(e){console.error(e); this.ui.showToast('追加に失敗しました: '+e.message,true);} finally{this.setProcessingState(false); this.ui.updateProgress(0,'');}
         }
         async handleAddFilesToTail(foh, isH) {
             this.setProcessingState(true);
             try {
                 if(this.fileItems.length>0)this.saveHistory(); const nI=[];
-                for(let i=0; i<foh.length; i++){ const f=foh[i], n=f.name, e=n.split('.').pop().toLowerCase(); if(USER_SETTINGS.validExts.includes(e)) nI.push({id:`add_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,name:n,handle:isH?f:{getFile:async()=>f},objectUrl:null,tocName:null}); }
+                for(let i=0; i<foh.length; i++){
+                    const f=foh[i], n=f.name, e=n.split('.').pop().toLowerCase();
+                    if(USER_SETTINGS.validExts.includes(e)) nI.push({id:`add_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,name:n,handle:isH?f:{getFile:async()=>f},objectUrl:null,tocName:null});
+                    else if(e===USER_SETTINGS.pdfExt){
+                        const pf=isH?await f.getFile():f;
+                        const imgs=await this.fs.expandPdfFile(pf, (c,t)=>this.ui.updateProgress(c/t*100, USER_SETTINGS.msgExpandingPdf.replace('{current}',c).replace('{total}',t)));
+                        for(const im of imgs) nI.push({id:`add_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,name:im.name,handle:{getFile:async()=>im},objectUrl:null,tocName:null});
+                        this.ui.updateProgress(0,'');
+                    }
+                }
                 nI.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true})); if(nI.length>0){this.fileItems.push(...nI); this.ui.renderItems(this.fileItems); this.sortManager.init();}
-            } catch(e){console.error(e); this.ui.showToast('追加に失敗しました。',true);} finally{this.setProcessingState(false);}
+            } catch(e){console.error(e); this.ui.showToast('追加に失敗しました: '+e.message,true);} finally{this.setProcessingState(false); this.ui.updateProgress(0,'');}
         }
         getGridLayoutData() {
             const gR=this.ui.mainGrid.getBoundingClientRect(), is=[], vM=this.ui.viewModeSelect.value; let mx=0, my=0;
