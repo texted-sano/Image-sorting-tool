@@ -307,10 +307,10 @@
                     <button id="btn-export-order" class="ribbon-btn" disabled title="現在の並び順と目次情報を保存します">
                         <img class="icon-img icon-b" src="icon/sabe_b.png"><img class="icon-img icon-w" src="icon/sabe_w.png"><span class="label">並び保存</span>
                     </button>
-                    <button id="btn-restore-order" class="ribbon-btn" disabled title="保存された並び順を復元します">
+                    <button id="btn-restore-order" class="ribbon-btn" title="保存された並び順を復元します">
                         <img class="icon-img icon-b" src="icon/recover_b.png"><img class="icon-img icon-w" src="icon/recover_w.png"><span class="label">並び復元</span>
                     </button>
-                    <button id="btn-export-settings" class="ribbon-btn" title="現在の設定をJSONで保存します">
+                    <button id="btn-export-settings" class="ribbon-btn" disabled title="現在の設定をJSONで保存します">
                         <img class="icon-img icon-b" src="icon/setting_b.png"><img class="icon-img icon-w" src="icon/setting_w.png"><span class="label">設定保存</span>
                     </button>
                 </div>
@@ -509,7 +509,7 @@
             <h3 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">1. 画像の読み込み仕様</h3>
             <p>画面中央をクリック、またはファイル/フォルダをドラッグ＆ドロップして画像を読み込みます。</p>
             <ul style="padding-left: 20px; margin-top: 5px;">
-                <li><b>対応フォーマット:</b> JPG, PNG, GIF, WEBP</li>
+                <li><b>対応フォーマット:</b> JPG, PNG, GIF, WEBP, PDF（PDFは各ページを画像として展開します）</li>
                 <li><b>ブラウザによる挙動の違い:</b> ChromeやEdge等の「File System API」対応ブラウザでは、フォルダを直接読み書きできます。FirefoxやSafari等の非対応ブラウザでは、標準のファイル選択ダイアログが開き、保存時はZIPファイルにまとめられます。</li>
             </ul>
             
