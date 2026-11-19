@@ -193,7 +193,7 @@
         /* --- 連続EPUB保存 --- */
         .batch-epub-content { width: 96vw; max-width: 1600px; height: 92vh; display: flex; flex-direction: column; box-sizing: border-box; }
         .batch-epub-body { display: flex; gap: 15px; flex: 1; min-height: 0; }
-        .batch-settings { width: 440px; flex-shrink: 0; overflow-y: auto; padding-right: 6px; }
+        .batch-settings { width: 380px; flex-shrink: 0; overflow-y: auto; padding-right: 6px; }
         .batch-settings fieldset { border: 1px solid var(--border-color); border-radius: 6px; margin: 0 0 10px; padding: 6px 10px 10px; }
         .batch-settings legend { font-size: 12px; font-weight: bold; color: var(--text-sub); padding: 0 4px; }
         .batch-settings label { margin-top: 6px; font-size: 11px; font-weight: normal; color: var(--text-sub); }
@@ -221,14 +221,18 @@
         .title-form legend { font-size: 12px; font-weight: bold; color: var(--text-sub); padding: 0 4px; }
         .title-form label { margin-top: 6px; font-size: 11px; font-weight: normal; color: var(--text-sub); }
         .title-form input[type="text"], .title-form input[type="number"], .title-form select { width: 100%; box-sizing: border-box; padding: 5px 8px; }
-        .title-row { display: grid; grid-template-columns: 1fr 96px 1fr; gap: 0 8px; }
-        .part-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 8px; }
-        .part-row.ruby { grid-template-columns: 96px 1fr 96px 1fr; }
-        .title-row select, .part-row select { font-size: 12px; padding: 5px 4px !important; }
+        .name-row { display: grid; grid-template-columns: minmax(0, 3fr) 142px minmax(0, 3fr) 142px minmax(0, 1.2fr) 142px 72px 56px minmax(104px, 1fr); gap: 0 8px; align-items: end; }
+        .name-row select { font-size: 12px; padding: 5px 4px !important; }
+        .folder-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) 140px; gap: 0 8px; }
+        .folder-row input { width: 100%; box-sizing: border-box; }
+        .batch-names { flex-shrink: 0; }
+        .batch-settings fieldset { min-width: 0; }
+        .batch-names fieldset { margin-bottom: 6px; }
         .pdf-folder-toggle { display: flex !important; align-items: center; gap: 6px; font-size: 13px; font-weight: bold; margin: 0 0 4px; cursor: pointer; }
         .pdf-folder-toggle input { width: auto; margin: 0; }
         #pdf-bundle-folder-fields.disabled { opacity: 0.4; pointer-events: none; }
-        .pdf-output-options { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 10px; }
+        .pdf-output-options { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 10px; }
+        .pdf-output-options label { padding-left: 12px; }
         .pdf-output-options label { display: inline-flex !important; align-items: center; gap: 5px; margin: 0 !important; font-size: 12px !important; font-weight: normal !important; color: var(--text-main) !important; cursor: pointer; }
         .pdf-output-options input { width: auto; margin: 0; }
         .title-preview { font-size: 12px; background: rgba(74, 144, 226, 0.1); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 10px; margin-bottom: 6px; line-height: 1.7; word-break: break-all; }
@@ -479,16 +483,14 @@
 
 <!-- EPUB出力用設定モーダル -->
 <div id="epub-modal" class="modal-overlay">
-    <div class="modal-content" style="width: 640px; max-height: 92vh; overflow-y: auto;">
+    <div class="modal-content" style="width: 96vw; max-width: 1280px; max-height: 92vh; overflow-y: auto; box-sizing: border-box;">
         <h2>EPUB 出力設定</h2>
         <div class="title-form">
             <fieldset><legend>作品名</legend>
-                <div class="title-row">
+                <div class="name-row">
                     <div><label>タイトル</label><input type="text" id="epub-title"></div>
                     <div><label>区切り①</label><select id="epub-sep"></select></div>
                     <div><label>サブタイトル</label><input type="text" id="epub-subtitle"></div>
-                </div>
-                <div class="part-row">
                     <div><label>区切り②</label><select id="epub-sep-part"></select></div>
                     <div><label>Partの語</label><input type="text" id="epub-part-prefix" value="Part"></div>
                     <div><label>区切り③</label><select id="epub-sep-num"></select></div>
@@ -498,15 +500,15 @@
                 </div>
             </fieldset>
             <fieldset><legend>作品名（読み）</legend>
-                <div class="title-row">
+                <div class="name-row">
                     <div><label>タイトル（読み）</label><input type="text" id="epub-title-ruby"></div>
                     <div><label>区切り①</label><select id="epub-sep-ruby"></select></div>
                     <div><label>サブタイトル（読み）</label><input type="text" id="epub-subtitle-ruby"></div>
-                </div>
-                <div class="part-row ruby">
                     <div><label>区切り②</label><select id="epub-sep-part-ruby"></select></div>
                     <div><label>Partの語（読み）</label><input type="text" id="epub-part-prefix-ruby" value="Part"></div>
                     <div><label>区切り③</label><select id="epub-sep-num-ruby"></select></div>
+                    <div></div>
+                    <div></div>
                     <div><label>Partの後（読み）</label><input type="text" id="epub-part-suffix-ruby"></div>
                 </div>
                 <p class="batch-note">①タイトルとサブタイトルの間、②Partの前、③Partの語と番号の間。番号と桁数は作品名と共通です。番号が空欄のときはPartを付けません。</p>
@@ -544,72 +546,74 @@
 <div id="batch-epub-modal" class="modal-overlay">
     <div class="modal-content batch-epub-content">
         <h2 id="batch-heading">EPUB形式で連続保存</h2>
+        <div id="batch-epub-names" class="title-form batch-names">
+            <fieldset><legend>作品名</legend>
+                <div class="name-row">
+                    <div><label>タイトル</label><input type="text" id="batch-title"></div>
+                    <div><label>区切り①</label><select id="batch-sep"></select></div>
+                    <div><label>サブタイトル</label><input type="text" id="batch-subtitle"></div>
+                    <div><label>区切り②</label><select id="batch-sep-part"></select></div>
+                    <div><label>Partの語</label><input type="text" id="batch-part-prefix" value="Part"></div>
+                    <div><label>区切り③</label><select id="batch-sep-num"></select></div>
+                    <div><label>開始番号</label><input type="number" id="batch-part-start" value="1" min="0"></div>
+                    <div><label>桁数</label><input type="number" id="batch-part-digits" value="1" min="1" max="6"></div>
+                    <div><label>Partの後</label><input type="text" id="batch-part-suffix"></div>
+                </div>
+            </fieldset>
+            <fieldset><legend>作品名（読み）</legend>
+                <div class="name-row">
+                    <div><label>タイトル（読み）</label><input type="text" id="batch-title-ruby"></div>
+                    <div><label>区切り①</label><select id="batch-sep-ruby"></select></div>
+                    <div><label>サブタイトル（読み）</label><input type="text" id="batch-subtitle-ruby"></div>
+                    <div><label>区切り②</label><select id="batch-sep-part-ruby"></select></div>
+                    <div><label>Partの語（読み）</label><input type="text" id="batch-part-prefix-ruby" value="Part"></div>
+                    <div><label>区切り③</label><select id="batch-sep-num-ruby"></select></div>
+                    <div></div>
+                    <div></div>
+                    <div><label>Partの後（読み）</label><input type="text" id="batch-part-suffix-ruby"></div>
+                </div>
+                <p class="batch-note">①タイトルとサブタイトルの間、②Partの前、③Partの語と番号の間。番号と桁数は作品名と共通です。タイトルとサブタイトルの読みが両方空欄のときは、読みを作品名と同じとして出力します。</p>
+            </fieldset>
+        </div>
+        <div id="batch-pdf-names" class="title-form batch-names" style="display: none;">
+            <fieldset><legend>提出用フォルダ</legend>
+                <div class="folder-row">
+                    <div><label>タイトル</label><input type="text" id="batch-pdf-title"></div>
+                    <div><label>サブタイトル</label><input type="text" id="batch-pdf-subtitle"></div>
+                    <div><label>日付（YYMMDD）</label><input type="text" id="batch-pdf-date"></div>
+                </div>
+            </fieldset>
+            <fieldset><legend>ファイル名（タイトルとサブタイトルが空欄ならフォルダ名）</legend>
+                <div class="name-row">
+                    <div><label>タイトル</label><input type="text" id="batch-pdfname-title"></div>
+                    <div><label>区切り①</label><select id="batch-pdfname-sep"></select></div>
+                    <div><label>サブタイトル</label><input type="text" id="batch-pdfname-subtitle"></div>
+                    <div><label>区切り②</label><select id="batch-pdfname-sep-part"></select></div>
+                    <div><label>Partの語</label><input type="text" id="batch-pdfname-part-prefix" value="Part"></div>
+                    <div><label>区切り③</label><select id="batch-pdfname-sep-num"></select></div>
+                    <div><label>開始番号</label><input type="number" id="batch-pdfname-part-start" value="1" min="0"></div>
+                    <div><label>桁数</label><input type="number" id="batch-pdfname-part-digits" value="1" min="1" max="6"></div>
+                    <div><label>Partの後</label><input type="text" id="batch-pdfname-part-suffix"></div>
+                </div>
+                <p class="batch-note">指定すると、一覧の順に番号を振ったファイル名になります（例: タイトル_サブ_Part.3.pdf / タイトル_サブ_Part.3_thumbnail.pdf）。</p>
+            </fieldset>
+        </div>
         <div class="batch-epub-body">
             <div class="batch-settings">
                 <div id="batch-pdf-settings" class="title-form" style="display: none;">
-                    <fieldset><legend>提出用フォルダ</legend>
-                        <div class="batch-grid">
-                            <div><label>タイトル</label><input type="text" id="batch-pdf-title"></div>
-                            <div><label>サブタイトル</label><input type="text" id="batch-pdf-subtitle"></div>
-                            <div><label>日付（YYMMDD）</label><input type="text" id="batch-pdf-date"></div>
-                        </div>
-                        <div class="pdf-output-options" id="batch-pdf-outputs">
+                    <fieldset><legend>出力内容</legend>
+                        <div class="pdf-output-options" id="batch-pdf-outputs" style="margin-top: 0;">
                             <span class="batch-note" style="margin: 0;">出力するもの:</span>
                             <label><input type="checkbox" data-output="pdf">PDF</label>
                             <label><input type="checkbox" data-output="thumb">サムネイル一覧PDF</label>
                             <label><input type="checkbox" data-output="order">並び順テキスト</label>
                             <label><input type="checkbox" data-output="settings">setting.json</label>
                         </div>
-                        <pre id="batch-pdf-tree" class="title-preview" style="margin-top: 10px; white-space: pre; overflow-x: auto;"></pre>
+                        <pre id="batch-pdf-tree" class="title-preview" style="margin-top: 10px; white-space: pre-wrap; word-break: break-all;"></pre>
                         <p class="batch-note" id="batch-pdf-condition-note"></p>
-                    </fieldset>
-                    <fieldset><legend>ファイル名（タイトルとサブタイトルが空欄ならフォルダ名）</legend>
-                        <div class="title-row">
-                            <div><label>タイトル</label><input type="text" id="batch-pdfname-title"></div>
-                            <div><label>区切り①</label><select id="batch-pdfname-sep"></select></div>
-                            <div><label>サブタイトル</label><input type="text" id="batch-pdfname-subtitle"></div>
-                        </div>
-                        <div class="part-row">
-                            <div><label>区切り②</label><select id="batch-pdfname-sep-part"></select></div>
-                            <div><label>Partの語</label><input type="text" id="batch-pdfname-part-prefix" value="Part"></div>
-                            <div><label>区切り③</label><select id="batch-pdfname-sep-num"></select></div>
-                            <div><label>開始番号</label><input type="number" id="batch-pdfname-part-start" value="1" min="0"></div>
-                            <div><label>桁数</label><input type="number" id="batch-pdfname-part-digits" value="1" min="1" max="6"></div>
-                            <div><label>Partの後</label><input type="text" id="batch-pdfname-part-suffix"></div>
-                        </div>
-                        <p class="batch-note">指定すると、一覧の順に番号を振ったファイル名になります（例: タイトル_サブ_Part.3.pdf / タイトル_サブ_Part.3_thumbnail.pdf）。</p>
                     </fieldset>
                 </div>
                 <div id="batch-epub-settings">
-                <fieldset><legend>作品名</legend>
-                    <div class="title-row">
-                        <div><label>タイトル</label><input type="text" id="batch-title"></div>
-                        <div><label>区切り①</label><select id="batch-sep"></select></div>
-                        <div><label>サブタイトル</label><input type="text" id="batch-subtitle"></div>
-                    </div>
-                    <div class="part-row">
-                        <div><label>区切り②</label><select id="batch-sep-part"></select></div>
-                        <div><label>Partの語</label><input type="text" id="batch-part-prefix" value="Part"></div>
-                        <div><label>区切り③</label><select id="batch-sep-num"></select></div>
-                        <div><label>開始番号</label><input type="number" id="batch-part-start" value="1" min="0"></div>
-                        <div><label>桁数</label><input type="number" id="batch-part-digits" value="1" min="1" max="6"></div>
-                        <div><label>Partの後</label><input type="text" id="batch-part-suffix"></div>
-                    </div>
-                </fieldset>
-                <fieldset><legend>作品名（読み）</legend>
-                    <div class="title-row">
-                        <div><label>タイトル（読み）</label><input type="text" id="batch-title-ruby"></div>
-                        <div><label>区切り①</label><select id="batch-sep-ruby"></select></div>
-                        <div><label>サブタイトル（読み）</label><input type="text" id="batch-subtitle-ruby"></div>
-                    </div>
-                    <div class="part-row ruby">
-                        <div><label>区切り②</label><select id="batch-sep-part-ruby"></select></div>
-                        <div><label>Partの語（読み）</label><input type="text" id="batch-part-prefix-ruby" value="Part"></div>
-                        <div><label>区切り③</label><select id="batch-sep-num-ruby"></select></div>
-                        <div><label>Partの後（読み）</label><input type="text" id="batch-part-suffix-ruby"></div>
-                    </div>
-                    <p class="batch-note">①タイトルとサブタイトルの間、②Partの前、③Partの語と番号の間。番号と桁数は作品名と共通です。タイトルとサブタイトルの読みが両方空欄のときは、読みを作品名と同じとして出力します。</p>
-                </fieldset>
                 <fieldset><legend>著者・出版社</legend>
                     <div class="batch-grid">
                         <div><label>著者名</label><input type="text" id="batch-author"></div>
@@ -646,12 +650,12 @@
 
 <!-- PDF一括出力用モーダル -->
 <div id="pdf-bundle-modal" class="modal-overlay">
-    <div class="modal-content" style="width: 560px;">
+    <div class="modal-content" style="width: 92vw; max-width: 960px; box-sizing: border-box;">
         <h2>PDFの一括出力</h2>
         <label class="pdf-folder-toggle"><input type="checkbox" id="pdf-bundle-create-folder">フォルダを作成する</label>
         <p class="batch-note" id="pdf-bundle-mode-note"></p>
         <div class="title-form" id="pdf-bundle-folder-fields">
-            <div class="batch-grid">
+            <div class="folder-row">
                 <div><label>タイトル</label><input type="text" id="pdf-bundle-title"></div>
                 <div><label>サブタイトル</label><input type="text" id="pdf-bundle-subtitle"></div>
                 <div><label>日付（YYMMDD）</label><input type="text" id="pdf-bundle-date"></div>
@@ -746,7 +750,7 @@
                 <li><b>一括トリミング:</b> 一覧から複数の画像を選択し、「一括トリミング」ボタンを押すことで、指定したサイズの中央トリミングをすべての画像に一括で適用できます。</li>
                 <li><b>並び順保存:</b> 現在のファイル名の並び順と目次情報を <code>.txt</code> で出力し、同時にキャッシュにも保存します。復元ボタンからいつでも呼び出せます。</li>
                 <li><b>設定保存:</b> UIの状態（表示モード、サムネイルサイズ等）やEPUBのメタデータを <code>.json</code> で保存します。以前のバージョンで保存した <code>.json</code> も読み込めます。作品名が「タイトル サブタイトル Part.N」のように既定の区切り（半角/全角スペース、_、-、・）で区切られていれば、自動で分割して入力欄に入ります（分割すると作品名が変わってしまう場合は、分割せずタイトル欄にそのまま入ります）。</li>
-                <li><b>入力内容の自動保存:</b> EPUB出力設定と連続保存画面の入力内容はブラウザに保存され、次回起動時に復元されます。ファイルIDと更新日時は巻ごとに異なるため復元せず、ファイルID欄に「前回: ○○」と前回の値を表示します。</li>
+                <li><b>入力内容の自動保存:</b> EPUB出力設定と連続保存画面の入力内容はブラウザに保存され、次回起動時に復元されます。ファイルIDと更新日時は巻ごとに異なるため復元せず、ファイルID欄に「前回: ○○」と前回の値を表示します。更新日時には、画面を開いた時刻を「時」単位で切り上げた値（例: 13:37 → 14:00）が自動で入ります。</li>
                 <li><b>目次設定:</b> 選択した画像にチャプター名（目次）を付与します。これはEPUB出力時に電子書籍リーダーの目次機能として動作します。</li>
                 <li><b>白紙挿入:</b> 選択した画像と「同じピクセルサイズ」の真っ白な画像をメモリ上に生成し、選択した画像の後ろに挿入します。</li>
                 <li><b>削除:</b> サムネイル一覧とファイル名リストから除外します。なお、PC上の元の画像ファイルが削除されることはありません。</li>
@@ -762,7 +766,7 @@
                 <li><b>サムネイル一覧をPDF保存:</b> 現在画面に表示されているグリッドや見開きのレイアウトをそのまま、1枚の巨大なPDFシートとして出力します。</li>
                 <li><b>PDFの一括出力:</b> 各ファイルの名前は読み込んだフォルダ名になります（フォルダ名がない場合は「出力ファイル名」）。保存先に「タイトル_サブタイトル_PDF_YYMMDD提出分」フォルダを作り、その中の「PDF」に1ページずつのPDF、「サムネイル」にサムネイル一覧PDF、「並び替え」に並び順テキストと設定(.json)を振り分けて保存します。何を出力するかはチェックボックスで選べます（既定では設定(.json)以外を出力）。「フォルダを作成する」をオフにすると、チェックした各ファイルをそのままダウンロードフォルダに保存します（従来の動作）。タイトル・サブタイトルは前回この画面で入力した値が初期値になり、日付は当日です（どちらも出力前に変更可能）。FirefoxやSafariでは同じ構成のZIPファイルになります。</li>
                 <li><b>EPUB形式で保存:</b> 固定レイアウトのEPUB3形式で出力します。右開き/左開きの設定はメタデータに書き込まれ、リーダーアプリでの見開き表示に反映されます。作品名と読みは「タイトル」「サブタイトル」「Part（語・番号・桁数・後の文字）」に分けて入力します。区切りは境目ごとに選べます（①タイトルとサブタイトルの間、②Partの前、③Partの語と番号の間。例: 「Part」＋③「.」＋番号 → Part.3）。番号が空欄ならPartは付きません。組み立てた作品名は入力欄の下で確認できます。</li>
-                <li><b>PDFの連続一括出力:</b> 「EPUB形式で連続保存」と同じ画面で、複数のフォルダをまとめてPDF化します。提出用フォルダ「タイトル_サブタイトル_PDF_YYMMDD提出分」を1つ作り、その中の「PDF」「サムネイル」「並び替え」に全冊分のファイルを振り分けて保存します。ファイル名は、タイトルとサブタイトルが空欄ならフォルダ名、指定した場合は一覧の順に番号を振った名前（例: タイトル_サブ_Part.3.pdf）になります。綴じ方向・画像サイズ調整・縮小率・サムネイルの表示サイズはメイン画面の設定を使います。</li>
+                <li><b>PDFの連続一括出力:</b> 「EPUB形式で連続保存」と同じ画面で、複数のフォルダをまとめてPDF化します。提出用フォルダ「タイトル_サブタイトル_PDF_YYMMDD提出分」を1つ作り、その中の「PDF」「サムネイル」「並び替え」に全冊分のファイルを振り分けて保存します。ファイル名は、タイトルとサブタイトルが空欄ならフォルダ名、指定した場合は一覧の順に番号を振った名前（例: タイトル_サブ_Part.3.pdf）になります。空の一覧にフォルダを追加すると、先頭のフォルダ名を区切りで分割して、提出用フォルダとファイル名の各欄に自動で入力します（分割できない名前の場合は入力しません）。綴じ方向・画像サイズ調整・縮小率・サムネイルの表示サイズはメイン画面の設定を使います。</li>
                 <li><b>EPUB形式で連続保存:</b> 専用画面に複数のフォルダをまとめてドロップすると、名前順に並べて一覧表示します（行のドラッグまたは↑↓で並べ替え可能）。作品名は「タイトル」「サブタイトル」「Part」に分けて入力し、境目ごとの区切り（①②③）を選べます（読みも同様）。Part番号は開始番号から1冊ごとに増え、ファイルIDは1冊目の末尾の数字を1ずつ増やします。変更後の作品名・読み・ID・出力ファイル名を一覧で確認してから実行し、保存先フォルダを1回選ぶと全冊を書き出します。綴じ方向と画像サイズ調整はメイン画面の設定を使います。</li>
             </ul>
 
@@ -1251,8 +1255,14 @@ document.addEventListener('DOMContentLoaded', () => {
             this.applyForm(form);
             if (this.composeTitles(this.readForm()).title !== text) this.applyForm({ title: text, subtitle: '', partNumber: '' });
         }
+        static nextHourValue() {
+            const d = new Date(); if (d.getMinutes() || d.getSeconds() || d.getMilliseconds()) d.setHours(d.getHours() + 1, 0, 0, 0);
+            const p = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:00:00`;
+        }
         show(defaultTitle = '') {
             if (defaultTitle) this.applyTitleOnly(defaultTitle);
+            this.fields.modified.value = EpubMetadataModal.nextHourValue();
             if (this.savedData.bookIdAuto) this.fields.bookId.value = '';
             this.updatePreview(); this.overlay.style.display = 'flex'; return new Promise((resolve, reject) => { this.resolveFunc = resolve; this.rejectFunc = reject; });
         }
@@ -1876,7 +1886,7 @@ async saveMergedAsPDF(pairs, q, onP, baseN, rOpts=null, vMode='spread-ltr', useP
             this.modal.addEventListener('drop', (e) => this.handleDrop(e));
             this.table.addEventListener('click', (e) => this.handleRowAction(e));
             this.pdfInputs = { title: byId('batch-pdf-title'), subtitle: byId('batch-pdf-subtitle'), date: byId('batch-pdf-date') };
-            this.pdfPanel = byId('batch-pdf-settings'); this.epubPanel = byId('batch-epub-settings'); this.heading = byId('batch-heading'); this.pdfTree = byId('batch-pdf-tree'); this.pdfConditionNote = byId('batch-pdf-condition-note');
+            this.pdfPanel = byId('batch-pdf-settings'); this.epubPanel = byId('batch-epub-settings'); this.pdfNames = byId('batch-pdf-names'); this.epubNames = byId('batch-epub-names'); this.heading = byId('batch-heading'); this.pdfTree = byId('batch-pdf-tree'); this.pdfConditionNote = byId('batch-pdf-condition-note');
             Object.values(this.pdfInputs).forEach(el => el.addEventListener('input', () => this.renderPreview()));
             this.pdfOutputs = PdfOutputOptions.bind(byId('batch-pdf-outputs'), () => this.renderPreview());
             this.pdfNameInputs = { title: byId('batch-pdfname-title'), subtitle: byId('batch-pdfname-subtitle'), sep: byId('batch-pdfname-sep'), sepPart: byId('batch-pdfname-sep-part'), sepNum: byId('batch-pdfname-sep-num'),
@@ -1933,13 +1943,13 @@ async saveMergedAsPDF(pairs, q, onP, baseN, rOpts=null, vMode='spread-ltr', useP
 
         open(mode = 'epub') {
             this.mode = mode; const isPdf = mode === 'pdf';
-            this.pdfPanel.style.display = isPdf ? '' : 'none'; this.epubPanel.style.display = isPdf ? 'none' : '';
+            this.pdfPanel.style.display = isPdf ? '' : 'none'; this.epubPanel.style.display = isPdf ? 'none' : ''; this.pdfNames.style.display = isPdf ? '' : 'none'; this.epubNames.style.display = isPdf ? 'none' : '';
             this.heading.textContent = USER_SETTINGS.batchHeadings[mode]; this.btnStart.textContent = USER_SETTINGS.batchStartLabels[mode];
             if (isPdf) {
                 const saved = InputStore.load().batchPdf || {};
                 this.pdfInputs.title.value = saved.title ?? ''; this.pdfInputs.subtitle.value = saved.subtitle ?? '';
                 this.pdfInputs.date.value = PdfBundleDialog.today(); this.pdfOutputs.apply();
-            }
+            } else this.inputs.modified.value = EpubMetadataModal.nextHourValue();
             this.updateConditionNote(); this.renderPreview(); this.modal.style.display = 'flex';
         }
 
@@ -1987,7 +1997,7 @@ async saveMergedAsPDF(pairs, q, onP, baseN, rOpts=null, vMode='spread-ltr', useP
 
         async addFolders(sources) {
             if (sources.length === 0) { this.setStatus(USER_SETTINGS.msgBatchNoFolder, true); return; }
-            this.isRunning = true; this.renderPreview();
+            const wasEmpty = this.folders.length === 0; this.isRunning = true; this.renderPreview();
             try {
                 for (let i = 0; i < sources.length; i++) {
                     const src = sources[i]; const loading = USER_SETTINGS.msgBatchLoading.replace('{current}', i + 1).replace('{total}', sources.length).replace('{name}', src.name);
@@ -1997,9 +2007,19 @@ async saveMergedAsPDF(pairs, q, onP, baseN, rOpts=null, vMode='spread-ltr', useP
                     this.folders.push({ name: src.name, items, orderApplied: !!savedOrder });
                 }
                 this.folders.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+                if (wasEmpty && this.mode === 'pdf' && this.folders.length > 0) this.fillPdfNamesFrom(this.folders[0].name);
                 this.setStatus('');
             } catch (e) { console.error(e); this.setStatus(USER_SETTINGS.msgBatchLoadFailed + e.message, true); }
             finally { this.isRunning = false; this.renderPreview(); }
+        }
+
+        fillPdfNamesFrom(folderName) {
+            const t = TitleParts.splitTitle(folderName); const n = this.pdfNameInputs;
+            if (t.number === null && t.subtitle === '') return;
+            this.pdfInputs.title.value = t.title; this.pdfInputs.subtitle.value = t.subtitle;
+            if (t.number === null) return;
+            n.title.value = t.title; n.subtitle.value = t.subtitle; if (t.sep) n.sep.value = t.sep; if (t.sepPart) n.sepPart.value = t.sepPart;
+            n.partPrefix.value = t.prefix; n.sepNum.value = t.sepNum; n.partSuffix.value = t.suffix; n.partStart.value = String(t.number); n.partDigits.value = String(t.digits);
         }
 
         handleRowAction(e) {
