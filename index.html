@@ -108,8 +108,9 @@
         .thumb-item img { width: 100%; height: var(--thumb-size); object-fit: contain; pointer-events: none; margin-bottom: 5px; border-radius: 4px; background: rgba(0,0,0,0.05); }
         .thumb-item .name { font-size: 12px; color: var(--text-main); text-align: center; word-break: break-all; pointer-events: none; }
 
-        .thumb-item.spread-split { outline: 3px solid #e53935; outline-offset: -3px; z-index: 3; }
-        #spread-warn-count { font-weight: bold; font-size: 11px; margin-left: 8px; color: #e53935; }
+        .thumb-item.spread-split { outline: 3px solid #43a047; outline-offset: -3px; z-index: 3; }
+        .thumb-item.drop-left, .thumb-item.drop-right { z-index: 5; }
+        #spread-warn-count { font-weight: bold; font-size: 11px; margin-left: 8px; color: #43a047; }
         .thumb-item .toc-badge {
             position: absolute; top: -5px; left: -5px; background: #ffc107; color: #000;
             font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 12px;
@@ -740,7 +741,7 @@
                 <li><b>外部からの追加:</b> PCのフォルダから直接特定の場所に画像をドロップして割り込ませることも可能です。</li>
                 <li><b>並び順の復元:</b> 出力した「並び順テキスト（.txt）」を画面にドロップすると、現在のリストをそのテキストの順番通りに自動で並び替えます（目次情報も復元されます）。</li>
                 <li><b>設定の復元:</b> 出力した「現在の設定（.json）」を画面（画像上含む）のどこにドロップしても設定が復元されます。</li>
-                <li><b>見開きの泣き別れ警告:</b> 「○○.jpg」と「○○_.jpg」のように、後ろに文字を足しただけの名前の画像をペアとみなします。見開き表示でペアが別々の見開きに分かれていると、サムネイルを赤い枠で囲んで表示します（マウスを乗せると相方のファイル名を表示）。意図的に分けている画像は、ファイル名の末尾（拡張子の前）に「_ok」を付けると判定の対象外になります（ペアの片方に付ければ、そのペアは対象外）。件数は一覧の見出しにも表示されます。単ページ表示では判定しません。</li>
+                <li><b>見開きの泣き別れ警告:</b> 「○○.jpg」と「○○_.jpg」のように、後ろに文字を足しただけの名前の画像をペアとみなします。見開き表示でペアが別々の見開きに分かれていると、サムネイルを緑の枠で囲んで表示します（マウスを乗せると相方のファイル名を表示）。意図的に分けている画像は、ファイル名の末尾（拡張子の前）に「_ok」を付けると判定の対象外になります（ペアの片方に付ければ、そのペアは対象外）。件数は一覧の見出しにも表示されます。単ページ表示では判定しません。</li>
                 <li><b>並び替え:</b> ファイル名一覧の右上ボタンから、改行やスペース、タブ区切りで数字や文字列を入力すると、画像ファイル名を上から読み、指定の数字や文字列が含まれる画像をブロック毎に一括で並び替えます。</li>
             </ul>
 
